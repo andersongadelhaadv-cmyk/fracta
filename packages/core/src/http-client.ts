@@ -19,7 +19,8 @@ export class FractaHttpClient {
     const timer = setTimeout(() => controller.abort(), timeoutMs)
 
     try {
-      const res = await fetch(`${this.baseUrl}${path}`, {
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`
+      const res = await fetch(`${this.baseUrl}${normalizedPath}`, {
         method,
         headers: { ...this.baseHeaders, ...headers },
         body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -56,6 +57,12 @@ export class FractaHttpClient {
       method: 'POST',
       body: credentials,
     })
+
+    if (res.status >= 400) {
+      throw new Error(
+        `Auth failed: ${authEndpoint} returned HTTP ${res.status}. Body: ${res.raw.substring(0, 200)}`
+      )
+    }
 
     const data = res.body as Record<string, unknown>
     const token =
