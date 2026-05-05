@@ -11,9 +11,12 @@ export type AgentCategory =
   | 'compliance'
   | 'performance'
 
-export type StackType =
-  | 'nestjs' | 'nextjs' | 'prisma' | 'stripe'
-  | 'whatsapp' | 'redis' | 'docker'
+export type StackType = string
+
+export const KNOWN_STACKS = [
+  'nestjs', 'nextjs', 'prisma', 'stripe',
+  'whatsapp', 'redis', 'docker',
+] as const
 
 export type ScanDepth = 'quick' | 'full' | 'paranoid'
 
@@ -84,7 +87,7 @@ export interface SecurityAgent {
   name: string
   category: AgentCategory
   concurrency: number
-  timeout: number
+  timeoutMs: number
   run(scope: ScanScope): Promise<Finding[]>
 }
 
