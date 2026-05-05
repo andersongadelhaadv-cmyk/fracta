@@ -8,4 +8,3 @@ fracta-reports/
 coverage/
 .DS_Store
 *.log
-pnpm-lock.yaml
