@@ -1,0 +1,4 @@
+packages:
+  - 'packages/*'
+  - 'packages/agents/*'
+  - 'packages/skills/*'

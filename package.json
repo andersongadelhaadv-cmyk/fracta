@@ -1,0 +1,22 @@
+{
+  "name": "fracta",
+  "version": "0.1.0",
+  "description": "The complete SaaS audit framework",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "vitest": "^1.6.0",
+    "yaml": "^2.4.0"
+  }
+}

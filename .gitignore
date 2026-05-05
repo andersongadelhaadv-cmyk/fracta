@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.turbo/
+fracta-reports/
+*.env
+.env.local
+.env.*.local
+coverage/
+.DS_Store
+*.log
+pnpm-lock.yaml
