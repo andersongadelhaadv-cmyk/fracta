@@ -141,7 +141,66 @@ importers:
         specifier: '*'
         version: 1.6.1(@types/node@20.19.39)
 
+  packages/cli:
+    dependencies:
+      '@fracta/agent-auth':
+        specifier: workspace:*
+        version: link:../agents/auth
+      '@fracta/agent-docs':
+        specifier: workspace:*
+        version: link:../agents/docs
+      '@fracta/agent-headers':
+        specifier: workspace:*
+        version: link:../agents/headers
+      '@fracta/agent-idor':
+        specifier: workspace:*
+        version: link:../agents/idor
+      '@fracta/agent-race':
+        specifier: workspace:*
+        version: link:../agents/race
+      '@fracta/agent-tenant':
+        specifier: workspace:*
+        version: link:../agents/tenant
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../core
+      '@fracta/reporter':
+        specifier: workspace:*
+        version: link:../reporter
+      yaml:
+        specifier: ^2.4.0
+        version: 2.8.4
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+
   packages/core:
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/reporter:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: '*'
