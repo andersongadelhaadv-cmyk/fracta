@@ -27,6 +27,135 @@ importers:
         specifier: ^2.4.0
         version: 2.8.4
 
+  packages/agents/auth:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/agents/docs:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/agents/headers:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/agents/idor:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/agents/race:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/agents/tenant:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/core:
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
 packages:
 
   '@esbuild/aix-ppc64@0.21.5':
