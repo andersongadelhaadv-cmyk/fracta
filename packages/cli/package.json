@@ -1,0 +1,37 @@
+{
+  "name": "@fracta/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "fracta": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fracta/core": "workspace:*",
+    "@fracta/agent-auth": "workspace:*",
+    "@fracta/agent-headers": "workspace:*",
+    "@fracta/agent-idor": "workspace:*",
+    "@fracta/agent-docs": "workspace:*",
+    "@fracta/agent-tenant": "workspace:*",
+    "@fracta/agent-race": "workspace:*",
+    "@fracta/reporter": "workspace:*",
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
+    "tsup": "*",
+    "typescript": "*",
+    "@types/node": "*"
+  }
+}

@@ -1,0 +1,37 @@
+# Fracta — targets.yaml
+# Configure seus targets de staging aqui. NUNCA use produção com dados reais.
+# Variáveis de ambiente: ${ENV_VAR_NAME}
+
+targets:
+  exemplo-saas:
+    url: https://staging.meuapp.com.br
+    stack:
+      - nestjs
+      - prisma
+      - nextjs
+    auth:
+      type: jwt
+      endpoint: /api/auth/login
+      credentials:
+        email: test@meuapp.com.br
+        password: "${TEST_PASSWORD}"
+    agents:
+      - AUTH Agent
+      - IDOR Agent
+      - HEADERS Agent
+      - DOCS Agent
+    ignore:
+      - /api/health
+      - /api/metrics
+      - /api/docs
+
+  # Adicione seus próprios targets abaixo:
+  # meu-saas:
+  #   url: https://staging.meuapp.com.br
+  #   stack: [nestjs, prisma]
+  #   auth:
+  #     type: jwt
+  #     endpoint: /api/auth/login
+  #     credentials:
+  #       email: test@example.com
+  #       password: "${MEUAPP_TEST_PASS}"
