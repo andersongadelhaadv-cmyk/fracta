@@ -1,9 +1,29 @@
 {
   "name": "fracta",
   "version": "0.1.0",
-  "description": "The complete SaaS audit framework",
+  "description": "The complete SaaS audit framework — multi-agent security and docs scanner",
   "private": true,
   "license": "MIT",
+  "author": "Anderson Gadelha",
+  "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta.git"
+  },
+  "bugs": {
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
+  },
+  "keywords": [
+    "pentest",
+    "security",
+    "audit",
+    "saas",
+    "framework",
+    "agents",
+    "mcp",
+    "owasp",
+    "scanner"
+  ],
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "build": "turbo run build",

@@ -1,6 +1,19 @@
 {
   "name": "@fracta/agent-auth",
   "version": "0.1.0",
+  "description": "Fracta auth agent — broken auth, malformed tokens, missing rate limit",
+  "license": "MIT",
+  "author": "Anderson Gadelha",
+  "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta.git",
+    "directory": "packages/agents/auth"
+  },
+  "bugs": {
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
+  },
+  "keywords": ["fracta", "security", "auth", "jwt", "owasp"],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

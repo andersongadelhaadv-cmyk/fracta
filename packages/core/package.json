@@ -1,6 +1,19 @@
 {
   "name": "@fracta/core",
   "version": "0.1.0",
+  "description": "Fracta orchestrator, HTTP client and shared types",
+  "license": "MIT",
+  "author": "Anderson Gadelha",
+  "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
+  },
+  "keywords": ["fracta", "security", "audit", "orchestrator"],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

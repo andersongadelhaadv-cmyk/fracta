@@ -1,6 +1,19 @@
 {
   "name": "@fracta/agent-idor",
   "version": "0.1.0",
+  "description": "Fracta IDOR agent — broken object-level authorization and ID enumeration",
+  "license": "MIT",
+  "author": "Anderson Gadelha",
+  "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta.git",
+    "directory": "packages/agents/idor"
+  },
+  "bugs": {
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
+  },
+  "keywords": ["fracta", "security", "idor", "bola", "owasp"],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
