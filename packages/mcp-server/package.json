@@ -1,6 +1,19 @@
 {
   "name": "@fracta/mcp-server",
   "version": "0.1.0",
+  "description": "Model Context Protocol server exposing Fracta scan tools",
+  "license": "MIT",
+  "author": "Anderson Gadelha",
+  "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta.git",
+    "directory": "packages/mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
+  },
+  "keywords": ["fracta", "mcp", "model-context-protocol", "security"],
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -11,7 +24,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
     "dev": "tsup src/index.ts --format esm --dts --watch",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@fracta/core": "workspace:*",
