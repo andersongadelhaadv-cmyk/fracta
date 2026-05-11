@@ -11,6 +11,7 @@ import { IdorAgent } from "@fracta/agent-idor";
 import { DocsAgent } from "@fracta/agent-docs";
 import { TenantAgent } from "@fracta/agent-tenant";
 import { RaceAgent } from "@fracta/agent-race";
+import { StripeAgent } from "@fracta/agent-stripe";
 import { FractaReporter } from "@fracta/reporter";
 var TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? "./configs/targets.yaml";
 async function loadTargets() {
@@ -27,7 +28,8 @@ function buildOrchestrator(depth = "full") {
     new IdorAgent(),
     new DocsAgent(),
     new TenantAgent(),
-    new RaceAgent()
+    new RaceAgent(),
+    new StripeAgent()
   ]);
   return o;
 }

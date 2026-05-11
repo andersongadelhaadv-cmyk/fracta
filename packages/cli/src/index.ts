@@ -10,6 +10,7 @@ import { IdorAgent } from '@fracta/agent-idor'
 import { DocsAgent } from '@fracta/agent-docs'
 import { TenantAgent } from '@fracta/agent-tenant'
 import { RaceAgent } from '@fracta/agent-race'
+import { StripeAgent } from '@fracta/agent-stripe'
 import { FractaReporter } from '@fracta/reporter'
 
 const BANNER = `
@@ -104,6 +105,7 @@ Options:
         new DocsAgent(docsPath),
         new TenantAgent(),
         new RaceAgent(),
+        new StripeAgent(),
       ]
 
   const orchestrator = new FractaOrchestrator({
