@@ -35,6 +35,9 @@
     "@fracta/agent-tenant": "workspace:*",
     "@fracta/agent-race": "workspace:*",
     "@fracta/agent-stripe": "workspace:*",
+    "@fracta/skill-nestjs": "workspace:*",
+    "@fracta/skill-prisma": "workspace:*",
+    "@fracta/skill-supabase": "workspace:*",
     "@fracta/reporter": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "yaml": "^2.4.0"

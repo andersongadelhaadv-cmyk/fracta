@@ -1,7 +1,7 @@
 type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 type AgentCategory = 'security' | 'docs' | 'code' | 'deps' | 'infra' | 'compliance' | 'performance';
 type StackType = string;
-declare const KNOWN_STACKS: readonly ["nestjs", "nextjs", "prisma", "stripe", "whatsapp", "redis", "docker"];
+declare const KNOWN_STACKS: readonly ["nestjs", "nextjs", "prisma", "stripe", "supabase", "whatsapp", "redis", "docker"];
 type ScanDepth = 'quick' | 'full' | 'paranoid';
 interface TargetAuth {
     type: 'jwt' | 'apikey' | 'basic' | 'oauth';

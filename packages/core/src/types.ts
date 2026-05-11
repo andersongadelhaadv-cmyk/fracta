@@ -14,7 +14,7 @@ export type AgentCategory =
 export type StackType = string
 
 export const KNOWN_STACKS = [
-  'nestjs', 'nextjs', 'prisma', 'stripe',
+  'nestjs', 'nextjs', 'prisma', 'stripe', 'supabase',
   'whatsapp', 'redis', 'docker',
 ] as const
 

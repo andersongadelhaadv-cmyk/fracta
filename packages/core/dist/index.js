@@ -5,6 +5,7 @@ var KNOWN_STACKS = [
   "nextjs",
   "prisma",
   "stripe",
+  "supabase",
   "whatsapp",
   "redis",
   "docker"

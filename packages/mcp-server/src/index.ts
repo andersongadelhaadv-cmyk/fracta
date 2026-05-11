@@ -12,6 +12,9 @@ import { DocsAgent } from '@fracta/agent-docs'
 import { TenantAgent } from '@fracta/agent-tenant'
 import { RaceAgent } from '@fracta/agent-race'
 import { StripeAgent } from '@fracta/agent-stripe'
+import { NestJSSkill } from '@fracta/skill-nestjs'
+import { PrismaSkill } from '@fracta/skill-prisma'
+import { SupabaseSkill } from '@fracta/skill-supabase'
 import { FractaReporter } from '@fracta/reporter'
 
 const TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? './configs/targets.yaml'
@@ -29,6 +32,7 @@ function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {
     new HeadersAgent(), new AuthAgent(), new IdorAgent(),
     new DocsAgent(), new TenantAgent(), new RaceAgent(),
     new StripeAgent(),
+    new NestJSSkill(), new PrismaSkill(), new SupabaseSkill(),
   ])
   return o
 }

@@ -7,8 +7,9 @@ produces a single report covering broken authentication, IDOR, missing security
 headers, CORS misconfiguration, and stale documentation. Designed for solo
 founders and small teams who can't afford a manual pentest every release.
 
-**Status:** v0.1 alpha — interface stable enough to depend on, agent surface
-will grow. Built and battle-tested across the author's own SaaS portfolio
+**Status:** v0.3 — security agent surface plus three stack-aware skill packs
+(NestJS, Prisma, Supabase). Interface stable enough to depend on; agent surface
+keeps growing. Battle-tested across the author's own SaaS portfolio
 (DoutorINSS, Veredicto, Tribux, IATech).
 
 ## Why Fracta
@@ -21,7 +22,9 @@ will grow. Built and battle-tested across the author's own SaaS portfolio
   [Model Context Protocol](https://modelcontextprotocol.io), so Claude Code (or
   any MCP client) can run scans on demand.
 - **Stack-aware** — targets declare their stack (`nestjs`, `prisma`, `nextjs`,
-  `stripe`, …) and agents tailor their tests accordingly.
+  `stripe`, `supabase`, …) and skill packs run dedicated probes (Swagger
+  exposure, Prisma error leaks, Supabase REST/Storage misconfig) only on the
+  matching stack.
 - **OWASP-aligned** — findings link to OWASP API Security Top 10 and CWE
   references; reports group by severity (`critical → info`).
 
@@ -70,6 +73,9 @@ Reports land in `./fracta-reports/<runId>.md` and `.json`.
                 │  • @fracta/agent-tenant      │   multi-tenancy isolation, admin route exposure
                 │  • @fracta/agent-race        │   race conditions, login timing attacks
                 │  • @fracta/agent-stripe      │   webhook signature, replay window, unsigned POST
+                │  • @fracta/skill-nestjs      │   Swagger exposure, health endpoint leaks
+                │  • @fracta/skill-prisma      │   Studio exposure, P-code error leakage
+                │  • @fracta/skill-supabase    │   REST table enumeration, public Storage buckets
                 └──────────────────────────────┘
 ```
 
@@ -90,6 +96,9 @@ severity, and decides `passed/failed` from the `failOn` list.
 | `@fracta/agent-tenant`    | Multi-tenancy isolation, admin route exposure, header injection |
 | `@fracta/agent-race`      | Race-condition abuse, login timing attacks      |
 | `@fracta/agent-stripe`    | Stripe webhook: signature, replay window, unsigned POST acceptance |
+| `@fracta/skill-nestjs`    | NestJS-only: Swagger/OpenAPI exposure, health endpoint leaks    |
+| `@fracta/skill-prisma`    | Prisma-only: Studio exposure, P-code/stack-trace error leakage  |
+| `@fracta/skill-supabase`  | Supabase-only: REST table enumeration, public Storage buckets   |
 | `@fracta/reporter`        | Markdown + JSON report generators               |
 | `@fracta/cli`             | `fracta` command-line entry point               |
 | `@fracta/mcp-server`      | MCP server exposing every scan tool             |
@@ -115,8 +124,9 @@ nightly scan publishes a Markdown report as an artifact.
 
 - **v0.2** — `@fracta/agent-tenant`, `@fracta/agent-race` and `@fracta/agent-stripe`
   shipped. Set `STRIPE_WEBHOOK_SECRET` to also test replay-window tolerance.
-- **v0.3** — skill packs (per-stack: NestJS, Prisma, Stripe, Supabase) and a
-  GitHub App for inline PR comments.
+- **v0.3** — skill packs `@fracta/skill-nestjs`, `@fracta/skill-prisma` and
+  `@fracta/skill-supabase` shipped (auto-activated by `target.stack`).
+- **v0.4** — GitHub App for inline PR comments and per-finding remediation hints.
 - **v1.0** — stable plugin API, hosted SaaS edition for teams that want
   scheduled scans without running their own runners.
 

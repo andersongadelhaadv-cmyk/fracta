@@ -189,6 +189,15 @@ importers:
       '@fracta/reporter':
         specifier: workspace:*
         version: link:../reporter
+      '@fracta/skill-nestjs':
+        specifier: workspace:*
+        version: link:../skills/nestjs
+      '@fracta/skill-prisma':
+        specifier: workspace:*
+        version: link:../skills/prisma
+      '@fracta/skill-supabase':
+        specifier: workspace:*
+        version: link:../skills/supabase
       yaml:
         specifier: ^2.4.0
         version: 2.8.4
@@ -247,6 +256,15 @@ importers:
       '@fracta/reporter':
         specifier: workspace:*
         version: link:../reporter
+      '@fracta/skill-nestjs':
+        specifier: workspace:*
+        version: link:../skills/nestjs
+      '@fracta/skill-prisma':
+        specifier: workspace:*
+        version: link:../skills/prisma
+      '@fracta/skill-supabase':
+        specifier: workspace:*
+        version: link:../skills/supabase
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.29.0(zod@4.4.3)
@@ -269,6 +287,63 @@ importers:
       '@fracta/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/skills/nestjs:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/skills/prisma:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 20.19.39
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/skills/supabase:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
     devDependencies:
       '@types/node':
         specifier: '*'
