@@ -1,7 +1,7 @@
 {
   "name": "@fracta/agent-tenant",
   "version": "0.1.0",
-  "description": "Fracta tenant agent — multi-tenancy isolation checks (stub, v0.2)",
+  "description": "Fracta tenant agent — multi-tenancy isolation checks",
   "license": "MIT",
   "author": "Anderson Gadelha",
   "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",

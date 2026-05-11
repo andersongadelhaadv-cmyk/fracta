@@ -6,6 +6,9 @@ declare class RaceAgent implements SecurityAgent {
     concurrency: number;
     timeoutMs: number;
     run(scope: ScanScope): Promise<Finding[]>;
+    private runBurst;
+    private runTimingProbe;
+    private measureLogin;
 }
 
 export { RaceAgent };

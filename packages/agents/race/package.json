@@ -1,7 +1,7 @@
 {
   "name": "@fracta/agent-race",
   "version": "0.1.0",
-  "description": "Fracta race-condition agent — concurrent request abuse (stub, v0.2)",
+  "description": "Fracta race-condition agent — concurrent request abuse and timing attacks",
   "license": "MIT",
   "author": "Anderson Gadelha",
   "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",

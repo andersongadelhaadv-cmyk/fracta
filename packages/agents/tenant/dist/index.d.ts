@@ -6,6 +6,9 @@ declare class TenantAgent implements SecurityAgent {
     concurrency: number;
     timeoutMs: number;
     run(scope: ScanScope): Promise<Finding[]>;
+    private probeAdminPaths;
+    private probeTenantPaths;
+    private probeHeaderInjection;
 }
 
 export { TenantAgent };

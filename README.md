@@ -67,8 +67,8 @@ Reports land in `./fracta-reports/<runId>.md` and `.json`.
                 │  • @fracta/agent-headers     │   HSTS, CSP, CORS, X-Frame-Options
                 │  • @fracta/agent-idor        │   BOLA, ID enumeration
                 │  • @fracta/agent-docs        │   stale docs, legacy files, TODOs
-                │  • @fracta/agent-tenant      │   multi-tenancy isolation (v0.2)
-                │  • @fracta/agent-race        │   race conditions (v0.2)
+                │  • @fracta/agent-tenant      │   multi-tenancy isolation, admin route exposure
+                │  • @fracta/agent-race        │   race conditions, login timing attacks
                 └──────────────────────────────┘
 ```
 
@@ -86,8 +86,8 @@ severity, and decides `passed/failed` from the `failOn` list.
 | `@fracta/agent-headers`   | Security headers + CORS misconfiguration        |
 | `@fracta/agent-idor`      | Object-level authorization + ID enumeration     |
 | `@fracta/agent-docs`      | Markdown audit (stale, legacy, duplicate H1s)   |
-| `@fracta/agent-tenant`    | Multi-tenancy isolation (stub, v0.2)            |
-| `@fracta/agent-race`      | Race-condition abuse (stub, v0.2)               |
+| `@fracta/agent-tenant`    | Multi-tenancy isolation, admin route exposure, header injection |
+| `@fracta/agent-race`      | Race-condition abuse, login timing attacks      |
 | `@fracta/reporter`        | Markdown + JSON report generators               |
 | `@fracta/cli`             | `fracta` command-line entry point               |
 | `@fracta/mcp-server`      | MCP server exposing every scan tool             |
@@ -111,8 +111,8 @@ nightly scan publishes a Markdown report as an artifact.
 
 ## Roadmap
 
-- **v0.2** — flesh out `@fracta/agent-tenant` and `@fracta/agent-race`, add
-  Stripe webhook replay agent, ship `CONTRIBUTING.md` + `SECURITY.md`.
+- **v0.2** — `@fracta/agent-tenant` and `@fracta/agent-race` shipped; next:
+  Stripe webhook replay agent and per-stack skill packs.
 - **v0.3** — skill packs (per-stack: NestJS, Prisma, Stripe, Supabase) and a
   GitHub App for inline PR comments.
 - **v1.0** — stable plugin API, hosted SaaS edition for teams that want
