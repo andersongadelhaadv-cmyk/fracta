@@ -1,6 +1,5 @@
 // src/index.ts
-import { randomUUID } from "crypto";
-import { FractaHttpClient } from "@fracta/core";
+import { FractaHttpClient, stableFindingId } from "@fracta/core";
 var PATH_TEMPLATES = [
   "/users/{id}",
   "/api/users/{id}",
@@ -37,10 +36,11 @@ var IdorAgent = class {
     const findings = [];
     if (!scope.target.auth) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "idor-auth-not-configured" }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "info",
         title: "IDOR Agent \u2014 autentica\xE7\xE3o n\xE3o configurada",
         description: "Configure auth no targets.yaml para testar IDOR com token de usu\xE1rio autenticado.",
@@ -75,10 +75,11 @@ var IdorAgent = class {
           const res = await client.request(path, { timeoutMs: 5e3 });
           if (res.status === 200 && res.raw.length > 10) {
             findings.push({
-              id: randomUUID(),
+              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-direct-access:${path}`, location: path }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
+              camada: this.category,
               severity: "critical",
               title: `IDOR \u2014 acesso direto por ID: ${path}`,
               description: `${path} retornou HTTP 200 com corpo n\xE3o-vazio. Poss\xEDvel IDOR \u2014 recurso de ID ${id} acess\xEDvel sem verificar propriedade.`,
@@ -102,10 +103,11 @@ async findOne(@Param('id') id: string, @CurrentUser() user: User) {
             });
           } else if (res.status === 500) {
             findings.push({
-              id: randomUUID(),
+              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-error-500:${path}`, location: path }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
+              camada: this.category,
               severity: "medium",
               title: `Erro 500 ao acessar ID inexistente: ${path}`,
               description: `${path} retornou HTTP 500 para ID ${id}, indicando falta de tratamento de erro para recursos n\xE3o encontrados.`,
@@ -139,10 +141,11 @@ if (!record) throw new NotFoundException(\`Recurso ${id} n\xE3o encontrado\`);
       }
       if (hits >= 3) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-enumeration:${basePath}`, location: basePath }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: "high",
           title: `IDs sequenciais enumer\xE1veis: ${basePath}`,
           description: `${hits}/5 IDs sequenciais em ${basePath} retornaram recursos v\xE1lidos. IDs num\xE9ricos previs\xEDveis facilitam enumera\xE7\xE3o de dados.`,

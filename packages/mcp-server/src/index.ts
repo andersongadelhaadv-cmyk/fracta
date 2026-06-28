@@ -12,12 +12,25 @@ import { DocsAgent } from '@fracta/agent-docs'
 import { TenantAgent } from '@fracta/agent-tenant'
 import { RaceAgent } from '@fracta/agent-race'
 import { StripeAgent } from '@fracta/agent-stripe'
+import { DependenciesAgent } from '@fracta/agent-dependencies'
+import { SecretsAgent } from '@fracta/agent-secrets'
+import { StackAgent } from '@fracta/agent-stack'
+import { InfraAgent } from '@fracta/agent-infra'
+import { ComplianceAgent } from '@fracta/agent-compliance'
 import { NestJSSkill } from '@fracta/skill-nestjs'
 import { PrismaSkill } from '@fracta/skill-prisma'
 import { SupabaseSkill } from '@fracta/skill-supabase'
 import { FractaReporter } from '@fracta/reporter'
+import { SqliteFindingStore } from '@fracta/store'
+import { LlmEnricher } from '@fracta/llm'
 
 const TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? './configs/targets.yaml'
+
+// Estado entre execuções compartilhado por toda a sessão MCP (stdio = processo longo).
+const store = new SqliteFindingStore(process.env.FRACTA_STATE ?? './fracta-state.db')
+
+// Borda LLM (no-op sem ANTHROPIC_API_KEY).
+const enricher = new LlmEnricher()
 
 async function loadTargets(): Promise<Target[]> {
   const raw = await readFile(TARGETS_CONFIG, 'utf-8')
@@ -27,11 +40,12 @@ async function loadTargets(): Promise<Target[]> {
 }
 
 function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {
-  const o = new FractaOrchestrator({ depth, failOn: ['critical', 'high'], verbose: false })
+  const o = new FractaOrchestrator({ depth, failOn: ['critical', 'high'], verbose: false, store, enricher })
   o.registerAgents([
     new HeadersAgent(), new AuthAgent(), new IdorAgent(),
     new DocsAgent(), new TenantAgent(), new RaceAgent(),
-    new StripeAgent(),
+    new StripeAgent(), new DependenciesAgent(),
+    new SecretsAgent(), new StackAgent(), new InfraAgent(), new ComplianceAgent(),
     new NestJSSkill(), new PrismaSkill(), new SupabaseSkill(),
   ])
   return o

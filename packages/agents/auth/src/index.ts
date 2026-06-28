@@ -1,6 +1,5 @@
-import { randomUUID } from 'crypto'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
-import { FractaHttpClient } from '@fracta/core'
+import { FractaHttpClient, stableFindingId } from '@fracta/core'
 
 const COMMON_ENDPOINTS = [
   '/api/users', '/api/admin', '/api/dashboard', '/api/reports',
@@ -53,10 +52,11 @@ export class AuthAgent implements SecurityAgent {
         const res = await client.request(endpoint, { timeoutMs: 5_000 })
         if (res.status === 200 && res.raw.length > 10) {
           findings.push({
-            id: randomUUID(),
+            id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `unauth-access:${endpoint}`, location: endpoint }),
             runId: scope.runId,
             agent: this.name,
             category: this.category,
+            camada: this.category,
             severity: 'critical',
             title: `Endpoint desprotegido: ${endpoint}`,
             description: `${endpoint} retornou HTTP 200 sem autenticação, expondo dados potencialmente sensíveis.`,
@@ -87,10 +87,11 @@ export class AuthAgent implements SecurityAgent {
           })
           if (res.status === 200 && res.raw.length > 10) {
             findings.push({
-              id: randomUUID(),
+              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `malformed-token-accepted:${endpoint}`, location: endpoint }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
+              camada: this.category,
               severity: 'critical',
               title: `Token malformado aceito: ${endpoint}`,
               description: `${endpoint} retornou HTTP 200 com token inválido "${token.substring(0, 30)}..."`,
@@ -114,10 +115,11 @@ export class AuthAgent implements SecurityAgent {
     const authEndpoint = scope.target.auth?.endpoint
     if (!authEndpoint) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'rate-limit-not-tested' }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'info',
         title: 'Rate limit não testado — auth.endpoint não configurado',
         description: 'Configure auth.endpoint no targets.yaml para testar proteção contra brute force.',
@@ -139,10 +141,11 @@ export class AuthAgent implements SecurityAgent {
 
     if (rateLimited < 2) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `brute-force:${authEndpoint}`, location: authEndpoint }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'high',
         title: 'Rate limiting ausente no endpoint de login',
         description: `10 requisições simultâneas de login inválido retornaram apenas ${rateLimited} respostas 429. Proteção contra brute force insuficiente.`,

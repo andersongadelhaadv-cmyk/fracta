@@ -12,10 +12,17 @@ import { DocsAgent } from "@fracta/agent-docs";
 import { TenantAgent } from "@fracta/agent-tenant";
 import { RaceAgent } from "@fracta/agent-race";
 import { StripeAgent } from "@fracta/agent-stripe";
+import { DependenciesAgent } from "@fracta/agent-dependencies";
+import { SecretsAgent } from "@fracta/agent-secrets";
+import { StackAgent } from "@fracta/agent-stack";
+import { InfraAgent } from "@fracta/agent-infra";
+import { ComplianceAgent } from "@fracta/agent-compliance";
 import { NestJSSkill } from "@fracta/skill-nestjs";
 import { PrismaSkill } from "@fracta/skill-prisma";
 import { SupabaseSkill } from "@fracta/skill-supabase";
 import { FractaReporter } from "@fracta/reporter";
+import { SqliteFindingStore } from "@fracta/store";
+import { LlmEnricher } from "@fracta/llm";
 var BANNER = `
 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557
 \u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255D\u255A\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255D\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557
@@ -42,6 +49,9 @@ async function main() {
       config: { type: "string", short: "c", default: "./configs/targets.yaml" },
       depth: { type: "string", short: "d", default: "full" },
       output: { type: "string", short: "o", default: "./fracta-reports" },
+      state: { type: "string", default: "./fracta-state.db" },
+      "no-state": { type: "boolean", default: false },
+      "no-llm": { type: "boolean", default: false },
       "fail-on": { type: "string", default: "critical,high" },
       "docs-path": { type: "string", default: "./" },
       verbose: { type: "boolean", short: "v", default: false },
@@ -62,12 +72,20 @@ Options:
   -c, --config      Path to targets.yaml (default: ./configs/targets.yaml)
   -d, --depth       Scan depth: quick | full | paranoid (default: full)
   -o, --output      Output directory (default: ./fracta-reports)
+  --state           SQLite state file for regression/suppression (default: ./fracta-state.db)
+  --no-state        Disable cross-run state (no regression/suppression)
+  --no-llm          Disable the LLM edge (prioritization/fix drafting)
   --fail-on         Severities that cause exit(1) (default: critical,high)
   --docs-path       Repository path for docs audit (default: ./)
   -v, --verbose     Verbose output
   -h, --help        Show this help
 `);
     process.exit(0);
+  }
+  if (command === "scan" && !values.target) {
+    console.error("[Fracta] --target \xE9 obrigat\xF3rio: o Fracta audita UM SaaS por vez (blast radius contido).");
+    console.error("         Ex: fracta scan --target doutor-inss");
+    process.exit(1);
   }
   let targets;
   try {
@@ -95,27 +113,43 @@ ${String(err)}`);
     new TenantAgent(),
     new RaceAgent(),
     new StripeAgent(),
+    new DependenciesAgent(),
+    new SecretsAgent(),
+    new StackAgent(),
+    new InfraAgent(),
+    new ComplianceAgent(),
     new NestJSSkill(),
     new PrismaSkill(),
     new SupabaseSkill()
   ];
+  const store = values["no-state"] ? void 0 : new SqliteFindingStore(values.state);
+  const enricher = values["no-llm"] ? void 0 : new LlmEnricher({ verbose: values.verbose });
   const orchestrator = new FractaOrchestrator({
     concurrency: 3,
     failOn,
     depth,
-    verbose: values.verbose
+    verbose: values.verbose,
+    store,
+    enricher
   });
   orchestrator.registerAgents(allAgents);
   const reporter = new FractaReporter({ outputDir: values.output });
   let anyFailed = false;
-  for (const target of targets) {
-    const report = await orchestrator.scan(target);
-    const { mdPath, jsonPath } = await reporter.save(report);
-    console.log(`
+  try {
+    for (const target of targets) {
+      const report = await orchestrator.scan(target);
+      const { mdPath, jsonPath } = await reporter.save(report);
+      console.log(`
 [Fracta] Reports saved:`);
-    console.log(`  Markdown: ${mdPath}`);
-    console.log(`  JSON:     ${jsonPath}`);
-    if (!report.passed) anyFailed = true;
+      console.log(`  Markdown: ${mdPath}`);
+      console.log(`  JSON:     ${jsonPath}`);
+      if (report.resumo.regressoes > 0) {
+        console.log(`  \u23EA Regress\xF5es detectadas: ${report.resumo.regressoes}`);
+      }
+      if (!report.passed) anyFailed = true;
+    }
+  } finally {
+    store?.close();
   }
   process.exit(anyFailed ? 1 : 0);
 }

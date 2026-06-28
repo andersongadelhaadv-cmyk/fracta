@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory, ScanDepth } from '@fracta/core'
-import { FractaHttpClient } from '@fracta/core'
+import { FractaHttpClient, stableFindingId } from '@fracta/core'
 
 interface RaceProbe {
   path: string
@@ -43,10 +43,11 @@ export class RaceAgent implements SecurityAgent {
 
     if (depth === 'quick') {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'race-skipped:quick' }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'info',
         title: 'RACE Agent — depth=quick pula testes destrutivos',
         description: 'Testes de race condition envolvem rajadas de POSTs concorrentes. Em quick scan eles são pulados para não impactar o staging.',
@@ -112,10 +113,11 @@ export class RaceAgent implements SecurityAgent {
 
     if (successes >= 2) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `race-condition:${probe.path}`, location: probe.path }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'high',
         title: `Race condition em ${probe.path} (${probe.description})`,
         description: `Disparei ${burst} POSTs concorrentes em ${probe.path}; ${successes} responderam 2xx. Ações que devem ser idempotentes (${probe.description}) não devem aceitar múltiplas execuções simultâneas.`,
@@ -154,10 +156,11 @@ export class RaceAgent implements SecurityAgent {
 
       if (delta > 100) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `timing-attack:${path}`, location: path }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: 'medium',
           title: `Timing attack possível em ${path}: enumeração de usuários`,
           description: `Login com email existente (${avgValid.toFixed(0)}ms) vs inexistente (${avgFake.toFixed(0)}ms) tem variação de ${delta.toFixed(0)}ms — atacante consegue enumerar usuários medindo o tempo de resposta.`,

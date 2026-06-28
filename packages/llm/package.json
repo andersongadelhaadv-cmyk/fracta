@@ -1,0 +1,42 @@
+{
+  "name": "@fracta/llm",
+  "version": "0.1.0",
+  "description": "Fracta LLM edge — prioritizes findings and drafts gated fixes. Detection never depends on it.",
+  "license": "MIT",
+  "author": "Anderson Gadelha",
+  "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta.git",
+    "directory": "packages/llm"
+  },
+  "bugs": {
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
+  },
+  "keywords": ["fracta", "security", "audit", "llm", "anthropic", "prioritization"],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fracta/core": "workspace:*",
+    "@anthropic-ai/sdk": "*"
+  },
+  "devDependencies": {
+    "tsup": "*",
+    "typescript": "*",
+    "vitest": "*",
+    "@types/node": "*"
+  }
+}

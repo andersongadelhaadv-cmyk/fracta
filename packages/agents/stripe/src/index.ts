@@ -1,6 +1,6 @@
-import { randomUUID, createHmac } from 'crypto'
+import { createHmac } from 'crypto'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
-import { FractaHttpClient } from '@fracta/core'
+import { FractaHttpClient, stableFindingId } from '@fracta/core'
 
 const WEBHOOK_PATHS = [
   '/api/stripe/webhook', '/api/webhooks/stripe', '/api/webhook/stripe',
@@ -63,10 +63,11 @@ export class StripeAgent implements SecurityAgent {
 
     if (discovered.length === 0) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'stripe-no-webhook-discovered' }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'info',
         title: 'Stripe declarado em stack, mas nenhum endpoint de webhook descoberto',
         description: 'A stack declara "stripe" no targets.yaml mas nenhuma das rotas comuns de webhook respondeu. Confirme se há webhook recebendo eventos Stripe.',
@@ -113,10 +114,11 @@ export class StripeAgent implements SecurityAgent {
     const noSig = await this.safePost(client, path, payload, {})
     if (noSig && noSig.status >= 200 && noSig.status < 300) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `stripe-webhook-unsigned:${path}`, location: path }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'critical',
         title: `Webhook Stripe aceita POST sem assinatura: ${path}`,
         description: `${path} respondeu HTTP ${noSig.status} para um payload de evento Stripe sem o header Stripe-Signature. Atacante consegue forjar eventos (subscription.created, invoice.paid) e ativar assinaturas/créditos sem pagar.`,
@@ -136,10 +138,11 @@ export class StripeAgent implements SecurityAgent {
     })
     if (fakeSig && fakeSig.status >= 200 && fakeSig.status < 300) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `stripe-webhook-badsig:${path}`, location: path }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'critical',
         title: `Webhook Stripe aceita assinatura inválida: ${path}`,
         description: `${path} respondeu HTTP ${fakeSig.status} para Stripe-Signature claramente inválido (v1=0...0). A validação está ausente ou quebrada.`,
@@ -162,10 +165,11 @@ export class StripeAgent implements SecurityAgent {
       })
       if (replay && replay.status >= 200 && replay.status < 300) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `stripe-webhook-replay:${path}`, location: path }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: 'high',
           title: `Webhook Stripe aceita replay com timestamp de 24h atrás: ${path}`,
           description: `${path} aceitou um evento assinado com timestamp de 24h atrás. Sem janela de tolerância, qualquer evento interceptado/registrado pode ser replayed indefinidamente.`,

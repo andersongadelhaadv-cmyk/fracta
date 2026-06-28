@@ -1,6 +1,5 @@
-import { randomUUID } from 'crypto'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
-import { FractaHttpClient } from '@fracta/core'
+import { FractaHttpClient, SkippedCheck, stableFindingId } from '@fracta/core'
 
 const REQUIRED_HEADERS: Array<{
   name: string
@@ -53,62 +52,68 @@ export class HeadersAgent implements SecurityAgent {
 
   async run(scope: ScanScope): Promise<Finding[]> {
     const findings: Finding[] = []
-    const client = new FractaHttpClient(scope.target.url)
+    const { target } = scope
+    const client = new FractaHttpClient(target.url)
 
+    let res
     try {
-      const res = await client.request('/', { timeoutMs: this.timeoutMs })
-      const headers = res.headers
-
-      for (const rule of REQUIRED_HEADERS) {
-        const value = headers[rule.name] ?? ''
-        if (!value || !rule.validate(value)) {
-          findings.push({
-            id: randomUUID(),
-            runId: scope.runId,
-            agent: this.name,
-            category: this.category,
-            severity: rule.severity,
-            title: `Security header ausente: ${rule.name}`,
-            description: rule.message,
-            recommendation: `Adicione o header ${rule.name} nas respostas HTTP. Exemplo NestJS:\n\`\`\`typescript\napp.use(helmet()); // inclui ${rule.name} automaticamente\n\`\`\``,
-            references: ['https://owasp.org/www-project-secure-headers/'],
-            createdAt: new Date(),
-          })
-        }
-      }
-
-      for (const rule of FORBIDDEN_HEADERS) {
-        if (headers[rule.name]) {
-          findings.push({
-            id: randomUUID(),
-            runId: scope.runId,
-            agent: this.name,
-            category: this.category,
-            severity: rule.severity,
-            title: `Header proibido presente: ${rule.name}`,
-            description: rule.message,
-            evidence: `${rule.name}: ${headers[rule.name]}`,
-            recommendation: `Remova o header ${rule.name}. Exemplo NestJS:\n\`\`\`typescript\napp.use(helmet({ ${rule.name === 'x-powered-by' ? 'hidePoweredBy: true' : 'serverInfo: false'} }));\n\`\`\``,
-            references: ['https://owasp.org/www-project-secure-headers/'],
-            createdAt: new Date(),
-          })
-        }
-      }
-
-      await this.testCors(scope, client, findings)
+      res = await client.request('/', { timeoutMs: this.timeoutMs })
     } catch (err) {
-      findings.push({
-        id: randomUUID(),
-        runId: scope.runId,
-        agent: this.name,
-        category: this.category,
-        severity: 'info',
-        title: 'HEADERS Agent — erro de conexão',
-        description: `Não foi possível conectar a ${scope.target.url}: ${String(err)}`,
-        recommendation: 'Verifique se o target está acessível e a URL está correta.',
-        createdAt: new Date(),
-      })
+      // Alvo inacessível não é "seguro" nem é erro do check — é não-verificado.
+      throw new SkippedCheck(`não foi possível conectar a ${target.url}: ${String(err)}`)
     }
+
+    const headers = res.headers
+
+    const mk = (
+      rule: string,
+      severity: Finding['severity'],
+      title: string,
+      description: string,
+      recommendation: string,
+      extra: Partial<Finding> = {},
+    ): Finding => ({
+      id: stableFindingId({ saas: target.name, camada: this.category, rule, location: target.url }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity,
+      title,
+      description,
+      recommendation,
+      references: ['https://owasp.org/www-project-secure-headers/'],
+      createdAt: new Date(),
+      ...extra,
+    })
+
+    for (const rule of REQUIRED_HEADERS) {
+      const value = headers[rule.name] ?? ''
+      if (!value || !rule.validate(value)) {
+        findings.push(mk(
+          `header-missing:${rule.name}`,
+          rule.severity,
+          `Security header ausente: ${rule.name}`,
+          rule.message,
+          `Adicione o header ${rule.name} nas respostas HTTP. Exemplo NestJS:\n\`\`\`typescript\napp.use(helmet()); // inclui ${rule.name} automaticamente\n\`\`\``,
+        ))
+      }
+    }
+
+    for (const rule of FORBIDDEN_HEADERS) {
+      if (headers[rule.name]) {
+        findings.push(mk(
+          `header-forbidden:${rule.name}`,
+          rule.severity,
+          `Header proibido presente: ${rule.name}`,
+          rule.message,
+          `Remova o header ${rule.name}. Exemplo NestJS:\n\`\`\`typescript\napp.use(helmet({ ${rule.name === 'x-powered-by' ? 'hidePoweredBy: true' : 'serverInfo: false'} }));\n\`\`\``,
+          { evidence: `${rule.name}: ${headers[rule.name]}` },
+        ))
+      }
+    }
+
+    await this.testCors(scope, client, findings, mk)
 
     return findings
   }
@@ -116,7 +121,15 @@ export class HeadersAgent implements SecurityAgent {
   private async testCors(
     scope: ScanScope,
     client: FractaHttpClient,
-    findings: Finding[]
+    findings: Finding[],
+    mk: (
+      rule: string,
+      severity: Finding['severity'],
+      title: string,
+      description: string,
+      recommendation: string,
+      extra?: Partial<Finding>,
+    ) => Finding,
   ): Promise<void> {
     const origins = ['https://evil.com', 'null']
 
@@ -130,35 +143,32 @@ export class HeadersAgent implements SecurityAgent {
         const acao = res.headers['access-control-allow-origin'] ?? ''
 
         if (acao === '*') {
-          findings.push({
-            id: randomUUID(),
-            runId: scope.runId,
-            agent: this.name,
-            category: this.category,
-            severity: 'high',
-            title: 'CORS wildcard: Access-Control-Allow-Origin: *',
-            description: 'O servidor aceita requisições cross-origin de qualquer origem.',
-            evidence: `Origin: ${origin} → Access-Control-Allow-Origin: *`,
-            recommendation: 'Configure CORS para aceitar apenas origens conhecidas:\n```typescript\napp.enableCors({ origin: [\'https://meuapp.com.br\'] });\n```',
-            references: ['https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny'],
-            createdAt: new Date(),
-          })
+          findings.push(mk(
+            'cors-wildcard',
+            'high',
+            'CORS wildcard: Access-Control-Allow-Origin: *',
+            'O servidor aceita requisições cross-origin de qualquer origem.',
+            'Configure CORS para aceitar apenas origens conhecidas:\n```typescript\napp.enableCors({ origin: [\'https://meuapp.com.br\'] });\n```',
+            {
+              evidence: `Origin: ${origin} → Access-Control-Allow-Origin: *`,
+              references: ['https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny'],
+            },
+          ))
+          break // wildcard é estável independente da origem testada
         } else if (acao === origin && origin !== 'null') {
-          findings.push({
-            id: randomUUID(),
-            runId: scope.runId,
-            agent: this.name,
-            category: this.category,
-            severity: 'medium',
-            title: 'CORS reflete origem arbitrária',
-            description: 'O servidor reflete qualquer origem recebida no Access-Control-Allow-Origin.',
-            evidence: `Origin: ${origin} → Access-Control-Allow-Origin: ${acao}`,
-            recommendation: 'Use uma allowlist explícita de origens no CORS config.',
-            references: ['https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny'],
-            createdAt: new Date(),
-          })
+          findings.push(mk(
+            'cors-reflect',
+            'medium',
+            'CORS reflete origem arbitrária',
+            'O servidor reflete qualquer origem recebida no Access-Control-Allow-Origin.',
+            'Use uma allowlist explícita de origens no CORS config.',
+            {
+              evidence: `Origin: ${origin} → Access-Control-Allow-Origin: ${acao}`,
+              references: ['https://owasp.org/www-community/attacks/CORS_OriginHeaderScrutiny'],
+            },
+          ))
         }
-      } catch { /* timeout ou rede — ignora */ }
+      } catch { /* timeout ou rede — ignora esta origem */ }
     }
   }
 }

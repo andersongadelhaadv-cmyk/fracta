@@ -1,6 +1,5 @@
 // src/index.ts
-import { randomUUID } from "crypto";
-import { FractaHttpClient } from "@fracta/core";
+import { FractaHttpClient, stableFindingId } from "@fracta/core";
 var COMMON_TABLES = [
   "users",
   "profiles",
@@ -46,10 +45,11 @@ var SupabaseSkill = class {
       const res = await client.request(path, { timeoutMs: 4e3 });
       if (res.status === 200 && res.raw.length > 10) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `supabase-rest-root:${path}`, location: path }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: "medium",
           title: `Supabase REST root acess\xEDvel sem chave: ${path}`,
           description: `${path} respondeu 200 sem header apikey/Authorization. O REST root exp\xF5e a estrutura de tabelas e prepara IDOR e enumera\xE7\xE3o.`,
@@ -79,10 +79,11 @@ ${res.raw.substring(0, 200).replace(/\s+/g, " ").trim()}`,
         });
         if (res.status === 200 && res.raw.length > 5 && !looksLikeSupabaseError(res.raw)) {
           findings.push({
-            id: randomUUID(),
+            id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `supabase-storage-list:${bucket}`, location: path }),
             runId: scope.runId,
             agent: this.name,
             category: this.category,
+            camada: this.category,
             severity: "high",
             title: `Bucket Storage list\xE1vel sem auth: ${bucket}`,
             description: `POST em ${path} retornou listagem (HTTP 200, ${res.raw.length} bytes) sem credenciais. Bucket "${bucket}" permite enumera\xE7\xE3o de objetos por qualquer um.`,
@@ -114,10 +115,11 @@ ${res.raw.substring(0, 200).replace(/\s+/g, " ").trim()}`,
           const data = JSON.parse(res.raw);
           if (Array.isArray(data) && data.length > 0) {
             findings.push({
-              id: randomUUID(),
+              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `supabase-rls-off:${table}`, location: path }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
+              camada: this.category,
               severity: "critical",
               title: `RLS off \u2014 tabela "${table}" lida com anon key`,
               description: `GET ${path} retornou ${data.length} linhas usando apenas a anon key. A tabela "${table}" est\xE1 com Row Level Security desativada ou com policy permissiva \u2014 qualquer cliente do frontend (e qualquer atacante) l\xEA esses dados.`,
