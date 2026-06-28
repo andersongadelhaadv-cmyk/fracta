@@ -1,6 +1,11 @@
 import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
-import type { ScanReport, Finding, Severity } from '@fracta/core'
+import type { ScanReport, AuditReport, Finding, Severity } from '@fracta/core'
+
+/** Type guard: relatório enriquecido (Fase 1+) traz `checks`/`resumo`. */
+function isAuditReport(r: ScanReport | AuditReport): r is AuditReport {
+  return Array.isArray((r as AuditReport).checks)
+}
 
 const SEVERITY_EMOJI: Record<Severity, string> = {
   critical: '🔴',
@@ -21,7 +26,7 @@ export class FractaReporter {
     this.outputDir = options.outputDir ?? './fracta-reports'
   }
 
-  async save(report: ScanReport): Promise<{ mdPath: string; jsonPath: string }> {
+  async save(report: ScanReport | AuditReport): Promise<{ mdPath: string; jsonPath: string }> {
     await mkdir(this.outputDir, { recursive: true })
 
     const slug = report.target.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -41,7 +46,7 @@ export class FractaReporter {
     return { mdPath, jsonPath }
   }
 
-  private buildMarkdown(report: ScanReport): string {
+  private buildMarkdown(report: ScanReport | AuditReport): string {
     const date = new Date(report.startedAt)
     const dateStr = date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR')
     const durationSec = (report.durationMs / 1000).toFixed(1)
@@ -100,7 +105,54 @@ export class FractaReporter {
       }
     }
 
+    if (isAuditReport(report)) {
+      md += this.buildTransparencySection(report)
+    }
+
     md += `*Gerado pelo [Fracta](https://github.com/fracta/fracta) — The Complete SaaS Audit Framework*\n`
+    return md
+  }
+
+  /**
+   * Transparência sobre o que NÃO foi verificado. Parte da robustez:
+   * "não verificado" ≠ "seguro". Lista checks com erro e checks pulados.
+   */
+  private buildTransparencySection(report: AuditReport): string {
+    const { resumo } = report
+    let md = ''
+
+    if (resumo.regressoes > 0) {
+      md += `## ⏪ Regressões (${resumo.regressoes})\n\n`
+      const regs = report.findings.filter(f => f.status === 'regression')
+      for (const f of regs) {
+        md += `- **${f.title}** (\`${f.agent}\`, ${f.severity}) — voltou a aparecer.\n`
+      }
+      md += `\n`
+    }
+
+    if (resumo.checksComErro.length > 0 || resumo.checksPulados.length > 0) {
+      md += `## ⚠️ Checks que NÃO rodaram\n\n`
+      md += `> Estes checks não produziram veredito. Ausência de achado aqui **não** significa "seguro".\n\n`
+
+      const byAgent = new Map(report.checks.map(c => [c.agent, c]))
+
+      if (resumo.checksComErro.length > 0) {
+        md += `**Erro (falha isolada):**\n\n`
+        for (const agent of resumo.checksComErro) {
+          md += `- \`${agent}\` — ${byAgent.get(agent)?.motivo ?? 'erro não especificado'}\n`
+        }
+        md += `\n`
+      }
+
+      if (resumo.checksPulados.length > 0) {
+        md += `**Pulados (sem dados de entrada):**\n\n`
+        for (const agent of resumo.checksPulados) {
+          md += `- \`${agent}\` — ${byAgent.get(agent)?.motivo ?? 'sem motivo registrado'}\n`
+        }
+        md += `\n`
+      }
+    }
+
     return md
   }
 }
