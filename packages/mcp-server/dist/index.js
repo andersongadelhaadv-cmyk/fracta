@@ -24,7 +24,13 @@ import { FractaReporter } from "@fracta/reporter";
 import { SqliteFindingStore } from "@fracta/store";
 import { LlmEnricher } from "@fracta/llm";
 var TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? "./configs/targets.yaml";
-var store = new SqliteFindingStore(process.env.FRACTA_STATE ?? "./fracta-state.db");
+var store;
+try {
+  store = new SqliteFindingStore(process.env.FRACTA_STATE ?? "./fracta-state.db");
+} catch (err) {
+  console.error(`[Fracta] Estado entre runs indispon\xEDvel: ${err.message}`);
+  console.error(`[Fracta] MCP seguindo SEM regress\xE3o/supress\xE3o (detec\xE7\xE3o intacta).`);
+}
 var enricher = new LlmEnricher();
 async function loadTargets() {
   const raw = await readFile(TARGETS_CONFIG, "utf-8");

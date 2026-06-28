@@ -27,7 +27,15 @@ import { LlmEnricher } from '@fracta/llm'
 const TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? './configs/targets.yaml'
 
 // Estado entre execuções compartilhado por toda a sessão MCP (stdio = processo longo).
-const store = new SqliteFindingStore(process.env.FRACTA_STATE ?? './fracta-state.db')
+// Opcional: se o store não puder ser criado (Node < 22.5 sem node:sqlite, fs read-only),
+// o servidor sobe sem estado — a detecção nunca depende da persistência (regra Fase 2).
+let store: SqliteFindingStore | undefined
+try {
+  store = new SqliteFindingStore(process.env.FRACTA_STATE ?? './fracta-state.db')
+} catch (err) {
+  console.error(`[Fracta] Estado entre runs indisponível: ${(err as Error).message}`)
+  console.error(`[Fracta] MCP seguindo SEM regressão/supressão (detecção intacta).`)
+}
 
 // Borda LLM (no-op sem ANTHROPIC_API_KEY).
 const enricher = new LlmEnricher()
