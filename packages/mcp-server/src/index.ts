@@ -16,8 +16,12 @@ import { NestJSSkill } from '@fracta/skill-nestjs'
 import { PrismaSkill } from '@fracta/skill-prisma'
 import { SupabaseSkill } from '@fracta/skill-supabase'
 import { FractaReporter } from '@fracta/reporter'
+import { SqliteFindingStore } from '@fracta/store'
 
 const TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? './configs/targets.yaml'
+
+// Estado entre execuções compartilhado por toda a sessão MCP (stdio = processo longo).
+const store = new SqliteFindingStore(process.env.FRACTA_STATE ?? './fracta-state.db')
 
 async function loadTargets(): Promise<Target[]> {
   const raw = await readFile(TARGETS_CONFIG, 'utf-8')
@@ -27,7 +31,7 @@ async function loadTargets(): Promise<Target[]> {
 }
 
 function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {
-  const o = new FractaOrchestrator({ depth, failOn: ['critical', 'high'], verbose: false })
+  const o = new FractaOrchestrator({ depth, failOn: ['critical', 'high'], verbose: false, store })
   o.registerAgents([
     new HeadersAgent(), new AuthAgent(), new IdorAgent(),
     new DocsAgent(), new TenantAgent(), new RaceAgent(),

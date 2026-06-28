@@ -4,7 +4,7 @@ import {
 } from './types.js'
 import type {
   Target, SecurityAgent, AuditReport, ScanScope, Finding, Severity,
-  ScanDepth, CheckResult, AgentCategory, TargetHealth,
+  ScanDepth, CheckResult, AgentCategory, TargetHealth, FindingStore,
 } from './types.js'
 
 const SEVERITY_ORDER: Record<Severity, number> = {
@@ -16,11 +16,14 @@ export interface OrchestratorOptions {
   failOn?: Severity[]
   depth?: ScanDepth
   verbose?: boolean
+  /** Persistência opcional para regressão/supressão (injetada pelo cli/mcp). */
+  store?: FindingStore
 }
 
 export class FractaOrchestrator {
   private agents: SecurityAgent[] = []
-  private readonly options: Required<OrchestratorOptions>
+  private readonly options: Required<Omit<OrchestratorOptions, 'store'>>
+  private readonly store?: FindingStore
 
   constructor(options: OrchestratorOptions = {}) {
     this.options = {
@@ -29,6 +32,7 @@ export class FractaOrchestrator {
       depth: options.depth ?? 'full',
       verbose: options.verbose ?? false,
     }
+    this.store = options.store
   }
 
   registerAgent(agent: SecurityAgent): this {
@@ -72,7 +76,19 @@ export class FractaOrchestrator {
       checks.push(...results)
     }
 
-    const findings: Finding[] = checks.flatMap(c => c.findings)
+    let findings: Finding[] = checks.flatMap(c => c.findings)
+
+    // Estado entre execuções: marca regressão/supressão a partir do histórico.
+    // Falha de persistência NUNCA derruba a detecção — degrada para status 'open'.
+    if (this.store) {
+      try {
+        const suppressions = target.config?.suppressions ?? []
+        findings = await this.store.applyStatus(target.name, findings, suppressions)
+      } catch (err) {
+        if (this.options.verbose) console.error(`[Fracta] Store.applyStatus falhou: ${String(err)}`)
+      }
+    }
+
     findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
 
     const summary = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 }
@@ -112,6 +128,14 @@ export class FractaOrchestrator {
         checksComErro: checks.filter(c => c.status === 'error').map(c => c.agent),
         checksPulados: checks.filter(c => c.status === 'skipped').map(c => c.agent),
       },
+    }
+
+    if (this.store) {
+      try {
+        await this.store.recordRun(report)
+      } catch (err) {
+        if (this.options.verbose) console.error(`[Fracta] Store.recordRun falhou: ${String(err)}`)
+      }
     }
 
     this.printSummary(report)

@@ -230,6 +230,28 @@ export interface TargetHealth {
 }
 
 /**
+ * Porta de persistência entre execuções (regressão/supressão). O core define o
+ * contrato; a implementação concreta (SQLite) vive em `@fracta/store` e é injetada
+ * pelo cli/mcp — assim o core não depende de nenhum backend de armazenamento.
+ */
+export interface FindingStore {
+  /**
+   * Define `status` de cada finding com base no histórico:
+   * - id em `suppressions` → `suppressed`
+   * - id que existia e havia sido resolvido/ausente, e voltou → `regression`
+   * - id inédito ou já aberto → `open`
+   * Persiste o histórico (firstSeen/lastSeen/resolved). Retorna os findings com status.
+   */
+  applyStatus(
+    saas: string,
+    findings: Finding[],
+    suppressions: string[],
+  ): Finding[] | Promise<Finding[]>
+  /** Persiste o run completo (para painel/comparação futura). */
+  recordRun(report: AuditReport): void | Promise<void>
+}
+
+/**
  * Relatório consolidado de uma auditoria de UM SaaS. Superset de `ScanReport`
  * (mantém os campos antigos para compatibilidade) + camada de robustez.
  */
