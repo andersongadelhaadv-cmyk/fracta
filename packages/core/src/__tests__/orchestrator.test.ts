@@ -178,6 +178,45 @@ describe('FractaOrchestrator', () => {
     expect(report.targetHealth.status).toBe('unreachable')
   })
 
+  it('verdict is inconclusive (passed=false) when the target is unreachable and nothing failed', async () => {
+    const orch = new FractaOrchestrator({
+      healthCheck: async () => ({ repoAccessible: true, stagingResponding: false, status: 'unreachable' }),
+      failOn: ['critical', 'high'],
+    })
+    orch.registerAgent(makeAgent('A', [makeFinding('A', 'low')]))
+
+    const report = await orch.scan(target)
+
+    // Nenhum achado de severidade falha, MAS o alvo não foi alcançado: o único
+    // agente que testa a superfície viva nunca rodou → não é "PASSED".
+    expect(report.verdict).toBe('inconclusive')
+    expect(report.passed).toBe(false)
+  })
+
+  it('verdict is failed when a failOn severity is present even if the target is unreachable', async () => {
+    const orch = new FractaOrchestrator({
+      healthCheck: async () => ({ repoAccessible: true, stagingResponding: false, status: 'unreachable' }),
+      failOn: ['critical', 'high'],
+    })
+    orch.registerAgent(makeAgent('A', [makeFinding('A', 'critical')]))
+
+    const report = await orch.scan(target)
+
+    // Falha real ganha de inconclusivo: há um achado crítico concreto.
+    expect(report.verdict).toBe('failed')
+    expect(report.passed).toBe(false)
+  })
+
+  it('verdict is passed when healthy and no failOn severity is hit', async () => {
+    const orch = makeOrch({ failOn: ['critical', 'high'] })
+    orch.registerAgent(makeAgent('A', [makeFinding('A', 'low')]))
+
+    const report = await orch.scan(target)
+
+    expect(report.verdict).toBe('passed')
+    expect(report.passed).toBe(true)
+  })
+
   it('passes target health into the agent scope', async () => {
     let seen: TargetHealth | undefined
     const probe: SecurityAgent = {

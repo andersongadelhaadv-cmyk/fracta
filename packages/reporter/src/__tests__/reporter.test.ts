@@ -125,6 +125,22 @@ describe('FractaReporter — Fase 7 (relatório consolidado)', () => {
     expect(md).toContain('```diff')
   })
 
+  it('renders INCONCLUSIVO status (not FALHOU) and explains why when verdict is inconclusive', async () => {
+    const report = baseReport(
+      [finding({ id: 'a', title: 'Doc TODO', severity: 'low' })],
+      {
+        verdict: 'inconclusive',
+        targetHealth: { repoAccessible: true, stagingResponding: false, status: 'unreachable' },
+      },
+    )
+    const { md } = await render(report)
+    // Veredito honesto: não "passou", mas também não "falhou" — foi inconclusivo.
+    expect(md).toContain('INCONCLUS')
+    expect(md).not.toContain('❌ FALHOU')
+    // E precisa explicar o porquê (alvo inacessível), não deixar o leitor adivinhar.
+    expect(md).toMatch(/inacess|inconclus|não respond|fora do ar/i)
+  })
+
   it('JSON ≡ MD: tudo que o JSON carrega aparece no Markdown', async () => {
     const report = baseReport(
       [

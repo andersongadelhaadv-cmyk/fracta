@@ -167,6 +167,14 @@ interface CheckResult {
     durationMs: number;
     findings: Finding[];
 }
+/**
+ * Veredito honesto de uma auditoria:
+ * - `failed`: há achado de severidade que dispara `failOn` (problema concreto).
+ * - `inconclusive`: nada falhou, MAS a auditoria não conseguiu exercer o alvo
+ *   (ex.: target `unreachable` → a camada DAST nunca rodou). "Não verificado" ≠ "seguro".
+ * - `passed`: o alvo foi exercido e nenhum achado dispara `failOn`.
+ */
+type Verdict = 'passed' | 'failed' | 'inconclusive';
 type TargetHealthStatus = 'healthy' | 'degraded' | 'unreachable';
 interface TargetHealth {
     repoAccessible: boolean;
@@ -207,6 +215,12 @@ interface AuditReport extends ScanReport {
     saas: string;
     timestamp: string;
     targetHealth: TargetHealth;
+    /**
+     * Veredito honesto (passed/failed/inconclusive). Sempre preenchido pelo
+     * orquestrador. Opcional no tipo para retrocompatibilidade com relatórios
+     * antigos; consumidores caem em `passed` quando ausente.
+     */
+    verdict?: Verdict;
     checks: CheckResult[];
     resumo: {
         porSeveridade: Record<Severity, number>;
@@ -241,6 +255,14 @@ declare class FractaHttpClient {
     }>;
 }
 
+/**
+ * Veredito honesto a partir do resumo + saúde do alvo (lógica pura, testável).
+ * - Achado de severidade `failOn` presente → `failed` (problema concreto vence).
+ * - Senão, alvo `unreachable` → `inconclusive`: a camada testável (DAST) nunca
+ *   exerceu o alvo, então "0 achados" NÃO é "seguro" (regra de honestidade).
+ * - Senão → `passed`.
+ */
+declare function deriveVerdict(summary: Record<Severity, number>, failOn: Severity[], health: TargetHealth): Verdict;
 interface OrchestratorOptions {
     concurrency?: number;
     failOn?: Severity[];
@@ -293,8 +315,11 @@ interface HealthInputs {
 }
 /**
  * Deriva o status agregado (lógica pura, testável). Repo obrigatório inacessível
- * é fatal (`unreachable` → o orquestrador aborta). Para os probes externos opcionais:
- * todos de pé = healthy; alguns = degraded; nenhum = unreachable.
+ * é fatal (`unreachable` → o orquestrador ABORTA a auditoria, sem rodar agentes).
+ * Para os probes externos opcionais: todos de pé = healthy; alguns = degraded;
+ * nenhum = unreachable. Um alvo só-URL `unreachable` NÃO aborta (agentes de repo
+ * ainda podem valer), mas o veredito final vira `inconclusive` (ver `deriveVerdict`):
+ * a camada DAST nunca exerceu o alvo, então "0 achados" não é "seguro".
  */
 declare function deriveHealthStatus(p: HealthInputs): TargetHealthStatus;
 
@@ -318,4 +343,4 @@ type CommandRunner = (command: string, args: string[], opts?: RunCommandOptions)
  */
 declare const runCommand: CommandRunner;
 
-export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, checkTargetHealth, deriveHealthStatus, makeFinding, runCommand, stableFindingId };
+export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };

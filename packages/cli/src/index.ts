@@ -85,7 +85,8 @@ Options:
   --no-state        Disable cross-run state (no regression/suppression)
   --no-llm          Disable the LLM edge (prioritization/fix drafting)
   --fail-on         Severities that cause exit(1) (default: critical,high)
-  --docs-path       Repository path for docs audit (default: ./)
+  --docs-path       Repo path for the dedicated 'docs' command (default: ./).
+                    In 'scan', DOCS uses the target's repoPath and skips if absent.
   -v, --verbose     Verbose output
   -h, --help        Show this help
 `)
@@ -126,7 +127,10 @@ Options:
         new HeadersAgent(),
         new AuthAgent(),
         new IdorAgent(),
-        new DocsAgent(docsPath),
+        // No scan, o DOCS Agent deriva o repo de `target.repoPath` e PULA se ausente
+        // — nunca cai no cwd (escanearia o próprio Fracta). O override `--docs-path`
+        // vale só para o comando dedicado `fracta docs`.
+        new DocsAgent(),
         new TenantAgent(),
         new RaceAgent(),
         new StripeAgent(),

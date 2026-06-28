@@ -42,8 +42,11 @@ export interface HealthInputs {
 
 /**
  * Deriva o status agregado (lógica pura, testável). Repo obrigatório inacessível
- * é fatal (`unreachable` → o orquestrador aborta). Para os probes externos opcionais:
- * todos de pé = healthy; alguns = degraded; nenhum = unreachable.
+ * é fatal (`unreachable` → o orquestrador ABORTA a auditoria, sem rodar agentes).
+ * Para os probes externos opcionais: todos de pé = healthy; alguns = degraded;
+ * nenhum = unreachable. Um alvo só-URL `unreachable` NÃO aborta (agentes de repo
+ * ainda podem valer), mas o veredito final vira `inconclusive` (ver `deriveVerdict`):
+ * a camada DAST nunca exerceu o alvo, então "0 achados" não é "seguro".
  */
 export function deriveHealthStatus(p: HealthInputs): TargetHealthStatus {
   if (p.hasRepo && !p.repoAccessible) return 'unreachable'

@@ -223,6 +223,15 @@ export interface CheckResult {
   findings: Finding[]
 }
 
+/**
+ * Veredito honesto de uma auditoria:
+ * - `failed`: há achado de severidade que dispara `failOn` (problema concreto).
+ * - `inconclusive`: nada falhou, MAS a auditoria não conseguiu exercer o alvo
+ *   (ex.: target `unreachable` → a camada DAST nunca rodou). "Não verificado" ≠ "seguro".
+ * - `passed`: o alvo foi exercido e nenhum achado dispara `failOn`.
+ */
+export type Verdict = 'passed' | 'failed' | 'inconclusive'
+
 export type TargetHealthStatus = 'healthy' | 'degraded' | 'unreachable'
 
 export interface TargetHealth {
@@ -271,6 +280,12 @@ export interface AuditReport extends ScanReport {
   saas: string
   timestamp: string
   targetHealth: TargetHealth
+  /**
+   * Veredito honesto (passed/failed/inconclusive). Sempre preenchido pelo
+   * orquestrador. Opcional no tipo para retrocompatibilidade com relatórios
+   * antigos; consumidores caem em `passed` quando ausente.
+   */
+  verdict?: Verdict
   checks: CheckResult[]
   resumo: {
     porSeveridade: Record<Severity, number>

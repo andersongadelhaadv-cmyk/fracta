@@ -1,7 +1,7 @@
 import { readdir, readFile, stat } from 'fs/promises'
 import { join, relative } from 'path'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
-import { stableFindingId } from '@fracta/core'
+import { stableFindingId, SkippedCheck } from '@fracta/core'
 
 const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo'])
 const LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i
@@ -20,13 +20,26 @@ export class DocsAgent implements SecurityAgent {
   concurrency = 1
   timeoutMs = 60_000
 
-  constructor(private readonly repoPath: string = process.cwd()) {}
+  /**
+   * `explicitRepoPath` é um override (ex.: o comando `fracta docs --docs-path`).
+   * No `scan`, fica indefinido e o repo vem de `target.repoPath`. SEM nenhum dos
+   * dois, o agente PULA (SkippedCheck) — jamais cai no `process.cwd()`, que
+   * escanearia o próprio Fracta e produziria achados desonestos.
+   */
+  constructor(private readonly explicitRepoPath?: string) {}
 
   async run(scope: ScanScope): Promise<Finding[]> {
     const findings: Finding[] = []
 
+    const repoPath = this.explicitRepoPath ?? scope.target.repoPath
+    if (!repoPath) {
+      throw new SkippedCheck(
+        'DOCS Agent: sem repoPath no target — defina `repoPath` para auditar a documentação do repositório.',
+      )
+    }
+
     try {
-      const files = await this.collectMarkdownFiles(this.repoPath)
+      const files = await this.collectMarkdownFiles(repoPath)
 
       if (files.length === 0) {
         findings.push({
@@ -37,7 +50,7 @@ export class DocsAgent implements SecurityAgent {
           camada: this.category,
           severity: 'info',
           title: 'Nenhum arquivo .md encontrado',
-          description: `Nenhum arquivo Markdown encontrado em ${this.repoPath}`,
+          description: `Nenhum arquivo Markdown encontrado em ${repoPath}`,
           recommendation: 'Adicione documentação Markdown ao repositório.',
           createdAt: new Date(),
         })
@@ -60,7 +73,7 @@ export class DocsAgent implements SecurityAgent {
         camada: this.category,
         severity: 'info',
         title: 'DOCS Agent — erro ao ler repositório',
-        description: `Erro ao escanear ${this.repoPath}: ${String(err)}`,
+        description: `Erro ao escanear ${repoPath}: ${String(err)}`,
         recommendation: 'Verifique se o caminho do repositório está correto.',
         createdAt: new Date(),
       })

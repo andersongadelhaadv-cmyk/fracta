@@ -188,6 +188,11 @@ var SEVERITY_ORDER = {
   low: 3,
   info: 4
 };
+function deriveVerdict(summary, failOn, health) {
+  if (failOn.some((s) => summary[s] > 0)) return "failed";
+  if (health.status === "unreachable") return "inconclusive";
+  return "passed";
+}
 var FractaOrchestrator = class {
   agents = [];
   options;
@@ -257,7 +262,8 @@ var FractaOrchestrator = class {
       summary[f.severity]++;
     }
     const finishedAt = /* @__PURE__ */ new Date();
-    const passed = !this.options.failOn.some((s) => summary[s] > 0);
+    const verdict = deriveVerdict(summary, this.options.failOn, health);
+    const passed = verdict === "passed";
     const targetHealth = health;
     let report = {
       runId,
@@ -271,6 +277,7 @@ var FractaOrchestrator = class {
       saas: target.name,
       timestamp: finishedAt.toISOString(),
       targetHealth,
+      verdict,
       checks,
       resumo: {
         porSeveridade: {
@@ -356,6 +363,8 @@ var FractaOrchestrator = class {
       saas: target.name,
       timestamp: finishedAt.toISOString(),
       targetHealth: health,
+      // Repo obrigatório inacessível: não foi possível auditar → inconclusivo, não "falhou".
+      verdict: "inconclusive",
       checks: [],
       resumo: {
         porSeveridade: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
@@ -366,7 +375,7 @@ var FractaOrchestrator = class {
     };
   }
   printSummary(report) {
-    const status = report.passed ? "\u2705 PASSED" : "\u274C FAILED";
+    const status = report.verdict === "inconclusive" ? "\u26A0\uFE0F INCONCLUSIVE (alvo n\xE3o exercido)" : report.passed ? "\u2705 PASSED" : "\u274C FAILED";
     console.log(`
 [Fracta] ${report.target} \u2014 ${status}`);
     console.log(`  Critical: ${report.summary.critical}  High: ${report.summary.high}  Medium: ${report.summary.medium}  Low: ${report.summary.low}  Info: ${report.summary.info}`);
@@ -454,6 +463,7 @@ export {
   SkippedCheck,
   checkTargetHealth,
   deriveHealthStatus,
+  deriveVerdict,
   makeFinding,
   runCommand,
   stableFindingId

@@ -152,7 +152,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const reporter = new FractaReporter()
       const { mdPath } = await reporter.save(report)
 
-      const summary = `Scan concluído: ${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium. Status: ${report.passed ? 'PASSOU' : 'FALHOU'}. Relatório: ${mdPath}`
+      const statusTxt = report.verdict === 'inconclusive'
+        ? 'INCONCLUSIVO (alvo não exercido — ausência de achados ≠ seguro)'
+        : report.passed ? 'PASSOU' : 'FALHOU'
+      const summary = `Scan concluído: ${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium. Status: ${statusTxt}. Relatório: ${mdPath}`
       return { content: [{ type: 'text', text: summary }] }
     }
 
