@@ -12,6 +12,7 @@ import { DocsAgent } from '@fracta/agent-docs'
 import { TenantAgent } from '@fracta/agent-tenant'
 import { RaceAgent } from '@fracta/agent-race'
 import { StripeAgent } from '@fracta/agent-stripe'
+import { DependenciesAgent } from '@fracta/agent-dependencies'
 import { NestJSSkill } from '@fracta/skill-nestjs'
 import { PrismaSkill } from '@fracta/skill-prisma'
 import { SupabaseSkill } from '@fracta/skill-supabase'
@@ -35,7 +36,7 @@ function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {
   o.registerAgents([
     new HeadersAgent(), new AuthAgent(), new IdorAgent(),
     new DocsAgent(), new TenantAgent(), new RaceAgent(),
-    new StripeAgent(),
+    new StripeAgent(), new DependenciesAgent(),
     new NestJSSkill(), new PrismaSkill(), new SupabaseSkill(),
   ])
   return o

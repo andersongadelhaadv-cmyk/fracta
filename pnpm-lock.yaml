@@ -46,6 +46,25 @@ importers:
         specifier: '*'
         version: 1.6.1(@types/node@20.19.39)
 
+  packages/agents/dependencies:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 22.20.0
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@22.20.0)
+
   packages/agents/docs:
     dependencies:
       '@fracta/core':
@@ -165,6 +184,9 @@ importers:
       '@fracta/agent-auth':
         specifier: workspace:*
         version: link:../agents/auth
+      '@fracta/agent-dependencies':
+        specifier: workspace:*
+        version: link:../agents/dependencies
       '@fracta/agent-docs':
         specifier: workspace:*
         version: link:../agents/docs
@@ -235,6 +257,9 @@ importers:
       '@fracta/agent-auth':
         specifier: workspace:*
         version: link:../agents/auth
+      '@fracta/agent-dependencies':
+        specifier: workspace:*
+        version: link:../agents/dependencies
       '@fracta/agent-docs':
         specifier: workspace:*
         version: link:../agents/docs
