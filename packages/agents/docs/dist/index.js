@@ -1,7 +1,7 @@
 // src/index.ts
-import { randomUUID } from "crypto";
 import { readdir, readFile, stat } from "fs/promises";
 import { join, relative } from "path";
+import { stableFindingId } from "@fracta/core";
 var IGNORE_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo"]);
 var LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i;
 var MS_IN_DAY = 864e5;
@@ -20,10 +20,11 @@ var DocsAgent = class {
       const files = await this.collectMarkdownFiles(this.repoPath);
       if (files.length === 0) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "docs-none" }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: "info",
           title: "Nenhum arquivo .md encontrado",
           description: `Nenhum arquivo Markdown encontrado em ${this.repoPath}`,
@@ -39,10 +40,11 @@ var DocsAgent = class {
       this.checkDuplicateTitles(scope, h1Titles, findings);
     } catch (err) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "docs-read-error" }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "info",
         title: "DOCS Agent \u2014 erro ao ler reposit\xF3rio",
         description: `Erro ao escanear ${this.repoPath}: ${String(err)}`,
@@ -57,10 +59,11 @@ var DocsAgent = class {
     const ageDays = Math.floor(ageMs / MS_IN_DAY);
     if (ageDays > 180) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-stale:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "medium",
         title: `Documenta\xE7\xE3o obsoleta: ${file.relativePath}`,
         description: `Arquivo n\xE3o modificado h\xE1 ${ageDays} dias (>180 dias).`,
@@ -71,10 +74,11 @@ var DocsAgent = class {
     }
     if (LEGACY_PATTERNS.test(file.relativePath)) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-legacy-name:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "medium",
         title: `Arquivo com nome legado: ${file.relativePath}`,
         description: "Nome do arquivo sugere conte\xFAdo legado, backup ou depreciado.",
@@ -85,10 +89,11 @@ var DocsAgent = class {
     }
     if (/TODO|FIXME/i.test(file.content)) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-todo:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "low",
         title: `TODOs n\xE3o resolvidos: ${file.relativePath}`,
         description: "Arquivo cont\xE9m marca\xE7\xF5es TODO ou FIXME indicando documenta\xE7\xE3o incompleta.",
@@ -100,10 +105,11 @@ var DocsAgent = class {
     const v1Matches = (file.content.match(/\bv[01]\b/gi) ?? []).length;
     if (v1Matches > 2) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-legacy-version-refs:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "medium",
         title: `Refer\xEAncias a vers\xF5es legadas: ${file.relativePath}`,
         description: `${v1Matches} refer\xEAncias a v0/v1 encontradas. Pode indicar documenta\xE7\xE3o desatualizada.`,
@@ -123,10 +129,11 @@ var DocsAgent = class {
     for (const [title, paths] of h1Titles) {
       if (paths.length > 1) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-duplicate-h1:${title}` }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: "low",
           title: `T\xEDtulo H1 duplicado: "${title}"`,
           description: `O mesmo t\xEDtulo H1 aparece em ${paths.length} arquivos: ${paths.join(", ")}`,

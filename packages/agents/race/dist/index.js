@@ -1,6 +1,6 @@
 // src/index.ts
 import { randomUUID } from "crypto";
-import { FractaHttpClient } from "@fracta/core";
+import { FractaHttpClient, stableFindingId } from "@fracta/core";
 var PROBES = [
   { path: "/api/coupons/redeem", body: { code: "FRACTA-TEST" }, description: "resgate de cupom" },
   { path: "/api/cupons/aplicar", body: { codigo: "FRACTA-TEST" }, description: "aplica\xE7\xE3o de cupom" },
@@ -31,10 +31,11 @@ var RaceAgent = class {
     const { target, depth } = scope;
     if (depth === "quick") {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "race-skipped:quick" }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "info",
         title: "RACE Agent \u2014 depth=quick pula testes destrutivos",
         description: "Testes de race condition envolvem rajadas de POSTs concorrentes. Em quick scan eles s\xE3o pulados para n\xE3o impactar o staging.",
@@ -86,10 +87,11 @@ var RaceAgent = class {
     if (notFound >= Math.ceil(burst * 0.6)) return;
     if (successes >= 2) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `race-condition:${probe.path}`, location: probe.path }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "high",
         title: `Race condition em ${probe.path} (${probe.description})`,
         description: `Disparei ${burst} POSTs concorrentes em ${probe.path}; ${successes} responderam 2xx. A\xE7\xF5es que devem ser idempotentes (${probe.description}) n\xE3o devem aceitar m\xFAltiplas execu\xE7\xF5es simult\xE2neas.`,
@@ -121,10 +123,11 @@ var RaceAgent = class {
       const delta = Math.abs(avgValid - avgFake);
       if (delta > 100) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `timing-attack:${path}`, location: path }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: "medium",
           title: `Timing attack poss\xEDvel em ${path}: enumera\xE7\xE3o de usu\xE1rios`,
           description: `Login com email existente (${avgValid.toFixed(0)}ms) vs inexistente (${avgFake.toFixed(0)}ms) tem varia\xE7\xE3o de ${delta.toFixed(0)}ms \u2014 atacante consegue enumerar usu\xE1rios medindo o tempo de resposta.`,

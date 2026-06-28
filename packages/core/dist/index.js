@@ -1,5 +1,5 @@
 // src/types.ts
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 var KNOWN_STACKS = [
   "nestjs",
   "nextjs",
@@ -17,6 +17,23 @@ function makeFinding(partial) {
     createdAt: /* @__PURE__ */ new Date()
   };
 }
+function stableFindingId(parts) {
+  const key = [
+    parts.saas.trim().toLowerCase(),
+    parts.camada.trim().toLowerCase(),
+    parts.rule.trim().toLowerCase(),
+    (parts.location ?? "").trim().toLowerCase()
+  ].join("|");
+  return createHash("sha256").update(key).digest("hex").slice(0, 16);
+}
+var SkippedCheck = class extends Error {
+  constructor(motivo) {
+    super(motivo);
+    this.motivo = motivo;
+    this.name = "SkippedCheck";
+  }
+  motivo;
+};
 
 // src/http-client.ts
 var FractaHttpClient = class _FractaHttpClient {
@@ -86,6 +103,84 @@ var FractaHttpClient = class _FractaHttpClient {
 
 // src/orchestrator.ts
 import { randomUUID as randomUUID2 } from "crypto";
+
+// src/health.ts
+import { stat } from "fs/promises";
+import { join } from "path";
+import { connect } from "net";
+async function checkTargetHealth(target) {
+  const hasRepo = !!target.repoPath;
+  const repoAccessible = hasRepo ? await isGitRepo(target.repoPath) : true;
+  const stagingApplicable = isHttpUrl(target.url);
+  const stagingResponding = stagingApplicable ? await httpResponds(target.url) : void 0;
+  const host = target.infra?.host;
+  const vpsApplicable = !!host;
+  const vpsReachable = host ? await tcpReachable(host) : void 0;
+  const status = deriveHealthStatus({
+    hasRepo,
+    repoAccessible,
+    stagingApplicable,
+    stagingResponding,
+    vpsApplicable,
+    vpsReachable
+  });
+  return { repoAccessible, stagingResponding, vpsReachable, status };
+}
+function deriveHealthStatus(p) {
+  if (p.hasRepo && !p.repoAccessible) return "unreachable";
+  const probes = [];
+  if (p.stagingApplicable) probes.push(p.stagingResponding === true);
+  if (p.vpsApplicable) probes.push(p.vpsReachable === true);
+  if (probes.length === 0) return "healthy";
+  if (probes.every(Boolean)) return "healthy";
+  if (probes.some(Boolean)) return "degraded";
+  return "unreachable";
+}
+function isHttpUrl(url) {
+  return !!url && /^https?:\/\//i.test(url);
+}
+async function isGitRepo(repoPath) {
+  try {
+    const dir = await stat(repoPath);
+    if (!dir.isDirectory()) return false;
+    await stat(join(repoPath, ".git"));
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function httpResponds(url, timeoutMs = 5e3) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    await fetch(url, { method: "HEAD", signal: controller.signal });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+function tcpReachable(host, port = 22, timeoutMs = 4e3) {
+  return new Promise((resolve) => {
+    const socket = connect({ host, port });
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", (err) => {
+      finish(err.code === "ECONNREFUSED");
+    });
+  });
+}
+
+// src/orchestrator.ts
 var SEVERITY_ORDER = {
   critical: 0,
   high: 1,
@@ -96,6 +191,9 @@ var SEVERITY_ORDER = {
 var FractaOrchestrator = class {
   agents = [];
   options;
+  store;
+  healthCheck;
+  enricher;
   constructor(options = {}) {
     this.options = {
       concurrency: options.concurrency ?? 3,
@@ -103,6 +201,9 @@ var FractaOrchestrator = class {
       depth: options.depth ?? "full",
       verbose: options.verbose ?? false
     };
+    this.store = options.store;
+    this.healthCheck = options.healthCheck ?? checkTargetHealth;
+    this.enricher = options.enricher;
   }
   registerAgent(agent) {
     this.agents.push(agent);
@@ -122,23 +223,31 @@ var FractaOrchestrator = class {
       console.log(`[Fracta] Agents: ${activeAgents.map((a) => a.name).join(", ")}`);
       console.log(`[Fracta] Depth: ${this.options.depth}`);
     }
+    const health = await this.healthCheck(target);
+    if (target.repoPath && !health.repoAccessible) {
+      return this.buildAbortedReport(target, runId, startedAt, health);
+    }
     const scope = {
       target,
       depth: this.options.depth,
       agents: activeAgents.map((a) => a.name),
       runId,
-      startedAt
+      startedAt,
+      health
     };
-    const findings = [];
+    const checks = [];
     const chunks = chunkArray(activeAgents, this.options.concurrency);
     for (const chunk of chunks) {
-      const results = await Promise.allSettled(chunk.map((a) => a.run(scope)));
-      for (const result of results) {
-        if (result.status === "fulfilled") {
-          findings.push(...result.value);
-        } else {
-          console.error(`[Fracta] Agent error:`, result.reason);
-        }
+      const results = await Promise.all(chunk.map((a) => this.runCheckIsolated(a, scope)));
+      checks.push(...results);
+    }
+    let findings = checks.flatMap((c) => c.findings);
+    if (this.store) {
+      try {
+        const suppressions = target.config?.suppressions ?? [];
+        findings = await this.store.applyStatus(target.name, findings, suppressions);
+      } catch (err) {
+        if (this.options.verbose) console.error(`[Fracta] Store.applyStatus falhou: ${String(err)}`);
       }
     }
     findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
@@ -149,7 +258,8 @@ var FractaOrchestrator = class {
     }
     const finishedAt = /* @__PURE__ */ new Date();
     const passed = !this.options.failOn.some((s) => summary[s] > 0);
-    const report = {
+    const targetHealth = health;
+    let report = {
       runId,
       target: target.name,
       startedAt,
@@ -157,8 +267,38 @@ var FractaOrchestrator = class {
       durationMs: finishedAt.getTime() - startedAt.getTime(),
       summary,
       findings,
-      passed
+      passed,
+      saas: target.name,
+      timestamp: finishedAt.toISOString(),
+      targetHealth,
+      checks,
+      resumo: {
+        porSeveridade: {
+          critical: summary.critical,
+          high: summary.high,
+          medium: summary.medium,
+          low: summary.low,
+          info: summary.info
+        },
+        regressoes: findings.filter((f) => f.status === "regression").length,
+        checksComErro: checks.filter((c) => c.status === "error").map((c) => c.agent),
+        checksPulados: checks.filter((c) => c.status === "skipped").map((c) => c.agent)
+      }
     };
+    if (this.enricher) {
+      try {
+        report = await this.enricher.enrich(report);
+      } catch (err) {
+        if (this.options.verbose) console.error(`[Fracta] Enricher falhou: ${String(err)}`);
+      }
+    }
+    if (this.store) {
+      try {
+        await this.store.recordRun(report);
+      } catch (err) {
+        if (this.options.verbose) console.error(`[Fracta] Store.recordRun falhou: ${String(err)}`);
+      }
+    }
     this.printSummary(report);
     return report;
   }
@@ -169,14 +309,98 @@ var FractaOrchestrator = class {
     }
     return reports;
   }
+  /**
+   * Executa UM agente de forma isolada: aplica timeout, captura qualquer falha
+   * e devolve sempre um CheckResult (ok | error | skipped). Nunca propaga exceção.
+   */
+  async runCheckIsolated(agent, scope) {
+    const camada = agent.category;
+    const start = Date.now();
+    try {
+      const findings = await withTimeout(agent.run(scope), agent.timeoutMs);
+      return {
+        agent: agent.name,
+        camada,
+        status: "ok",
+        durationMs: Date.now() - start,
+        findings: findings.map((f) => normalizeFinding(f, camada))
+      };
+    } catch (err) {
+      const durationMs = Date.now() - start;
+      if (err instanceof SkippedCheck) {
+        return { agent: agent.name, camada, status: "skipped", motivo: err.motivo, durationMs, findings: [] };
+      }
+      const motivo = err instanceof Error ? err.message : String(err);
+      if (this.options.verbose) console.error(`[Fracta] Check error (${agent.name}): ${motivo}`);
+      return { agent: agent.name, camada, status: "error", motivo, durationMs, findings: [] };
+    }
+  }
+  /**
+   * Auditoria abortada por repo obrigatório inacessível. Devolve um AuditReport
+   * honesto (nenhum check rodou, não passou) sem persistir nada.
+   */
+  buildAbortedReport(target, runId, startedAt, health) {
+    const finishedAt = /* @__PURE__ */ new Date();
+    const motivo = `repoPath inacess\xEDvel ou n\xE3o \xE9 um reposit\xF3rio git v\xE1lido: ${target.repoPath}`;
+    console.error(`
+[Fracta] ${target.name} \u2014 \u26D4 AUDITORIA ABORTADA: ${motivo}`);
+    return {
+      runId,
+      target: target.name,
+      startedAt,
+      finishedAt,
+      durationMs: finishedAt.getTime() - startedAt.getTime(),
+      summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+      findings: [],
+      passed: false,
+      saas: target.name,
+      timestamp: finishedAt.toISOString(),
+      targetHealth: health,
+      checks: [],
+      resumo: {
+        porSeveridade: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+        regressoes: 0,
+        checksComErro: [],
+        checksPulados: []
+      }
+    };
+  }
   printSummary(report) {
     const status = report.passed ? "\u2705 PASSED" : "\u274C FAILED";
     console.log(`
 [Fracta] ${report.target} \u2014 ${status}`);
     console.log(`  Critical: ${report.summary.critical}  High: ${report.summary.high}  Medium: ${report.summary.medium}  Low: ${report.summary.low}  Info: ${report.summary.info}`);
+    if (report.resumo.checksComErro.length > 0) {
+      console.log(`  \u26A0 Checks com erro: ${report.resumo.checksComErro.join(", ")}`);
+    }
+    if (report.resumo.checksPulados.length > 0) {
+      console.log(`  \u2298 Checks pulados: ${report.resumo.checksPulados.join(", ")}`);
+    }
     console.log(`  Duration: ${report.durationMs}ms  Run ID: ${report.runId}`);
   }
 };
+function normalizeFinding(f, camada) {
+  return {
+    ...f,
+    camada: f.camada ?? camada,
+    status: f.status ?? "open"
+  };
+}
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timeout ap\xF3s ${ms}ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
 function chunkArray(arr, size) {
   const chunks = [];
   for (let i = 0; i < arr.length; i += size) {
@@ -184,9 +408,53 @@ function chunkArray(arr, size) {
   }
   return chunks;
 }
+
+// src/exec.ts
+import { spawn } from "child_process";
+var runCommand = (command, args, opts = {}) => {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: opts.cwd,
+      // No Windows, npm/gitleaks são .cmd e exigem shell para resolver no PATH.
+      shell: process.platform === "win32"
+    });
+    let stdout = "";
+    let stderr = "";
+    let timer;
+    if (opts.timeoutMs) {
+      timer = setTimeout(() => {
+        child.kill("SIGKILL");
+        reject(new Error(`timeout ap\xF3s ${opts.timeoutMs}ms ao executar: ${command}`));
+      }, opts.timeoutMs);
+    }
+    child.stdout.on("data", (d) => {
+      stdout += d.toString();
+    });
+    child.stderr.on("data", (d) => {
+      stderr += d.toString();
+    });
+    child.on("error", (err) => {
+      if (timer) clearTimeout(timer);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      if (timer) clearTimeout(timer);
+      resolve({ stdout, stderr, code });
+    });
+    if (opts.input !== void 0) {
+      child.stdin.write(opts.input);
+      child.stdin.end();
+    }
+  });
+};
 export {
   FractaHttpClient,
   FractaOrchestrator,
   KNOWN_STACKS,
-  makeFinding
+  SkippedCheck,
+  checkTargetHealth,
+  deriveHealthStatus,
+  makeFinding,
+  runCommand,
+  stableFindingId
 };

@@ -1,6 +1,5 @@
 // src/index.ts
-import { randomUUID } from "crypto";
-import { FractaHttpClient } from "@fracta/core";
+import { FractaHttpClient, stableFindingId } from "@fracta/core";
 var ADMIN_PATHS = [
   "/api/admin",
   "/api/admin/users",
@@ -72,10 +71,11 @@ var TenantAgent = class {
     }
     if (!authenticated) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "tenant-auth-not-configured" }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: "info",
         title: "TENANT Agent \u2014 autentica\xE7\xE3o n\xE3o configurada",
         description: "TENANT Agent testa isolamento entre tenants. Sem credenciais v\xE1lidas s\xF3 consegue verificar exposi\xE7\xE3o n\xE3o-autenticada de rotas admin/tenant.",
@@ -99,10 +99,11 @@ var TenantAgent = class {
         if (res.status === 200 && res.raw.length > 10) {
           const severity = authenticated ? "critical" : "high";
           findings.push({
-            id: randomUUID(),
+            id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `admin-route-exposed:${path}`, location: path }),
             runId: scope.runId,
             agent: this.name,
             category: this.category,
+            camada: this.category,
             severity,
             title: `Rota administrativa/multi-tenant exposta: ${path}`,
             description: authenticated ? `${path} retornou HTTP 200 com um token de usu\xE1rio comum. Endpoints administrativos n\xE3o devem ser acess\xEDveis sem checagem de role.` : `${path} retornou HTTP 200 sem autentica\xE7\xE3o. Listagem de tenants/orgs/admin n\xE3o deveria ser p\xFAblica.`,
@@ -140,10 +141,11 @@ ${shortBody(res.raw)}`,
       }
       if (hits >= 2) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `cross-tenant:${template}`, location: template }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: "critical",
           title: `Cross-tenant: m\xFAltiplos IDs respondem em ${template}`,
           description: `${hits} IDs distintos retornaram 200 em ${template}. Indica que recursos de outros tenants/orgs s\xE3o acess\xEDveis com o mesmo token \u2014 falha cl\xE1ssica de isolamento.`,
@@ -181,10 +183,11 @@ ${shortBody(res.raw)}`,
           });
           if (res.status === 200 && Math.abs(res.raw.length - baselineLen) > 50) {
             findings.push({
-              id: randomUUID(),
+              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `tenant-header-injection:${header}:${path}`, location: path }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
+              camada: this.category,
               severity: "high",
               title: `Header de tenant aceito sem valida\xE7\xE3o: ${header} em ${path}`,
               description: `${path} retornou corpo diferente (\u2206 ${Math.abs(res.raw.length - baselineLen)} bytes) ao injetar ${header}: 999999. O backend pode estar confiando no header em vez do tenant do JWT.`,
