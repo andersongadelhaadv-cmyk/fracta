@@ -46,6 +46,25 @@ importers:
         specifier: '*'
         version: 1.6.1(@types/node@20.19.39)
 
+  packages/agents/compliance:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 22.20.0
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@22.20.0)
+
   packages/agents/dependencies:
     dependencies:
       '@fracta/core':
@@ -122,6 +141,25 @@ importers:
         specifier: '*'
         version: 1.6.1(@types/node@20.19.39)
 
+  packages/agents/infra:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 22.20.0
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@22.20.0)
+
   packages/agents/race:
     dependencies:
       '@fracta/core':
@@ -140,6 +178,44 @@ importers:
       vitest:
         specifier: '*'
         version: 1.6.1(@types/node@20.19.39)
+
+  packages/agents/secrets:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 22.20.0
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@22.20.0)
+
+  packages/agents/stack:
+    dependencies:
+      '@fracta/core':
+        specifier: workspace:*
+        version: link:../../core
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 22.20.0
+      tsup:
+        specifier: '*'
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@22.20.0)
 
   packages/agents/stripe:
     dependencies:
@@ -184,6 +260,9 @@ importers:
       '@fracta/agent-auth':
         specifier: workspace:*
         version: link:../agents/auth
+      '@fracta/agent-compliance':
+        specifier: workspace:*
+        version: link:../agents/compliance
       '@fracta/agent-dependencies':
         specifier: workspace:*
         version: link:../agents/dependencies
@@ -196,9 +275,18 @@ importers:
       '@fracta/agent-idor':
         specifier: workspace:*
         version: link:../agents/idor
+      '@fracta/agent-infra':
+        specifier: workspace:*
+        version: link:../agents/infra
       '@fracta/agent-race':
         specifier: workspace:*
         version: link:../agents/race
+      '@fracta/agent-secrets':
+        specifier: workspace:*
+        version: link:../agents/secrets
+      '@fracta/agent-stack':
+        specifier: workspace:*
+        version: link:../agents/stack
       '@fracta/agent-stripe':
         specifier: workspace:*
         version: link:../agents/stripe
@@ -257,6 +345,9 @@ importers:
       '@fracta/agent-auth':
         specifier: workspace:*
         version: link:../agents/auth
+      '@fracta/agent-compliance':
+        specifier: workspace:*
+        version: link:../agents/compliance
       '@fracta/agent-dependencies':
         specifier: workspace:*
         version: link:../agents/dependencies
@@ -269,9 +360,18 @@ importers:
       '@fracta/agent-idor':
         specifier: workspace:*
         version: link:../agents/idor
+      '@fracta/agent-infra':
+        specifier: workspace:*
+        version: link:../agents/infra
       '@fracta/agent-race':
         specifier: workspace:*
         version: link:../agents/race
+      '@fracta/agent-secrets':
+        specifier: workspace:*
+        version: link:../agents/secrets
+      '@fracta/agent-stack':
+        specifier: workspace:*
+        version: link:../agents/stack
       '@fracta/agent-stripe':
         specifier: workspace:*
         version: link:../agents/stripe

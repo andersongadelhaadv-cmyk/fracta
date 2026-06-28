@@ -1,0 +1,278 @@
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import type {
+  SecurityAgent, ScanScope, Finding, AgentCategory, ProposedFix,
+} from '@fracta/core'
+import { SkippedCheck, stableFindingId, runCommand } from '@fracta/core'
+
+/**
+ * Subconjunto dos campos de um achado do gitleaks que ESTE agente pode tocar.
+ * Os campos `Secret` e `Match` existem no JSON do gitleaks mas NUNCA são usados
+ * aqui — incluí-los em qualquer Finding recriaria o vazamento que estamos achando.
+ */
+export interface GitleaksFinding {
+  RuleID?: string
+  Description?: string
+  File?: string
+  StartLine?: number
+  Commit?: string
+  Date?: string
+  Author?: string
+  // Secret / Match são deliberadamente OMITIDOS do tipo público — nunca propagados.
+}
+
+/**
+ * Scanner injetável. A impl real roda o binário `gitleaks`; os testes injetam
+ * um fake com dados canned (sem tocar Git/PATH).
+ */
+export type GitleaksScanner = (repoPath: string, timeoutMs: number) => Promise<GitleaksFinding[]>
+
+/**
+ * Impl real: roda `gitleaks detect` gravando o relatório JSON num arquivo temporário,
+ * lê+parseia e limpa. gitleaks sai 1 quando ACHA vazamentos e 0 quando não acha —
+ * AMBOS são sucesso. Só vira erro real se o binário falhar de verdade.
+ */
+export const defaultGitleaksScan: GitleaksScanner = async (repoPath, timeoutMs) => {
+  const dir = await mkdtemp(join(tmpdir(), 'fracta-gitleaks-'))
+  const reportPath = join(dir, 'report.json')
+  try {
+    let code: number | null
+    try {
+      const result = await runCommand(
+        'gitleaks',
+        [
+          'detect',
+          '--source', repoPath,
+          '--no-banner',
+          '--report-format', 'json',
+          '--report-path', reportPath,
+        ],
+        { timeoutMs },
+      )
+      code = result.code
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException
+      if (e.code === 'ENOENT') {
+        throw new SkippedCheck('gitleaks não encontrado no PATH — não foi possível escanear segredos versionados')
+      }
+      throw err // erro real de execução → status: error (visível, não falso "seguro")
+    }
+
+    // gitleaks: 0 = limpo, 1 = vazamentos encontrados. Qualquer outro código é erro real.
+    let raw: string
+    try {
+      raw = await readFile(reportPath, 'utf8')
+    } catch (readErr) {
+      // Relatório ausente + código de sucesso (0/1) → trate como "nenhum achado".
+      if (code === 0 || code === 1) return []
+      throw new Error(`gitleaks falhou (código ${code}) e não gerou relatório: ${(readErr as Error).message}`)
+    }
+
+    const trimmed = raw.trim()
+    if (!trimmed) return []
+    const parsed = JSON.parse(trimmed) as GitleaksFinding[]
+    return Array.isArray(parsed) ? parsed : []
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Detecta SEGREDOS versionados via gitleaks + checagens de higiene (read-only).
+ *
+ * Garantia de sanitização: os valores de segredo (campos `Secret`/`Match` do gitleaks)
+ * NUNCA entram em nenhum Finding — só RuleID, File, StartLine e hash curto do commit.
+ * Logar/reportar o segredo recriaria o vazamento.
+ *
+ * `skipped` (nunca falso "seguro") quando falta repoPath ou o binário gitleaks.
+ * Correções são apenas PROPOSTAS (proposedFix com riskOfApplying), nunca aplicadas —
+ * o agente nunca toca no Git.
+ */
+export class SecretsAgent implements SecurityAgent {
+  name = 'SECRETS Agent'
+  category: AgentCategory = 'secrets'
+  concurrency = 1
+  timeoutMs = 120_000
+
+  constructor(private readonly scan: GitleaksScanner = defaultGitleaksScan) {}
+
+  async run(scope: ScanScope): Promise<Finding[]> {
+    const repoPath = scope.target.repoPath
+    if (!repoPath) {
+      throw new SkippedCheck('sem repoPath — SecretsAgent precisa do repositório local')
+    }
+
+    const findings: Finding[] = []
+
+    const leaks = await this.scan(repoPath, this.timeoutMs)
+    for (const leak of leaks) {
+      findings.push(this.toLeakFinding(scope, leak))
+    }
+
+    findings.push(...await this.hygieneFindings(scope, repoPath))
+
+    return findings
+  }
+
+  /** Mapeia um achado do gitleaks → Finding, SEM jamais incluir o valor do segredo. */
+  private toLeakFinding(scope: ScanScope, leak: GitleaksFinding): Finding {
+    const ruleId = leak.RuleID ?? 'unknown-rule'
+    const file = leak.File ?? 'unknown-file'
+    const line = leak.StartLine ?? 0
+    const commit = leak.Commit ?? ''
+    const shortCommit = commit ? commit.slice(0, 8) : 'sem-commit'
+
+    const proposedFix: ProposedFix = {
+      description: 'Revogue/rotacione a credencial no provedor (Anthropic/Meta/Resend/etc.). Remover do histórico Git NÃO substitui a rotação.',
+      riskOfApplying: 'Rotacionar pode derrubar integrações que usam a chave antiga até atualizar o segredo no ambiente. Reescrever histórico Git é destrutivo e exige force-push coordenado.',
+    }
+
+    return {
+      id: stableFindingId({
+        saas: scope.target.name,
+        camada: this.category,
+        rule: `gitleaks:${ruleId}:${file}:${line}`,
+        location: file,
+      }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'critical',
+      title: `Segredo versionado: ${ruleId} em ${file}`,
+      description: `gitleaks detectou um segredo versionado correspondente à regra ${ruleId} em ${file} (linha ${line}). O valor do segredo é deliberadamente omitido deste relatório para não recriar o vazamento.`,
+      evidence: `${file}:${line} (commit ${shortCommit}) — regra ${ruleId}`,
+      recommendation: proposedFix.description,
+      proposedFix,
+      createdAt: new Date(),
+    }
+  }
+
+  /** Checagens de higiene de configuração de segredos (read-only). */
+  private async hygieneFindings(scope: ScanScope, repoPath: string): Promise<Finding[]> {
+    const findings: Finding[] = []
+
+    const gitignore = await this.readFileSafe(join(repoPath, '.gitignore'))
+    if (gitignore !== null && !this.gitignoreCoversEnv(gitignore)) {
+      findings.push({
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'env-not-gitignored', location: '.gitignore' }),
+        runId: scope.runId,
+        agent: this.name,
+        category: this.category,
+        camada: this.category,
+        severity: 'high',
+        title: 'Arquivos .env não ignorados pelo Git',
+        description: 'Existe um .gitignore mas ele não ignora arquivos .env. Um .env com credenciais reais pode ser commitado por acidente.',
+        evidence: '.gitignore não contém uma entrada que cubra `.env`',
+        recommendation: 'Adicione `.env` (e variantes como `.env.local`) ao .gitignore antes que credenciais sejam versionadas.',
+        proposedFix: {
+          description: 'Adicione uma linha `.env` ao .gitignore.',
+          riskOfApplying: 'Baixo risco. Se um .env já estiver versionado, adicioná-lo ao .gitignore não o remove do histórico — é preciso `git rm --cached` e rotacionar os segredos expostos.',
+        },
+        createdAt: new Date(),
+      })
+    }
+
+    const envExample = await this.readFileSafe(join(repoPath, '.env.example'))
+    if (envExample === null) {
+      findings.push({
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'no-env-example', location: '.env.example' }),
+        runId: scope.runId,
+        agent: this.name,
+        category: this.category,
+        camada: this.category,
+        severity: 'low',
+        title: 'Sem .env.example',
+        description: 'Não existe um .env.example documentando as variáveis de ambiente necessárias. Sem ele, é comum compartilhar um .env real (com segredos).',
+        evidence: 'Arquivo .env.example ausente no repositório',
+        recommendation: 'Crie um .env.example listando as chaves esperadas com valores placeholder (ex.: `API_KEY=`), sem segredos reais.',
+        proposedFix: {
+          description: 'Crie um .env.example com as chaves esperadas e valores vazios/placeholder.',
+          riskOfApplying: 'Risco nulo: arquivo de documentação. Apenas garanta que não contenha valores reais.',
+        },
+        createdAt: new Date(),
+      })
+    } else if (this.envExampleHasRealValues(envExample)) {
+      findings.push({
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'env-example-has-values', location: '.env.example' }),
+        runId: scope.runId,
+        agent: this.name,
+        category: this.category,
+        camada: this.category,
+        severity: 'medium',
+        title: '.env.example contém valores reais',
+        description: 'O .env.example parece conter valores reais em vez de placeholders. Um .env.example deve documentar as chaves, não expor segredos.',
+        evidence: '.env.example tem linhas KEY=valor com valores não-placeholder',
+        recommendation: 'Substitua os valores do .env.example por placeholders vazios (ex.: `API_KEY=`) e rotacione qualquer segredo que tenha vazado por ali.',
+        proposedFix: {
+          description: 'Esvazie os valores no .env.example (mantenha só as chaves) e rotacione segredos expostos.',
+          riskOfApplying: 'Baixo risco editar o arquivo; o risco real é o segredo já exposto — rotacione-o no provedor.',
+        },
+        createdAt: new Date(),
+      })
+    }
+
+    return findings
+  }
+
+  private async readFileSafe(path: string): Promise<string | null> {
+    try {
+      return await readFile(path, 'utf8')
+    } catch {
+      return null
+    }
+  }
+
+  /** True se o .gitignore tem alguma entrada que cobre `.env`. */
+  private gitignoreCoversEnv(content: string): boolean {
+    return content
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l && !l.startsWith('#'))
+      .some(l => {
+        const normalized = l.replace(/^\//, '').replace(/\/$/, '')
+        // Cobre: `.env`, `.env*`, `*.env`, `**/.env`
+        return normalized === '.env'
+          || normalized === '.env*'
+          || normalized === '*.env'
+          || normalized.endsWith('/.env')
+          || /^\.env\*?$/.test(normalized)
+      })
+  }
+
+  /**
+   * Heurística: o .env.example tem linhas `KEY=valor` com valor não-vazio e que
+   * não parece placeholder. Tolerante a comentários e linhas em branco.
+   */
+  private envExampleHasRealValues(content: string): boolean {
+    const lines = content.split(/\r?\n/)
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (!line || line.startsWith('#')) continue
+      const eq = line.indexOf('=')
+      if (eq <= 0) continue
+      let value = line.slice(eq + 1).trim()
+      // Remove aspas envolventes para avaliar o conteúdo.
+      value = value.replace(/^["']|["']$/g, '').trim()
+      if (!value) continue // KEY= → placeholder vazio, ok
+      if (this.looksLikePlaceholder(value)) continue
+      return true
+    }
+    return false
+  }
+
+  private looksLikePlaceholder(value: string): boolean {
+    const v = value.toLowerCase()
+    // Placeholders típicos: your-key-here, changeme, xxx, <...>, ${...}, exemplo...
+    if (/^<.*>$/.test(value)) return true
+    if (/^\$\{.*\}$/.test(value)) return true
+    if (/^x+$/i.test(value)) return true
+    const placeholderWords = [
+      'your', 'change', 'changeme', 'placeholder', 'example', 'exemplo',
+      'todo', 'fixme', 'replace', 'sua-', 'seu-', 'dummy', 'fake', 'sample',
+      'xxxx', 'aqui', 'here', 'optional', 'true', 'false', 'localhost',
+    ]
+    return placeholderWords.some(w => v.includes(w))
+  }
+}

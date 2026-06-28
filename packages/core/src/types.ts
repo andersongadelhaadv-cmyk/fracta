@@ -10,6 +10,7 @@ export type AgentCategory =
   | 'docs'
   | 'code'
   | 'deps'
+  | 'secrets'
   | 'infra'
   | 'compliance'
   | 'performance'

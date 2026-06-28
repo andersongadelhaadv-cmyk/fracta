@@ -12,6 +12,10 @@ import { TenantAgent } from '@fracta/agent-tenant'
 import { RaceAgent } from '@fracta/agent-race'
 import { StripeAgent } from '@fracta/agent-stripe'
 import { DependenciesAgent } from '@fracta/agent-dependencies'
+import { SecretsAgent } from '@fracta/agent-secrets'
+import { StackAgent } from '@fracta/agent-stack'
+import { InfraAgent } from '@fracta/agent-infra'
+import { ComplianceAgent } from '@fracta/agent-compliance'
 import { NestJSSkill } from '@fracta/skill-nestjs'
 import { PrismaSkill } from '@fracta/skill-prisma'
 import { SupabaseSkill } from '@fracta/skill-supabase'
@@ -124,6 +128,10 @@ Options:
         new RaceAgent(),
         new StripeAgent(),
         new DependenciesAgent(),
+        new SecretsAgent(),
+        new StackAgent(),
+        new InfraAgent(),
+        new ComplianceAgent(),
         new NestJSSkill(),
         new PrismaSkill(),
         new SupabaseSkill(),
