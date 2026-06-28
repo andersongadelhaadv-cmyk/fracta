@@ -1,6 +1,5 @@
-import { randomUUID } from 'crypto'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory, ScanDepth } from '@fracta/core'
-import { FractaHttpClient } from '@fracta/core'
+import { FractaHttpClient, stableFindingId } from '@fracta/core'
 
 const PATH_TEMPLATES = [
   '/users/{id}', '/api/users/{id}', '/api/v1/users/{id}', '/api/v2/users/{id}',
@@ -33,10 +32,11 @@ export class IdorAgent implements SecurityAgent {
 
     if (!scope.target.auth) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'idor-auth-not-configured' }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'info',
         title: 'IDOR Agent — autenticação não configurada',
         description: 'Configure auth no targets.yaml para testar IDOR com token de usuário autenticado.',
@@ -74,10 +74,11 @@ export class IdorAgent implements SecurityAgent {
 
           if (res.status === 200 && res.raw.length > 10) {
             findings.push({
-              id: randomUUID(),
+              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-direct-access:${path}`, location: path }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
+              camada: this.category,
               severity: 'critical',
               title: `IDOR — acesso direto por ID: ${path}`,
               description: `${path} retornou HTTP 200 com corpo não-vazio. Possível IDOR — recurso de ID ${id} acessível sem verificar propriedade.`,
@@ -92,10 +93,11 @@ export class IdorAgent implements SecurityAgent {
             })
           } else if (res.status === 500) {
             findings.push({
-              id: randomUUID(),
+              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-error-500:${path}`, location: path }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
+              camada: this.category,
               severity: 'medium',
               title: `Erro 500 ao acessar ID inexistente: ${path}`,
               description: `${path} retornou HTTP 500 para ID ${id}, indicando falta de tratamento de erro para recursos não encontrados.`,
@@ -134,10 +136,11 @@ export class IdorAgent implements SecurityAgent {
 
       if (hits >= 3) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-enumeration:${basePath}`, location: basePath }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: 'high',
           title: `IDs sequenciais enumeráveis: ${basePath}`,
           description: `${hits}/5 IDs sequenciais em ${basePath} retornaram recursos válidos. IDs numéricos previsíveis facilitam enumeração de dados.`,

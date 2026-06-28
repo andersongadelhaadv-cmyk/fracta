@@ -84,6 +84,14 @@ Options:
     process.exit(0)
   }
 
+  // Regra 1: o Fracta audita UM SaaS por vez. --target é obrigatório no scan —
+  // nunca varrer todos os alvos de uma vez (blast radius contido a um produto).
+  if (command === 'scan' && !values.target) {
+    console.error('[Fracta] --target é obrigatório: o Fracta audita UM SaaS por vez (blast radius contido).')
+    console.error('         Ex: fracta scan --target doutor-inss')
+    process.exit(1)
+  }
+
   let targets: Target[]
   try {
     targets = await loadTargets(values.config as string)

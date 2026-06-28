@@ -1,6 +1,5 @@
-import { randomUUID } from 'crypto'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
-import { FractaHttpClient } from '@fracta/core'
+import { FractaHttpClient, stableFindingId } from '@fracta/core'
 
 const STUDIO_PATHS = ['/prisma', '/prisma-studio', '/_prisma', '/admin/prisma', '/studio']
 
@@ -58,10 +57,11 @@ export class PrismaSkill implements SecurityAgent {
         const res = await client.request(path, { timeoutMs: 4_000 })
         if (res.status === 200 && /prisma\s+studio/i.test(res.raw.substring(0, 4000))) {
           findings.push({
-            id: randomUUID(),
+            id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `prisma-studio-exposed:${path}`, location: path }),
             runId: scope.runId,
             agent: this.name,
             category: this.category,
+            camada: this.category,
             severity: 'critical',
             title: `Prisma Studio exposto: ${path}`,
             description: `${path} parece servir o Prisma Studio publicamente. Studio dá acesso CRUD irrestrito ao banco — qualquer pessoa pode ler/editar/deletar dados.`,
@@ -103,10 +103,11 @@ export class PrismaSkill implements SecurityAgent {
         const leak = findLeak(res.raw)
         if (leak) {
           findings.push({
-            id: randomUUID(),
+            id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `prisma-error-leak:${path}`, location: path }),
             runId: scope.runId,
             agent: this.name,
             category: this.category,
+            camada: this.category,
             severity: 'medium',
             title: `Erro Prisma vazado em resposta: ${path}`,
             description: `POST em ${path} retornou corpo com padrão Prisma (${leak.source}). Vazar nomes de model/coluna ou códigos como P2002 ajuda atacantes a mapear o schema do banco.`,

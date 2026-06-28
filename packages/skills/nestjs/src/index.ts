@@ -1,6 +1,5 @@
-import { randomUUID } from 'crypto'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
-import { FractaHttpClient } from '@fracta/core'
+import { FractaHttpClient, stableFindingId } from '@fracta/core'
 
 const SWAGGER_PATHS = [
   '/api', '/api/docs', '/api/swagger', '/api-docs', '/api-json',
@@ -59,10 +58,11 @@ export class NestJSSkill implements SecurityAgent {
         const res = await client.request(path, { timeoutMs: 4_000 })
         if (res.status === 200 && looksLikeSwagger(res.raw)) {
           findings.push({
-            id: randomUUID(),
+            id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `nestjs-swagger-exposed:${path}`, location: path }),
             runId: scope.runId,
             agent: this.name,
             category: this.category,
+            camada: this.category,
             severity: 'high',
             title: `Swagger/OpenAPI exposto: ${path}`,
             description: `${path} retornou conteúdo de documentação Swagger/OpenAPI. Em produção, isso vaza estrutura completa da API (rotas, params, schemas) e facilita enumeração de endpoints para um atacante.`,
@@ -96,10 +96,11 @@ export class NestJSSkill implements SecurityAgent {
         const leaked = HEALTH_LEAK_PATTERNS.find(re => re.test(res.raw))
         if (leaked) {
           findings.push({
-            id: randomUUID(),
+            id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `nestjs-health-leak:${path}`, location: path }),
             runId: scope.runId,
             agent: this.name,
             category: this.category,
+            camada: this.category,
             severity: 'medium',
             title: `Health endpoint vaza informação sensível: ${path}`,
             description: `${path} retornou corpo contendo padrão sensível (${leaked.source}). Health endpoints públicos não devem expor env vars, paths de filesystem ou credenciais.`,

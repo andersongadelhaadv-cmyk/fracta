@@ -1,7 +1,7 @@
-import { randomUUID } from 'crypto'
 import { readdir, readFile, stat } from 'fs/promises'
 import { join, relative } from 'path'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
+import { stableFindingId } from '@fracta/core'
 
 const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo'])
 const LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i
@@ -30,10 +30,11 @@ export class DocsAgent implements SecurityAgent {
 
       if (files.length === 0) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'docs-none' }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: 'info',
           title: 'Nenhum arquivo .md encontrado',
           description: `Nenhum arquivo Markdown encontrado em ${this.repoPath}`,
@@ -52,10 +53,11 @@ export class DocsAgent implements SecurityAgent {
       this.checkDuplicateTitles(scope, h1Titles, findings)
     } catch (err) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'docs-read-error' }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'info',
         title: 'DOCS Agent — erro ao ler repositório',
         description: `Erro ao escanear ${this.repoPath}: ${String(err)}`,
@@ -78,10 +80,11 @@ export class DocsAgent implements SecurityAgent {
 
     if (ageDays > 180) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-stale:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'medium',
         title: `Documentação obsoleta: ${file.relativePath}`,
         description: `Arquivo não modificado há ${ageDays} dias (>180 dias).`,
@@ -93,10 +96,11 @@ export class DocsAgent implements SecurityAgent {
 
     if (LEGACY_PATTERNS.test(file.relativePath)) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-legacy-name:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'medium',
         title: `Arquivo com nome legado: ${file.relativePath}`,
         description: 'Nome do arquivo sugere conteúdo legado, backup ou depreciado.',
@@ -108,10 +112,11 @@ export class DocsAgent implements SecurityAgent {
 
     if (/TODO|FIXME/i.test(file.content)) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-todo:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'low',
         title: `TODOs não resolvidos: ${file.relativePath}`,
         description: 'Arquivo contém marcações TODO ou FIXME indicando documentação incompleta.',
@@ -124,10 +129,11 @@ export class DocsAgent implements SecurityAgent {
     const v1Matches = (file.content.match(/\bv[01]\b/gi) ?? []).length
     if (v1Matches > 2) {
       findings.push({
-        id: randomUUID(),
+        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-legacy-version-refs:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
+        camada: this.category,
         severity: 'medium',
         title: `Referências a versões legadas: ${file.relativePath}`,
         description: `${v1Matches} referências a v0/v1 encontradas. Pode indicar documentação desatualizada.`,
@@ -153,10 +159,11 @@ export class DocsAgent implements SecurityAgent {
     for (const [title, paths] of h1Titles) {
       if (paths.length > 1) {
         findings.push({
-          id: randomUUID(),
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-duplicate-h1:${title}` }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
+          camada: this.category,
           severity: 'low',
           title: `Título H1 duplicado: "${title}"`,
           description: `O mesmo título H1 aparece em ${paths.length} arquivos: ${paths.join(', ')}`,
