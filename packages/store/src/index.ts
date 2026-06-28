@@ -6,7 +6,25 @@ import type { Finding, FindingStatus, FindingStore, AuditReport } from '@fracta/
 // resolver um pacote `sqlite` inexistente ao analisar um `import` estático. Carregar
 // via require em runtime evita a análise estática do bundler e funciona em build e teste.
 const nodeRequire = createRequire(import.meta.url)
-const { DatabaseSync } = nodeRequire('node:sqlite') as typeof import('node:sqlite')
+
+/**
+ * Carrega `node:sqlite` (builtin Node >= 22.5) SOB DEMANDA, dentro do construtor.
+ * Em runtimes mais antigos (ex.: Node 20 na VPS) o módulo não existe; aqui isso vira
+ * um Error claro e CATCHÁVEL, em vez de derrubar o processo na avaliação do módulo —
+ * assim `import { SqliteFindingStore }` nunca quebra um entrypoint. Quem constrói o
+ * store decide degradar para "sem estado" (regra Fase 2: falha de persistência nunca
+ * derruba a detecção).
+ */
+function loadSqlite(): typeof import('node:sqlite') {
+  try {
+    return nodeRequire('node:sqlite') as typeof import('node:sqlite')
+  } catch (err) {
+    throw new Error(
+      `node:sqlite indisponível (requer Node >= 22.5; rodando ${process.version}): ` +
+        `${(err as Error).message}`,
+    )
+  }
+}
 
 /**
  * Persistência do histórico de findings — habilita regressão e supressão entre
@@ -19,6 +37,7 @@ export class SqliteFindingStore implements FindingStore {
   private readonly db: DatabaseSyncType
 
   constructor(path = './fracta-state.db') {
+    const { DatabaseSync } = loadSqlite()
     this.db = new DatabaseSync(path)
     if (path !== ':memory:') {
       try { this.db.exec('PRAGMA journal_mode = WAL') } catch { /* fs read-only: segue sem WAL */ }

@@ -140,7 +140,18 @@ Options:
         new SupabaseSkill(),
       ]
 
-  const store = values['no-state'] ? undefined : new SqliteFindingStore(values.state as string)
+  // Estado entre runs é OPCIONAL. Se o store não puder ser criado (ex.: Node < 22.5
+  // sem node:sqlite, ou fs read-only), degrada para "sem estado" — a detecção segue
+  // intacta (regra Fase 2: falha de persistência nunca derruba a detecção).
+  let store: SqliteFindingStore | undefined
+  if (!values['no-state']) {
+    try {
+      store = new SqliteFindingStore(values.state as string)
+    } catch (err) {
+      console.warn(`[Fracta] Estado entre runs indisponível: ${(err as Error).message}`)
+      console.warn(`[Fracta] Seguindo SEM regressão/supressão (detecção intacta). Use --no-state para silenciar.`)
+    }
+  }
 
   // Borda LLM: ligada quando há ANTHROPIC_API_KEY e --no-llm não foi passado.
   // Sem key, fica desabilitada (no-op) — a detecção nunca depende dela.

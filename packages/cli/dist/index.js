@@ -122,7 +122,15 @@ ${String(err)}`);
     new PrismaSkill(),
     new SupabaseSkill()
   ];
-  const store = values["no-state"] ? void 0 : new SqliteFindingStore(values.state);
+  let store;
+  if (!values["no-state"]) {
+    try {
+      store = new SqliteFindingStore(values.state);
+    } catch (err) {
+      console.warn(`[Fracta] Estado entre runs indispon\xEDvel: ${err.message}`);
+      console.warn(`[Fracta] Seguindo SEM regress\xE3o/supress\xE3o (detec\xE7\xE3o intacta). Use --no-state para silenciar.`);
+    }
+  }
   const enricher = values["no-llm"] ? void 0 : new LlmEnricher({ verbose: values.verbose });
   const orchestrator = new FractaOrchestrator({
     concurrency: 3,
