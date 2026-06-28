@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import {
   SkippedCheck,
 } from './types.js'
+import { checkTargetHealth } from './health.js'
 import type {
   Target, SecurityAgent, AuditReport, ScanScope, Finding, Severity,
   ScanDepth, CheckResult, AgentCategory, TargetHealth, FindingStore,
@@ -18,12 +19,15 @@ export interface OrchestratorOptions {
   verbose?: boolean
   /** Persistência opcional para regressão/supressão (injetada pelo cli/mcp). */
   store?: FindingStore
+  /** Preflight de saúde do alvo. Default: checkTargetHealth. Injetável p/ testes. */
+  healthCheck?: (target: Target) => Promise<TargetHealth>
 }
 
 export class FractaOrchestrator {
   private agents: SecurityAgent[] = []
-  private readonly options: Required<Omit<OrchestratorOptions, 'store'>>
+  private readonly options: Required<Omit<OrchestratorOptions, 'store' | 'healthCheck'>>
   private readonly store?: FindingStore
+  private readonly healthCheck: (target: Target) => Promise<TargetHealth>
 
   constructor(options: OrchestratorOptions = {}) {
     this.options = {
@@ -33,6 +37,7 @@ export class FractaOrchestrator {
       verbose: options.verbose ?? false,
     }
     this.store = options.store
+    this.healthCheck = options.healthCheck ?? checkTargetHealth
   }
 
   registerAgent(agent: SecurityAgent): this {
@@ -59,12 +64,21 @@ export class FractaOrchestrator {
       console.log(`[Fracta] Depth: ${this.options.depth}`)
     }
 
+    // Preflight de saúde (Fase 3): nunca tratar alvo fora do ar como "seguro".
+    const health = await this.healthCheck(target)
+    if (target.repoPath && !health.repoAccessible) {
+      // Repo obrigatório inacessível: não há o que auditar → aborta esta auditoria.
+      // NÃO persiste (evita marcar todo o histórico como resolvido por engano).
+      return this.buildAbortedReport(target, runId, startedAt, health)
+    }
+
     const scope: ScanScope = {
       target,
       depth: this.options.depth,
       agents: activeAgents.map(a => a.name),
       runId,
       startedAt,
+      health,
     }
 
     // Cada agente roda ISOLADO: timeout + try/catch → CheckResult. Um check
@@ -100,8 +114,7 @@ export class FractaOrchestrator {
     const finishedAt = new Date()
     const passed = !this.options.failOn.some(s => summary[s] > 0)
 
-    // TODO(Fase 3): substituir por TargetHealthCheck real (repo git? staging? vps?).
-    const targetHealth: TargetHealth = { repoAccessible: true, status: 'healthy' }
+    const targetHealth: TargetHealth = health
 
     const report: AuditReport = {
       runId,
@@ -174,6 +187,41 @@ export class FractaOrchestrator {
       const motivo = err instanceof Error ? err.message : String(err)
       if (this.options.verbose) console.error(`[Fracta] Check error (${agent.name}): ${motivo}`)
       return { agent: agent.name, camada, status: 'error', motivo, durationMs, findings: [] }
+    }
+  }
+
+  /**
+   * Auditoria abortada por repo obrigatório inacessível. Devolve um AuditReport
+   * honesto (nenhum check rodou, não passou) sem persistir nada.
+   */
+  private buildAbortedReport(
+    target: Target,
+    runId: string,
+    startedAt: Date,
+    health: TargetHealth,
+  ): AuditReport {
+    const finishedAt = new Date()
+    const motivo = `repoPath inacessível ou não é um repositório git válido: ${target.repoPath}`
+    console.error(`\n[Fracta] ${target.name} — ⛔ AUDITORIA ABORTADA: ${motivo}`)
+    return {
+      runId,
+      target: target.name,
+      startedAt,
+      finishedAt,
+      durationMs: finishedAt.getTime() - startedAt.getTime(),
+      summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+      findings: [],
+      passed: false,
+      saas: target.name,
+      timestamp: finishedAt.toISOString(),
+      targetHealth: health,
+      checks: [],
+      resumo: {
+        porSeveridade: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+        regressoes: 0,
+        checksComErro: [],
+        checksPulados: [],
+      },
     }
   }
 

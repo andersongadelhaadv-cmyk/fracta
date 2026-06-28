@@ -106,6 +106,8 @@ export interface ScanScope {
   agents: string[]
   runId: string
   startedAt: Date
+  /** Saúde do alvo medida no preflight (Fase 3). Agentes podem consultar p/ decidir skip. */
+  health?: TargetHealth
 }
 
 export interface ScanReport {
