@@ -25,10 +25,26 @@ targets:
       - /api/metrics
       - /api/docs
 
+    # Campos OPCIONAIS para os agentes baseados em repositório (read-only).
+    # Ausência → os checks correspondentes ficam `skipped` (nunca falso "seguro").
+    #
+    # repoPath: ./                      # repo local p/ dependencies, secrets, stack, compliance, docs
+    # infra:                            # agente-infra (100% leitura, jamais executa nada)
+    #   host: 76.13.170.79
+    #   sshConfigPath: /etc/ssh/sshd_config
+    #   dockerComposePath: ./docker-compose.yml
+    # frontend:                         # checks de frontend do agente-stack
+    #   framework: next
+    #   envFiles: [.env.local, .env.production]
+    # config:
+    #   suppressions: []                # ids de findings já revisados como falso-positivo
+    #   severityThreshold: high
+
   # Adicione seus próprios targets abaixo:
   # meu-saas:
   #   url: https://staging.meuapp.com.br
   #   stack: [nestjs, prisma]
+  #   repoPath: ../meu-saas
   #   auth:
   #     type: jwt
   #     endpoint: /api/auth/login
