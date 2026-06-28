@@ -5,7 +5,7 @@ import {
 import { checkTargetHealth } from './health.js'
 import type {
   Target, SecurityAgent, AuditReport, ScanScope, Finding, Severity,
-  ScanDepth, CheckResult, AgentCategory, TargetHealth, FindingStore,
+  ScanDepth, CheckResult, AgentCategory, TargetHealth, FindingStore, ReportEnricher,
 } from './types.js'
 
 const SEVERITY_ORDER: Record<Severity, number> = {
@@ -21,13 +21,16 @@ export interface OrchestratorOptions {
   store?: FindingStore
   /** Preflight de saúde do alvo. Default: checkTargetHealth. Injetável p/ testes. */
   healthCheck?: (target: Target) => Promise<TargetHealth>
+  /** Borda LLM opcional (prioriza + redige correções). Detecção não depende dela. */
+  enricher?: ReportEnricher
 }
 
 export class FractaOrchestrator {
   private agents: SecurityAgent[] = []
-  private readonly options: Required<Omit<OrchestratorOptions, 'store' | 'healthCheck'>>
+  private readonly options: Required<Omit<OrchestratorOptions, 'store' | 'healthCheck' | 'enricher'>>
   private readonly store?: FindingStore
   private readonly healthCheck: (target: Target) => Promise<TargetHealth>
+  private readonly enricher?: ReportEnricher
 
   constructor(options: OrchestratorOptions = {}) {
     this.options = {
@@ -38,6 +41,7 @@ export class FractaOrchestrator {
     }
     this.store = options.store
     this.healthCheck = options.healthCheck ?? checkTargetHealth
+    this.enricher = options.enricher
   }
 
   registerAgent(agent: SecurityAgent): this {
@@ -116,7 +120,7 @@ export class FractaOrchestrator {
 
     const targetHealth: TargetHealth = health
 
-    const report: AuditReport = {
+    let report: AuditReport = {
       runId,
       target: target.name,
       startedAt,
@@ -141,6 +145,16 @@ export class FractaOrchestrator {
         checksComErro: checks.filter(c => c.status === 'error').map(c => c.agent),
         checksPulados: checks.filter(c => c.status === 'skipped').map(c => c.agent),
       },
+    }
+
+    // Borda LLM (opcional, último passo): prioriza + redige correções. Falha aqui
+    // NUNCA derruba a detecção — degrada para o relatório determinístico.
+    if (this.enricher) {
+      try {
+        report = await this.enricher.enrich(report)
+      } catch (err) {
+        if (this.options.verbose) console.error(`[Fracta] Enricher falhou: ${String(err)}`)
+      }
     }
 
     if (this.store) {

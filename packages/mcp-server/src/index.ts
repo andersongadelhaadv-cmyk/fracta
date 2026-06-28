@@ -22,11 +22,15 @@ import { PrismaSkill } from '@fracta/skill-prisma'
 import { SupabaseSkill } from '@fracta/skill-supabase'
 import { FractaReporter } from '@fracta/reporter'
 import { SqliteFindingStore } from '@fracta/store'
+import { LlmEnricher } from '@fracta/llm'
 
 const TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? './configs/targets.yaml'
 
 // Estado entre execuções compartilhado por toda a sessão MCP (stdio = processo longo).
 const store = new SqliteFindingStore(process.env.FRACTA_STATE ?? './fracta-state.db')
+
+// Borda LLM (no-op sem ANTHROPIC_API_KEY).
+const enricher = new LlmEnricher()
 
 async function loadTargets(): Promise<Target[]> {
   const raw = await readFile(TARGETS_CONFIG, 'utf-8')
@@ -36,7 +40,7 @@ async function loadTargets(): Promise<Target[]> {
 }
 
 function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {
-  const o = new FractaOrchestrator({ depth, failOn: ['critical', 'high'], verbose: false, store })
+  const o = new FractaOrchestrator({ depth, failOn: ['critical', 'high'], verbose: false, store, enricher })
   o.registerAgents([
     new HeadersAgent(), new AuthAgent(), new IdorAgent(),
     new DocsAgent(), new TenantAgent(), new RaceAgent(),

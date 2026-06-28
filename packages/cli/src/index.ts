@@ -21,6 +21,7 @@ import { PrismaSkill } from '@fracta/skill-prisma'
 import { SupabaseSkill } from '@fracta/skill-supabase'
 import { FractaReporter } from '@fracta/reporter'
 import { SqliteFindingStore } from '@fracta/store'
+import { LlmEnricher } from '@fracta/llm'
 
 const BANNER = `
 ███████╗██████╗  █████╗  ██████╗████████╗ █████╗
@@ -57,6 +58,7 @@ async function main(): Promise<void> {
       output: { type: 'string', short: 'o', default: './fracta-reports' },
       state: { type: 'string', default: './fracta-state.db' },
       'no-state': { type: 'boolean', default: false },
+      'no-llm': { type: 'boolean', default: false },
       'fail-on': { type: 'string', default: 'critical,high' },
       'docs-path': { type: 'string', default: './' },
       verbose: { type: 'boolean', short: 'v', default: false },
@@ -81,6 +83,7 @@ Options:
   -o, --output      Output directory (default: ./fracta-reports)
   --state           SQLite state file for regression/suppression (default: ./fracta-state.db)
   --no-state        Disable cross-run state (no regression/suppression)
+  --no-llm          Disable the LLM edge (prioritization/fix drafting)
   --fail-on         Severities that cause exit(1) (default: critical,high)
   --docs-path       Repository path for docs audit (default: ./)
   -v, --verbose     Verbose output
@@ -139,12 +142,17 @@ Options:
 
   const store = values['no-state'] ? undefined : new SqliteFindingStore(values.state as string)
 
+  // Borda LLM: ligada quando há ANTHROPIC_API_KEY e --no-llm não foi passado.
+  // Sem key, fica desabilitada (no-op) — a detecção nunca depende dela.
+  const enricher = values['no-llm'] ? undefined : new LlmEnricher({ verbose: values.verbose as boolean })
+
   const orchestrator = new FractaOrchestrator({
     concurrency: 3,
     failOn,
     depth,
     verbose: values.verbose as boolean,
     store,
+    enricher,
   })
   orchestrator.registerAgents(allAgents)
 

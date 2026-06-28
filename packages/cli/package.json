@@ -50,6 +50,7 @@
     "@fracta/skill-supabase": "workspace:*",
     "@fracta/reporter": "workspace:*",
     "@fracta/store": "workspace:*",
+    "@fracta/llm": "workspace:*",
     "yaml": "^2.4.0"
   },
   "devDependencies": {

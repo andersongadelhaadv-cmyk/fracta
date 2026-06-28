@@ -255,6 +255,15 @@ export interface FindingStore {
 }
 
 /**
+ * Priorização produzida pela borda LLM (Fase 6) — ordem de finding ids "o que
+ * resolver primeiro" + racional. Não altera severidade nem o conjunto de findings.
+ */
+export interface Prioritization {
+  order: string[]
+  rationale?: string
+}
+
+/**
  * Relatório consolidado de uma auditoria de UM SaaS. Superset de `ScanReport`
  * (mantém os campos antigos para compatibilidade) + camada de robustez.
  */
@@ -269,4 +278,15 @@ export interface AuditReport extends ScanReport {
     checksComErro: string[]
     checksPulados: string[]
   }
+  /** Preenchido pela borda LLM, se habilitada (opcional). */
+  prioritization?: Prioritization
+}
+
+/**
+ * Pós-processamento opcional do relatório pela borda LLM. Implementação concreta
+ * em `@fracta/llm`, injetada pelo cli/mcp. A detecção NUNCA depende disto — se o
+ * enricher falhar ou não houver API key, o relatório determinístico segue intacto.
+ */
+export interface ReportEnricher {
+  enrich(report: AuditReport): Promise<AuditReport>
 }
