@@ -1,6 +1,14 @@
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
 import { FractaHttpClient, SkippedCheck, stableFindingId } from '@fracta/core'
 
+/**
+ * O fetch junta headers repetidos numa única string separada por vírgula
+ * (ex.: helmet + nginx emitindo `x-content-type-options: nosniff` resultam em
+ * "nosniff, nosniff"). Quebra em tokens para validar valor-a-valor — assim um
+ * header duplicado idêntico é aceito, mas um valor conflitante ainda é flagrado.
+ */
+const tokens = (v: string): string[] => v.split(',').map(s => s.trim()).filter(Boolean)
+
 const REQUIRED_HEADERS: Array<{
   name: string
   severity: Finding['severity']
@@ -16,13 +24,13 @@ const REQUIRED_HEADERS: Array<{
   {
     name: 'x-content-type-options',
     severity: 'medium',
-    validate: v => v === 'nosniff',
+    validate: v => { const t = tokens(v); return t.length > 0 && t.every(x => x.toLowerCase() === 'nosniff') },
     message: 'X-Content-Type-Options ausente ou incorreto',
   },
   {
     name: 'x-frame-options',
     severity: 'medium',
-    validate: v => v === 'DENY' || v === 'SAMEORIGIN',
+    validate: v => { const t = tokens(v); return t.length > 0 && t.every(x => x.toUpperCase() === 'DENY' || x.toUpperCase() === 'SAMEORIGIN') },
     message: 'X-Frame-Options ausente ou incorreto',
   },
   {
