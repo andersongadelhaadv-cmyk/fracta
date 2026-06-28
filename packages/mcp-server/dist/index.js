@@ -144,7 +144,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       lastReports.set(a.target, report);
       const reporter = new FractaReporter();
       const { mdPath } = await reporter.save(report);
-      const summary = `Scan conclu\xEDdo: ${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium. Status: ${report.passed ? "PASSOU" : "FALHOU"}. Relat\xF3rio: ${mdPath}`;
+      const statusTxt = report.verdict === "inconclusive" ? "INCONCLUSIVO (alvo n\xE3o exercido \u2014 aus\xEAncia de achados \u2260 seguro)" : report.passed ? "PASSOU" : "FALHOU";
+      const summary = `Scan conclu\xEDdo: ${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium. Status: ${statusTxt}. Relat\xF3rio: ${mdPath}`;
       return { content: [{ type: "text", text: summary }] };
     }
     if (name === "audit_docs") {

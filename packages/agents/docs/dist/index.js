@@ -1,23 +1,35 @@
 // src/index.ts
 import { readdir, readFile, stat } from "fs/promises";
 import { join, relative } from "path";
-import { stableFindingId } from "@fracta/core";
+import { stableFindingId, SkippedCheck } from "@fracta/core";
 var IGNORE_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo"]);
 var LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i;
 var MS_IN_DAY = 864e5;
 var DocsAgent = class {
-  constructor(repoPath = process.cwd()) {
-    this.repoPath = repoPath;
+  /**
+   * `explicitRepoPath` é um override (ex.: o comando `fracta docs --docs-path`).
+   * No `scan`, fica indefinido e o repo vem de `target.repoPath`. SEM nenhum dos
+   * dois, o agente PULA (SkippedCheck) — jamais cai no `process.cwd()`, que
+   * escanearia o próprio Fracta e produziria achados desonestos.
+   */
+  constructor(explicitRepoPath) {
+    this.explicitRepoPath = explicitRepoPath;
   }
-  repoPath;
+  explicitRepoPath;
   name = "DOCS Agent";
   category = "docs";
   concurrency = 1;
   timeoutMs = 6e4;
   async run(scope) {
     const findings = [];
+    const repoPath = this.explicitRepoPath ?? scope.target.repoPath;
+    if (!repoPath) {
+      throw new SkippedCheck(
+        "DOCS Agent: sem repoPath no target \u2014 defina `repoPath` para auditar a documenta\xE7\xE3o do reposit\xF3rio."
+      );
+    }
     try {
-      const files = await this.collectMarkdownFiles(this.repoPath);
+      const files = await this.collectMarkdownFiles(repoPath);
       if (files.length === 0) {
         findings.push({
           id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "docs-none" }),
@@ -27,7 +39,7 @@ var DocsAgent = class {
           camada: this.category,
           severity: "info",
           title: "Nenhum arquivo .md encontrado",
-          description: `Nenhum arquivo Markdown encontrado em ${this.repoPath}`,
+          description: `Nenhum arquivo Markdown encontrado em ${repoPath}`,
           recommendation: "Adicione documenta\xE7\xE3o Markdown ao reposit\xF3rio.",
           createdAt: /* @__PURE__ */ new Date()
         });
@@ -47,7 +59,7 @@ var DocsAgent = class {
         camada: this.category,
         severity: "info",
         title: "DOCS Agent \u2014 erro ao ler reposit\xF3rio",
-        description: `Erro ao escanear ${this.repoPath}: ${String(err)}`,
+        description: `Erro ao escanear ${repoPath}: ${String(err)}`,
         recommendation: "Verifique se o caminho do reposit\xF3rio est\xE1 correto.",
         createdAt: /* @__PURE__ */ new Date()
       });

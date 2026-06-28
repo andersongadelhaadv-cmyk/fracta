@@ -50,7 +50,10 @@ export class FractaReporter {
     const date = new Date(report.startedAt)
     const dateStr = date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR')
     const durationSec = (report.durationMs / 1000).toFixed(1)
-    const status = report.passed ? '✅ PASSOU' : '❌ FALHOU'
+    const inconclusive = isAuditReport(report) && report.verdict === 'inconclusive'
+    const status = inconclusive
+      ? '⚠️ INCONCLUSIVO'
+      : report.passed ? '✅ PASSOU' : '❌ FALHOU'
 
     const severities: Severity[] = ['critical', 'high', 'medium', 'low', 'info']
     const grouped = new Map<Severity, Finding[]>()
@@ -65,6 +68,10 @@ export class FractaReporter {
     md += `| Duração | ${durationSec}s |\n`
     md += `| Run ID | \`${report.runId}\` |\n`
     md += `| Status | ${status} |\n\n`
+
+    if (inconclusive) {
+      md += this.buildInconclusiveCallout(report as AuditReport)
+    }
 
     md += `## 📊 Resumo\n\n`
     md += `| Severidade | Quantidade |\n|---|---|\n`
@@ -114,6 +121,24 @@ export class FractaReporter {
     }
 
     md += `*Gerado pelo [Fracta](https://github.com/fracta/fracta) — The Complete SaaS Audit Framework*\n`
+    return md
+  }
+
+  /**
+   * Callout de veredito INCONCLUSIVO. A auditoria não conseguiu exercer o alvo
+   * (tipicamente staging fora do ar), então a ausência de achados NÃO significa
+   * "seguro" — deixa isso explícito no topo, com o motivo concreto.
+   */
+  private buildInconclusiveCallout(report: AuditReport): string {
+    const h = report.targetHealth
+    const motivo = h.stagingResponding === false
+      ? 'o alvo (staging) não respondeu — a camada DAST não pôde ser exercida.'
+      : h.repoAccessible === false
+        ? 'o repositório obrigatório está inacessível — não houve o que auditar.'
+        : 'o alvo não pôde ser exercido nesta execução.'
+    let md = `> ⚠️ **Veredito INCONCLUSIVO:** ${motivo}\n`
+    md += `> **Ausência de achados aqui NÃO significa "seguro"** — apenas que a auditoria não rodou de ponta a ponta.\n`
+    md += `> Garanta que o alvo está no ar e rode de novo.\n\n`
     return md
   }
 

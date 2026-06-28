@@ -5,11 +5,28 @@ import {
 import { checkTargetHealth } from './health.js'
 import type {
   Target, SecurityAgent, AuditReport, ScanScope, Finding, Severity,
-  ScanDepth, CheckResult, AgentCategory, TargetHealth, FindingStore, ReportEnricher,
+  ScanDepth, CheckResult, AgentCategory, TargetHealth, FindingStore, ReportEnricher, Verdict,
 } from './types.js'
 
 const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 0, high: 1, medium: 2, low: 3, info: 4,
+}
+
+/**
+ * Veredito honesto a partir do resumo + saúde do alvo (lógica pura, testável).
+ * - Achado de severidade `failOn` presente → `failed` (problema concreto vence).
+ * - Senão, alvo `unreachable` → `inconclusive`: a camada testável (DAST) nunca
+ *   exerceu o alvo, então "0 achados" NÃO é "seguro" (regra de honestidade).
+ * - Senão → `passed`.
+ */
+export function deriveVerdict(
+  summary: Record<Severity, number>,
+  failOn: Severity[],
+  health: TargetHealth,
+): Verdict {
+  if (failOn.some(s => summary[s] > 0)) return 'failed'
+  if (health.status === 'unreachable') return 'inconclusive'
+  return 'passed'
 }
 
 export interface OrchestratorOptions {
@@ -116,7 +133,8 @@ export class FractaOrchestrator {
     }
 
     const finishedAt = new Date()
-    const passed = !this.options.failOn.some(s => summary[s] > 0)
+    const verdict = deriveVerdict(summary, this.options.failOn, health)
+    const passed = verdict === 'passed'
 
     const targetHealth: TargetHealth = health
 
@@ -132,6 +150,7 @@ export class FractaOrchestrator {
       saas: target.name,
       timestamp: finishedAt.toISOString(),
       targetHealth,
+      verdict,
       checks,
       resumo: {
         porSeveridade: {
@@ -229,6 +248,8 @@ export class FractaOrchestrator {
       saas: target.name,
       timestamp: finishedAt.toISOString(),
       targetHealth: health,
+      // Repo obrigatório inacessível: não foi possível auditar → inconclusivo, não "falhou".
+      verdict: 'inconclusive',
       checks: [],
       resumo: {
         porSeveridade: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
@@ -240,7 +261,9 @@ export class FractaOrchestrator {
   }
 
   private printSummary(report: AuditReport): void {
-    const status = report.passed ? '✅ PASSED' : '❌ FAILED'
+    const status = report.verdict === 'inconclusive'
+      ? '⚠️ INCONCLUSIVE (alvo não exercido)'
+      : report.passed ? '✅ PASSED' : '❌ FAILED'
     console.log(`\n[Fracta] ${report.target} — ${status}`)
     console.log(`  Critical: ${report.summary.critical}  High: ${report.summary.high}  Medium: ${report.summary.medium}  Low: ${report.summary.low}  Info: ${report.summary.info}`)
     if (report.resumo.checksComErro.length > 0) {

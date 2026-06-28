@@ -12,6 +12,12 @@ declare class FractaReporter {
     }>;
     private buildMarkdown;
     /**
+     * Callout de veredito INCONCLUSIVO. A auditoria não conseguiu exercer o alvo
+     * (tipicamente staging fora do ar), então a ausência de achados NÃO significa
+     * "seguro" — deixa isso explícito no topo, com o motivo concreto.
+     */
+    private buildInconclusiveCallout;
+    /**
      * Bloco de ação prioritária no topo do relatório. Quando a borda LLM produziu
      * uma `prioritization`, respeita exatamente essa ordem ("o que resolver primeiro")
      * e mostra o racional. Sem LLM, cai no determinístico: lista critical + high.

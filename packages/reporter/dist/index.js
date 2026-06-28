@@ -31,7 +31,8 @@ var FractaReporter = class {
     const date = new Date(report.startedAt);
     const dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR");
     const durationSec = (report.durationMs / 1e3).toFixed(1);
-    const status = report.passed ? "\u2705 PASSOU" : "\u274C FALHOU";
+    const inconclusive = isAuditReport(report) && report.verdict === "inconclusive";
+    const status = inconclusive ? "\u26A0\uFE0F INCONCLUSIVO" : report.passed ? "\u2705 PASSOU" : "\u274C FALHOU";
     const severities = ["critical", "high", "medium", "low", "info"];
     const grouped = /* @__PURE__ */ new Map();
     for (const s of severities) grouped.set(s, []);
@@ -53,6 +54,9 @@ var FractaReporter = class {
     md += `| Status | ${status} |
 
 `;
+    if (inconclusive) {
+      md += this.buildInconclusiveCallout(report);
+    }
     md += `## \u{1F4CA} Resumo
 
 `;
@@ -124,6 +128,23 @@ ${f.evidence}
       md += this.buildTransparencySection(report);
     }
     md += `*Gerado pelo [Fracta](https://github.com/fracta/fracta) \u2014 The Complete SaaS Audit Framework*
+`;
+    return md;
+  }
+  /**
+   * Callout de veredito INCONCLUSIVO. A auditoria não conseguiu exercer o alvo
+   * (tipicamente staging fora do ar), então a ausência de achados NÃO significa
+   * "seguro" — deixa isso explícito no topo, com o motivo concreto.
+   */
+  buildInconclusiveCallout(report) {
+    const h = report.targetHealth;
+    const motivo = h.stagingResponding === false ? "o alvo (staging) n\xE3o respondeu \u2014 a camada DAST n\xE3o p\xF4de ser exercida." : h.repoAccessible === false ? "o reposit\xF3rio obrigat\xF3rio est\xE1 inacess\xEDvel \u2014 n\xE3o houve o que auditar." : "o alvo n\xE3o p\xF4de ser exercido nesta execu\xE7\xE3o.";
+    let md = `> \u26A0\uFE0F **Veredito INCONCLUSIVO:** ${motivo}
+`;
+    md += `> **Aus\xEAncia de achados aqui N\xC3O significa "seguro"** \u2014 apenas que a auditoria n\xE3o rodou de ponta a ponta.
+`;
+    md += `> Garanta que o alvo est\xE1 no ar e rode de novo.
+
 `;
     return md;
   }

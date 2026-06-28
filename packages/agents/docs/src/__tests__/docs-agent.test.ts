@@ -3,6 +3,7 @@ import { mkdtemp, writeFile, rm, utimes } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { DocsAgent } from '../index.js'
+import { SkippedCheck } from '@fracta/core'
 import type { ScanScope } from '@fracta/core'
 
 let tmp: string
@@ -46,5 +47,24 @@ describe('DocsAgent', () => {
 
     const dup = findings.find(f => f.title.includes('duplicado'))
     expect(dup).toBeDefined()
+  })
+
+  it('skips (SkippedCheck) when neither an explicit path nor target.repoPath is given', async () => {
+    // Sem repoPath o agente NÃO pode cair no cwd (escanearia o próprio Fracta):
+    // "não verificado" ≠ "seguro" → vira skipped.
+    await expect(new DocsAgent().run(scope)).rejects.toBeInstanceOf(SkippedCheck)
+  })
+
+  it('audits target.repoPath when no explicit path is passed', async () => {
+    await writeFile(join(tmp, 'only-in-tmp.md'), '# Title\n\nTODO: fix this')
+    const scoped: ScanScope = { ...scope, target: { ...scope.target, repoPath: tmp } }
+
+    const findings = await new DocsAgent().run(scoped)
+
+    // Discriminante: o achado tem de ser do arquivo DENTRO de target.repoPath
+    // (endpoint relativo a tmp), provando que NÃO caiu no cwd.
+    const todo = findings.find(f => f.endpoint === 'only-in-tmp.md')
+    expect(todo).toBeDefined()
+    expect(todo!.title).toContain('TODOs')
   })
 })
