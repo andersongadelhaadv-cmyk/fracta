@@ -30,8 +30,17 @@ jobs:
             git reset --hard origin/master
             pnpm install --silent
             pnpm build
-            chmod +x packages/cli/dist/index.js
-            ln -sf /opt/apps/fracta/packages/cli/dist/index.js /usr/local/bin/fracta
+            chmod +x packages/cli/dist/index.js packages/mcp-server/dist/index.js
+            # CLI global: se houver Node 22 escopado, instala um WRAPPER que o usa
+            # (node:sqlite => estado/regressão ligados). Senão, symlink simples
+            # (degradação graciosa). Idempotente: sobrevive ao auto-deploy — NÃO
+            # reverte o wrapper para symlink (bug anterior que desligava o estado).
+            if [ -x /opt/node-22/bin/node ]; then
+              printf "#!/bin/sh\nexec /opt/node-22/bin/node /opt/apps/fracta/packages/cli/dist/index.js \"\$@\"\n" > /usr/local/bin/fracta
+              chmod +x /usr/local/bin/fracta
+            else
+              ln -sf /opt/apps/fracta/packages/cli/dist/index.js /usr/local/bin/fracta
+            fi
             fracta --help | head -3
           '
 
