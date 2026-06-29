@@ -1,4 +1,4 @@
-import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
+import type { SecurityAgent, ScanScope, Finding, AgentCategory, StackType } from '@fracta/core'
 import { FractaHttpClient, SkippedCheck, stableFindingId } from '@fracta/core'
 
 /**
@@ -8,6 +8,134 @@ import { FractaHttpClient, SkippedCheck, stableFindingId } from '@fracta/core'
  * header duplicado idêntico é aceito, mas um valor conflitante ainda é flagrado.
  */
 const tokens = (v: string): string[] => v.split(',').map(s => s.trim()).filter(Boolean)
+
+/**
+ * CDN/hosting providers that set the `server` header automatically.
+ * The user cannot remove these at the origin — must inform them instead.
+ */
+const KNOWN_CDN_SERVERS = ['cloudflare', 'vercel', 'fastly', 'akamai', 'netlify', 'awselb', 'amazon', 'nginx/']
+
+function isKnownCdn(serverValue: string): boolean {
+  const lower = serverValue.toLowerCase()
+  return KNOWN_CDN_SERVERS.some(cdn => lower.includes(cdn))
+}
+
+/**
+ * Returns a stack-aware fix snippet for a required security header.
+ *
+ * - nestjs / nodejs / express → helmet() example (noting what helmet covers and what it doesn't)
+ * - nextjs → next.config.js `async headers()` example
+ * - unknown/empty → neutral "configure seu servidor" guidance
+ */
+function requiredHeaderRec(headerName: string, stack: StackType[]): string {
+  const has = (s: string) => stack.some(t => t.toLowerCase() === s)
+
+  if (has('nextjs')) {
+    return (
+      `Adicione o header \`${headerName}\` via \`next.config.js\`:\n` +
+      `\`\`\`js\n` +
+      `// next.config.js\n` +
+      `module.exports = {\n` +
+      `  async headers() {\n` +
+      `    return [{ source: '/(.*)', headers: [{ key: '${headerName}', value: '<valor recomendado>' }] }]\n` +
+      `  },\n` +
+      `}\n` +
+      `\`\`\``
+    )
+  }
+
+  if (has('nestjs') || has('nodejs') || has('express')) {
+    // helmet sets: HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy automatically.
+    // Permissions-Policy is NOT set by helmet by default — must be configured explicitly.
+    if (headerName === 'permissions-policy') {
+      return (
+        `Adicione o header \`permissions-policy\` explicitamente — helmet **não** o define por padrão:\n` +
+        `\`\`\`typescript\n` +
+        `app.use(helmet());\n` +
+        `app.use((_req, res, next) => {\n` +
+        `  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');\n` +
+        `  next();\n` +
+        `});\n` +
+        `\`\`\``
+      )
+    }
+    return (
+      `Adicione o header \`${headerName}\` via helmet:\n` +
+      `\`\`\`typescript\n` +
+      `app.use(helmet()); // inclui ${headerName} automaticamente\n` +
+      `\`\`\``
+    )
+  }
+
+  // Neutral — unknown/empty stack
+  return `Configure seu servidor/proxy para enviar o header \`${headerName}\` com o valor recomendado pela OWASP Secure Headers Project.`
+}
+
+/**
+ * Returns a stack-aware recommendation for the `x-powered-by` forbidden header.
+ */
+function xPoweredByRec(stack: StackType[]): string {
+  const has = (s: string) => stack.some(t => t.toLowerCase() === s)
+
+  if (has('nextjs')) {
+    return (
+      `Desative o \`X-Powered-By\` em \`next.config.js\`:\n` +
+      `\`\`\`js\n` +
+      `// next.config.js\n` +
+      `module.exports = { poweredByHeader: false }\n` +
+      `\`\`\``
+    )
+  }
+
+  if (has('nestjs') || has('nodejs') || has('express')) {
+    return (
+      `Desative o \`X-Powered-By\` no Express/NestJS:\n` +
+      `\`\`\`typescript\n` +
+      `app.disable('x-powered-by');\n` +
+      `\`\`\``
+    )
+  }
+
+  return `Configure seu servidor/proxy para omitir o header \`X-Powered-By\` nas respostas HTTP.`
+}
+
+/**
+ * Returns a recommendation for the `server` forbidden header.
+ * If the value identifies a CDN, explains the user cannot remove it at origin.
+ */
+function serverHeaderRec(serverValue: string, stack: StackType[]): string {
+  if (isKnownCdn(serverValue)) {
+    return (
+      `O valor \`${serverValue}\` é definido pelo CDN/hosting provider e **não pode ser removido na origem**. ` +
+      `É controlado pela infraestrutura (Cloudflare, Vercel, etc.). ` +
+      `Considere configurar regras de transformação de headers no painel do seu CDN para ocultar ou substituir o valor, se necessário.`
+    )
+  }
+
+  const has = (s: string) => stack.some(t => t.toLowerCase() === s)
+
+  if (has('nestjs') || has('nodejs') || has('express')) {
+    return (
+      `O header \`server\` é definido pelo servidor web/proxy (nginx, Apache), não pelo Node.js. ` +
+      `Para ocultar a versão no nginx use \`server_tokens off;\` em \`nginx.conf\`. ` +
+      `Para remoção completa do header instale o módulo \`headers-more-nginx-module\` e use \`more_clear_headers Server;\`.`
+    )
+  }
+
+  if (has('nextjs')) {
+    return (
+      `O header \`server\` é definido pelo servidor web/proxy (nginx, Apache ou o servidor Next.js). ` +
+      `Para ocultar a versão no nginx use \`server_tokens off;\` em \`nginx.conf\`. ` +
+      `Para remoção completa instale \`headers-more-nginx-module\` e use \`more_clear_headers Server;\`.`
+    )
+  }
+
+  return (
+    `O header \`server\` é definido pelo servidor web/proxy (nginx, Apache, etc.), não pela aplicação. ` +
+    `Para ocultar a versão no nginx use \`server_tokens off;\` em \`nginx.conf\`. ` +
+    `Para remoção completa instale \`headers-more-nginx-module\` e use \`more_clear_headers Server;\`.`
+  )
+}
 
 const REQUIRED_HEADERS: Array<{
   name: string
@@ -111,20 +239,25 @@ export class HeadersAgent implements SecurityAgent {
           rule.severity,
           `Security header ausente: ${rule.name}`,
           rule.message,
-          `Adicione o header ${rule.name} nas respostas HTTP. Exemplo NestJS:\n\`\`\`typescript\napp.use(helmet()); // inclui ${rule.name} automaticamente\n\`\`\``,
+          requiredHeaderRec(rule.name, target.stack ?? []),
         ))
       }
     }
 
     for (const rule of FORBIDDEN_HEADERS) {
       if (headers[rule.name]) {
+        const headerValue = headers[rule.name] as string
+        const rec =
+          rule.name === 'x-powered-by'
+            ? xPoweredByRec(target.stack ?? [])
+            : serverHeaderRec(headerValue, target.stack ?? [])
         findings.push(mk(
           `header-forbidden:${rule.name}`,
           rule.severity,
           `Header proibido presente: ${rule.name}`,
           rule.message,
-          `Remova o header ${rule.name}. Exemplo NestJS:\n\`\`\`typescript\napp.use(helmet({ ${rule.name === 'x-powered-by' ? 'hidePoweredBy: true' : 'serverInfo: false'} }));\n\`\`\``,
-          { evidence: `${rule.name}: ${headers[rule.name]}` },
+          rec,
+          { evidence: `${rule.name}: ${headerValue}` },
         ))
       }
     }

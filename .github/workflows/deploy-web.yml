@@ -76,13 +76,13 @@ jobs:
           docker compose up -d
           ok=0
           for i in $(seq 1 20); do
-            if curl -fsS http://127.0.0.1:3850 >/dev/null 2>&1; then ok=1; break; fi
+            if curl -fsS http://127.0.0.1:3850/api/health >/dev/null 2>&1; then ok=1; break; fi
             sleep 3
           done
           if [ "$ok" != "1" ]; then
-            echo "::error::healthcheck do fracta-web falhou"
+            echo "::error::healthcheck do fracta-web falhou (store indisponível ou app não subiu)"
             docker compose logs --tail 60
             exit 1
           fi
-          echo "fracta-web OK em 127.0.0.1:3850"
+          echo "fracta-web OK em 127.0.0.1:3850/api/health"
           EOF

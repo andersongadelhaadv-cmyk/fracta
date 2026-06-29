@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, readdir } from 'node:fs/promises'
 import type {
   SecurityAgent, ScanScope, Finding, AgentCategory, ProposedFix,
 } from '@fracta/core'
@@ -219,7 +219,29 @@ export class SecretsAgent implements SecurityAgent {
     const findings: Finding[] = []
 
     const gitignore = await this.readFileSafe(join(repoPath, '.gitignore'))
-    if (gitignore !== null && !this.gitignoreCoversEnv(gitignore)) {
+    if (gitignore === null) {
+      // Pior cenário: sem .gitignore E com arquivo .env presente no repositório.
+      const committedEnv = await this.findEnvFiles(repoPath)
+      if (committedEnv.length > 0) {
+        findings.push({
+          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'no-gitignore-with-env', location: '.env' }),
+          runId: scope.runId,
+          agent: this.name,
+          category: this.category,
+          camada: this.category,
+          severity: 'high',
+          title: 'Repositório sem .gitignore com arquivo .env versionado',
+          description: `Não existe .gitignore neste repositório e foi encontrado pelo menos um arquivo de ambiente (${committedEnv.join(', ')}) que pode conter credenciais reais versionadas. Sem .gitignore, qualquer .env presente está exposto ao histórico Git.`,
+          evidence: `Arquivos .env encontrados sem proteção de .gitignore: ${committedEnv.join(', ')}`,
+          recommendation: 'Crie um .gitignore ignorando `.env` e suas variantes. Execute `git rm --cached <arquivo>` para remover arquivos já versionados e rotacione todos os segredos que possam ter sido expostos no histórico.',
+          proposedFix: {
+            description: 'Crie um .gitignore com a entrada `.env` (e variantes como `.env.*`). Use `git rm --cached .env` para remover do rastreamento e rotacione os segredos expostos no provedor.',
+            riskOfApplying: 'Médio. Criar o .gitignore é seguro, mas `git rm --cached` e reescrita de histórico são destrutivos e exigem coordenação com a equipe. Rotacionar segredos pode derrubar integrações até atualizar os ambientes.',
+          },
+          createdAt: new Date(),
+        })
+      }
+    } else if (!this.gitignoreCoversEnv(gitignore)) {
       findings.push({
         id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'env-not-gitignored', location: '.gitignore' }),
         runId: scope.runId,
@@ -279,6 +301,23 @@ export class SecretsAgent implements SecurityAgent {
     }
 
     return findings
+  }
+
+  /**
+   * Lista arquivos .env (`.env`, `.env.*`) presentes diretamente na raiz do repositório.
+   * Usado apenas quando `.gitignore` está ausente para detectar o pior cenário.
+   */
+  private async findEnvFiles(repoPath: string): Promise<string[]> {
+    try {
+      const entries = await readdir(repoPath)
+      // Match .env and .env.* variants (e.g. .env.local, .env.production) but
+      // explicitly exclude .env.example — that file is documentation, not a secret store.
+      return entries.filter(name =>
+        name === '.env' || (/^\.env\..+$/.test(name) && name !== '.env.example'),
+      )
+    } catch {
+      return []
+    }
   }
 
   private async readFileSafe(path: string): Promise<string | null> {

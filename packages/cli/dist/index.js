@@ -60,6 +60,13 @@ async function main() {
     }
   });
   const command = positionals[0] ?? "scan";
+  const VALID_COMMANDS = ["scan", "docs", "help"];
+  if (!VALID_COMMANDS.includes(command)) {
+    console.error(`[Fracta] Unknown command: "${command}"`);
+    console.error(`         Valid commands: ${VALID_COMMANDS.join(", ")}`);
+    console.error(`         Run "fracta --help" for usage.`);
+    process.exit(1);
+  }
   if (values.help || command === "help") {
     console.log(`
 Usage: fracta <command> [options]
@@ -107,7 +114,14 @@ ${String(err)}`);
       process.exit(1);
     }
   }
-  const depth = values.depth ?? "full";
+  const VALID_DEPTHS = ["quick", "full", "paranoid"];
+  const depthArg = values.depth;
+  if (!VALID_DEPTHS.includes(depthArg)) {
+    console.error(`[Fracta] Invalid --depth value: "${depthArg}"`);
+    console.error(`         Valid values: ${VALID_DEPTHS.join(", ")}`);
+    process.exit(1);
+  }
+  const depth = depthArg;
   const failOn = values["fail-on"].split(",").map((s) => s.trim());
   const docsPath = values["docs-path"];
   const allAgents = command === "docs" ? [new DocsAgent(docsPath)] : [

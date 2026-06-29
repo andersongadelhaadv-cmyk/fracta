@@ -95,4 +95,110 @@ describe('HeadersAgent', () => {
     expect(cors).toBeDefined()
     expect(cors?.severity).toBe('high')
   })
+
+  // ─── Issue #11: stack-aware recommendations ────────────────────────────────
+
+  it('(#11) nextjs stack: missing-header recommendation contains next.config snippet, NOT helmet/NestJS', async () => {
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve(responseWith({}))
+    )
+
+    // scope already has stack: ['nextjs']
+    const findings = await new HeadersAgent().run(scope)
+
+    const missing = findings.filter(f => f.title.startsWith('Security header ausente'))
+    expect(missing.length).toBeGreaterThan(0)
+
+    for (const f of missing) {
+      expect(f.recommendation).toContain('next.config')
+      expect(f.recommendation).not.toContain('NestJS')
+      expect(f.recommendation).not.toContain('app.use(helmet())')
+    }
+  })
+
+  it('(#11) empty stack: missing-header recommendation is neutral (no "helmet", no framework snippet)', async () => {
+    const neutralScope: ScanScope = {
+      ...scope,
+      target: { ...scope.target, stack: [] },
+    }
+
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve(responseWith({}))
+    )
+
+    const findings = await new HeadersAgent().run(neutralScope)
+
+    const missing = findings.filter(f => f.title.startsWith('Security header ausente'))
+    expect(missing.length).toBeGreaterThan(0)
+
+    for (const f of missing) {
+      expect(f.recommendation).not.toContain('helmet')
+      expect(f.recommendation).not.toContain('NestJS')
+      expect(f.recommendation).not.toContain('next.config')
+    }
+  })
+
+  it('(#11) nestjs stack: missing-header recommendation uses helmet(); permissions-policy gets explicit override note', async () => {
+    const nestScope: ScanScope = {
+      ...scope,
+      target: { ...scope.target, stack: ['nestjs'] },
+    }
+
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve(responseWith({}))
+    )
+
+    const findings = await new HeadersAgent().run(nestScope)
+
+    // Most headers should mention helmet
+    const hsts = findings.find(f => f.title.includes('strict-transport-security'))
+    expect(hsts?.recommendation).toContain('helmet()')
+
+    // permissions-policy must note that helmet does NOT set it by default
+    const pp = findings.find(f => f.title.includes('permissions-policy'))
+    expect(pp?.recommendation).toContain('helmet')
+    expect(pp?.recommendation).toContain('Permissions-Policy')
+    // Should NOT just say "helmet() automatically" for permissions-policy
+    expect(pp?.recommendation).not.toMatch(/inclui permissions-policy automaticamente/)
+  })
+
+  it('(#11) server: cloudflare → recommendation mentions CDN / cannot remove at origin', async () => {
+    const allGoodHeaders = {
+      'strict-transport-security': 'max-age=31536000',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'DENY',
+      'referrer-policy': 'no-referrer',
+      'permissions-policy': 'geolocation=()',
+      'server': 'cloudflare',
+    }
+
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve(responseWith(allGoodHeaders))
+    )
+
+    const findings = await new HeadersAgent().run(scope)
+
+    const serverFinding = findings.find(f => f.title.includes('server'))
+    expect(serverFinding).toBeDefined()
+    // Must mention CDN/cannot-remove language
+    expect(serverFinding?.recommendation?.toLowerCase()).toMatch(/cdn|provider|infraestrutura|cloudflare/)
+    expect(serverFinding?.recommendation?.toLowerCase()).toContain('origem')
+  })
+
+  it('(#11) no recommendation in any finding contains the string "serverInfo"', async () => {
+    const headers = {
+      'server': 'Apache/2.4.41',
+      'x-powered-by': 'PHP/7.4',
+    }
+
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve(responseWith(headers))
+    )
+
+    const findings = await new HeadersAgent().run(scope)
+
+    for (const f of findings) {
+      expect(f.recommendation ?? '').not.toContain('serverInfo')
+    }
+  })
 })

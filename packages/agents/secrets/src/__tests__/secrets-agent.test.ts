@@ -181,6 +181,55 @@ describe('SecretsAgent', () => {
     }
   })
 
+  it('flags a committed .env when .gitignore is absent (high)', async () => {
+    // Worst-case: no .gitignore at all + a .env file present in the repo root.
+    const repo = await makeRepo({
+      '.env': 'API_KEY=sk-ant-SUPER-SECRET-12345\nDB_URL=postgres://prod:pw@host/db\n',
+      '.env.example': 'API_KEY=\n',
+    })
+    try {
+      const findings = await new SecretsAgent(scannerClean).run(scopeFor(repo))
+      const f = findings.find(x => x.title.includes('sem .gitignore'))
+      expect(f).toBeDefined()
+      expect(f!.severity).toBe('high')
+      // stableFindingId returns a hex hash — verify it is a non-empty stable string.
+      expect(f!.id).toMatch(/^[0-9a-f]+$/)
+      // Must NOT re-expose any secret value from the .env
+      const dump = serialize(findings)
+      expect(dump).not.toContain('sk-ant-SUPER-SECRET-12345')
+    } finally {
+      await rm(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('does NOT flag no-gitignore-with-env when .gitignore exists and covers .env', async () => {
+    // A repo with a proper .gitignore should NOT trigger the absent-gitignore finding.
+    const repo = await makeRepo({
+      '.gitignore': 'node_modules\n.env\n.env.*\n',
+      '.env': 'API_KEY=sk-ant-SUPER-SECRET-99999\n',
+      '.env.example': 'API_KEY=\n',
+    })
+    try {
+      const findings = await new SecretsAgent(scannerClean).run(scopeFor(repo))
+      expect(findings.find(x => x.title.includes('sem .gitignore'))).toBeUndefined()
+    } finally {
+      await rm(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('does NOT flag no-gitignore-with-env when .gitignore is absent but no .env present', async () => {
+    // No .gitignore but no .env file either → no finding for this rule.
+    const repo = await makeRepo({
+      '.env.example': 'API_KEY=\n',
+    })
+    try {
+      const findings = await new SecretsAgent(scannerClean).run(scopeFor(repo))
+      expect(findings.find(x => x.title.includes('sem .gitignore'))).toBeUndefined()
+    } finally {
+      await rm(repo, { recursive: true, force: true })
+    }
+  })
+
   it('skips (not errors) when gitleaks binary is absent', async () => {
     const enoent: GitleaksScanner = async () => {
       throw new SkippedCheck('gitleaks não encontrado no PATH — não foi possível escanear segredos versionados')

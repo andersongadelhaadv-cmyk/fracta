@@ -69,6 +69,16 @@ async function main(): Promise<void> {
 
   const command = positionals[0] ?? 'scan'
 
+  const VALID_COMMANDS = ['scan', 'docs', 'help'] as const
+  type ValidCommand = typeof VALID_COMMANDS[number]
+
+  if (!VALID_COMMANDS.includes(command as ValidCommand)) {
+    console.error(`[Fracta] Unknown command: "${command}"`)
+    console.error(`         Valid commands: ${VALID_COMMANDS.join(', ')}`)
+    console.error(`         Run "fracta --help" for usage.`)
+    process.exit(1)
+  }
+
   if (values.help || command === 'help') {
     console.log(`
 Usage: fracta <command> [options]
@@ -121,7 +131,14 @@ Options:
     }
   }
 
-  const depth = (values.depth as ScanDepth) ?? 'full'
+  const VALID_DEPTHS: ScanDepth[] = ['quick', 'full', 'paranoid']
+  const depthArg = values.depth as string
+  if (!VALID_DEPTHS.includes(depthArg as ScanDepth)) {
+    console.error(`[Fracta] Invalid --depth value: "${depthArg}"`)
+    console.error(`         Valid values: ${VALID_DEPTHS.join(', ')}`)
+    process.exit(1)
+  }
+  const depth = depthArg as ScanDepth
   const failOn = (values['fail-on'] as string).split(',').map(s => s.trim()) as Severity[]
   const docsPath = values['docs-path'] as string
 
