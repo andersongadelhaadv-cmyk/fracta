@@ -58,6 +58,7 @@ async function main(): Promise<void> {
       output: { type: 'string', short: 'o', default: './fracta-reports' },
       state: { type: 'string', default: './fracta-state.db' },
       'no-state': { type: 'boolean', default: false },
+      llm: { type: 'boolean', default: false },
       'no-llm': { type: 'boolean', default: false },
       'fail-on': { type: 'string', default: 'critical,high' },
       'docs-path': { type: 'string', default: './' },
@@ -83,7 +84,10 @@ Options:
   -o, --output      Output directory (default: ./fracta-reports)
   --state           SQLite state file for regression/suppression (default: ./fracta-state.db)
   --no-state        Disable cross-run state (no regression/suppression)
-  --no-llm          Disable the LLM edge (prioritization/fix drafting)
+  --llm             OPT-IN: enable the LLM edge (prioritization/fix drafting).
+                    CONSOME TOKENS. Default OFF → zero tokens. Requires ANTHROPIC_API_KEY.
+                    Modelo via FRACTA_LLM_MODEL (default claude-opus-4-8; use um mais barato p/ economizar).
+  --no-llm          (redundante; LLM já é off por padrão) força o LLM desligado
   --fail-on         Severities that cause exit(1) (default: critical,high)
   --docs-path       Repo path for the dedicated 'docs' command (default: ./).
                     In 'scan', DOCS uses the target's repoPath and skips if absent.
@@ -157,9 +161,16 @@ Options:
     }
   }
 
-  // Borda LLM: ligada quando há ANTHROPIC_API_KEY e --no-llm não foi passado.
-  // Sem key, fica desabilitada (no-op) — a detecção nunca depende dela.
-  const enricher = values['no-llm'] ? undefined : new LlmEnricher({ verbose: values.verbose as boolean })
+  // Borda LLM: OPT-IN. Só liga com --llm (e exige ANTHROPIC_API_KEY). Default OFF →
+  // ZERO tokens. `--no-llm` mantém compat (força off). A detecção nunca depende dela.
+  const llmOn = (values.llm as boolean) && !(values['no-llm'] as boolean)
+  if (values.llm && !process.env.ANTHROPIC_API_KEY) {
+    console.warn('[Fracta] --llm pedido, mas ANTHROPIC_API_KEY ausente — seguindo SEM LLM (zero tokens).')
+  }
+  const enricher = llmOn ? new LlmEnricher({ verbose: values.verbose as boolean }) : undefined
+  if (enricher) {
+    console.log(`[Fracta] LLM enrichment LIGADO — CONSOME TOKENS (modelo: ${process.env.FRACTA_LLM_MODEL ?? 'claude-opus-4-8'}).`)
+  }
 
   const orchestrator = new FractaOrchestrator({
     concurrency: 3,
