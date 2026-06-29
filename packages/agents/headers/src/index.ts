@@ -58,10 +58,18 @@ export class HeadersAgent implements SecurityAgent {
   concurrency = 1
   timeoutMs = 15_000
 
+  /**
+   * `createClient` permite injetar um cliente HTTP endurecido (ex.: o
+   * `@fracta/web-scan` injeta um cliente com dispatcher que valida o IP em
+   * cada conexão, fechando SSRF por redirect). Sem ele, usa o cliente padrão
+   * (comportamento histórico do CLI).
+   */
+  constructor(private readonly opts: { createClient?: (url: string) => FractaHttpClient } = {}) {}
+
   async run(scope: ScanScope): Promise<Finding[]> {
     const findings: Finding[] = []
     const { target } = scope
-    const client = new FractaHttpClient(target.url)
+    const client = this.opts.createClient?.(target.url) ?? new FractaHttpClient(target.url)
 
     let res
     try {

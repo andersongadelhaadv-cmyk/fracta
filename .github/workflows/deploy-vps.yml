@@ -29,7 +29,9 @@ jobs:
             git fetch --quiet origin master
             git reset --hard origin/master
             pnpm install --silent
-            pnpm build
+            # Build SÓ do CLI/MCP (+ deps). O apps/web é Next e é buildado no Actions
+            # → GHCR (Docker), NUNCA na VPS. Excluí-lo evita rodar `next build` aqui.
+            pnpm --filter "@fracta/cli..." --filter "@fracta/mcp-server..." build
             chmod +x packages/cli/dist/index.js packages/mcp-server/dist/index.js
             # CLI global: se houver Node 22 escopado, instala um WRAPPER que o usa
             # (node:sqlite => estado/regressão ligados). Senão, symlink simples

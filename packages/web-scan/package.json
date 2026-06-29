@@ -1,0 +1,43 @@
+{
+  "name": "@fracta/web-scan",
+  "version": "0.1.0",
+  "description": "SSRF-safe passive scan engine for fracta.pro",
+  "license": "MIT",
+  "author": "Anderson Gadelha",
+  "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta.git",
+    "directory": "packages/web-scan"
+  },
+  "bugs": {
+    "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
+  },
+  "keywords": ["fracta", "security", "scan", "ssrf", "passive"],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@fracta/core": "workspace:*",
+    "@fracta/agent-headers": "workspace:*",
+    "undici": "^6.21.0"
+  },
+  "devDependencies": {
+    "tsup": "*",
+    "typescript": "*",
+    "vitest": "*",
+    "@types/node": "*"
+  }
+}

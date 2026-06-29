@@ -119,6 +119,8 @@ interface RequestOptions {
     headers?: Record<string, string>;
     body?: unknown;
     timeoutMs?: number;
+    /** Política de redirect do fetch. Default 'follow' (comportamento histórico). */
+    redirect?: 'follow' | 'manual' | 'error';
 }
 interface SecurityTest {
     name: string;
@@ -240,10 +242,22 @@ interface ReportEnricher {
     enrich(report: AuditReport): Promise<AuditReport>;
 }
 
+/**
+ * Opções de transporte do cliente. `dispatcher` é um undici Dispatcher/Agent
+ * opcional (tipado como unknown para o core não depender de undici): o
+ * `@fracta/web-scan` injeta um agent com `connect.lookup` validador de IP para
+ * fechar SSRF por redirect/DNS-rebinding em TODO hop de conexão. `redirect`
+ * permite forçar 'manual' onde seguir redirect for perigoso.
+ */
+interface HttpClientOptions {
+    dispatcher?: unknown;
+    redirect?: 'follow' | 'manual' | 'error';
+}
 declare class FractaHttpClient {
     private readonly baseUrl;
     private readonly baseHeaders;
-    constructor(baseUrl: string, baseHeaders?: Record<string, string>);
+    private readonly clientOptions;
+    constructor(baseUrl: string, baseHeaders?: Record<string, string>, options?: HttpClientOptions);
     request(path: string, options?: RequestOptions): Promise<HttpResponse>;
     withHeaders(extra: Record<string, string>): FractaHttpClient;
     static withJwt(baseUrl: string, authEndpoint: string, credentials: {
@@ -343,4 +357,4 @@ type CommandRunner = (command: string, args: string[], opts?: RunCommandOptions)
  */
 declare const runCommand: CommandRunner;
 
-export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };
+export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpClientOptions, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };

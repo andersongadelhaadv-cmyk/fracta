@@ -1,31 +1,50 @@
 import type { HttpResponse, RequestOptions } from './types.js'
 
+/**
+ * Opções de transporte do cliente. `dispatcher` é um undici Dispatcher/Agent
+ * opcional (tipado como unknown para o core não depender de undici): o
+ * `@fracta/web-scan` injeta um agent com `connect.lookup` validador de IP para
+ * fechar SSRF por redirect/DNS-rebinding em TODO hop de conexão. `redirect`
+ * permite forçar 'manual' onde seguir redirect for perigoso.
+ */
+export interface HttpClientOptions {
+  dispatcher?: unknown
+  redirect?: 'follow' | 'manual' | 'error'
+}
+
 export class FractaHttpClient {
   private readonly baseUrl: string
   private readonly baseHeaders: Record<string, string>
+  private readonly clientOptions: HttpClientOptions
 
-  constructor(baseUrl: string, baseHeaders: Record<string, string> = {}) {
+  constructor(baseUrl: string, baseHeaders: Record<string, string> = {}, options: HttpClientOptions = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '')
     this.baseHeaders = {
       'Content-Type': 'application/json',
       'User-Agent': 'Fracta-Security-Scanner/0.1',
       ...baseHeaders,
     }
+    this.clientOptions = options
   }
 
   async request(path: string, options: RequestOptions = {}): Promise<HttpResponse> {
-    const { method = 'GET', headers = {}, body, timeoutMs = 10_000 } = options
+    const { method = 'GET', headers = {}, body, timeoutMs = 10_000, redirect } = options
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
 
     try {
       const normalizedPath = path.startsWith('/') ? path : `/${path}`
-      const res = await fetch(`${this.baseUrl}${normalizedPath}`, {
+      // `dispatcher` não está nos tipos lib.dom do fetch, mas o fetch do Node (undici) o aceita.
+      const init: Record<string, unknown> = {
         method,
         headers: { ...this.baseHeaders, ...headers },
         body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
-      })
+      }
+      const eff = redirect ?? this.clientOptions.redirect
+      if (eff) init.redirect = eff
+      if (this.clientOptions.dispatcher) init.dispatcher = this.clientOptions.dispatcher
+      const res = await fetch(`${this.baseUrl}${normalizedPath}`, init as RequestInit)
 
       const raw = await res.text()
       let parsed: unknown = raw

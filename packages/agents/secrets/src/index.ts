@@ -29,15 +29,81 @@ export interface GitleaksFinding {
 export type GitleaksScanner = (repoPath: string, timeoutMs: number) => Promise<GitleaksFinding[]>
 
 /**
+ * Decisão sobre o resultado bruto do gitleaks (lógica pura, testável).
+ * - `findings` — execução válida (com ou sem vazamentos).
+ * - `skip`     — gitleaks ausente: vira `SkippedCheck` honesto (nunca "limpo").
+ * - `error`    — anomalia: NUNCA tratada como "limpo" (regra de honestidade).
+ */
+export type GitleaksOutcome =
+  | { kind: 'findings'; findings: GitleaksFinding[] }
+  | { kind: 'skip'; reason: string }
+  | { kind: 'error'; reason: string }
+
+/**
+ * Assinaturas de "binário não encontrado". No Windows com `shell:true`, um
+ * binário ausente NÃO emite ENOENT — o shell resolve com code≠0 e um stderr
+ * "não é reconhecido"/"not recognized" (pt-BR/en); shells POSIX usam
+ * "command not found" + code 127. cmd.exe usa 9009.
+ */
+function looksLikeMissingBinary(code: number | null, stderr: string): boolean {
+  if (code === 127 || code === 9009) return true
+  // Tokens robustos a mojibake do codepage do Windows (cmd.exe pt-BR converte
+  // "não é reconhecido" em "n�o � reconhecido" — só "reconhecido" sobrevive).
+  return /reconhecido|recognized|command not found|no such file|cannot find|n[ãa]o encontrad/i.test(stderr)
+}
+
+/**
+ * Interpreta o resultado do gitleaks. gitleaks: 0 = limpo, 1 = vazamentos
+ * ENCONTRADOS (e SEMPRE grava o relatório). Logo:
+ * - code 0: limpo (relatório vazio/ausente é esperado) → findings [].
+ * - code 1 + relatório com JSON: vazamentos → findings parseados.
+ * - code 1 SEM relatório: contradição (não é "limpo") → error — a menos que o
+ *   stderr indique binário ausente, caso em que é `skip` honesto. Era exatamente
+ *   aqui que o veredito ✅ PASSOU silencioso nascia (#8).
+ * - qualquer outro código: error (nunca "limpo").
+ */
+export function interpretGitleaks(input: {
+  code: number | null
+  stderr: string
+  report: string | null
+}): GitleaksOutcome {
+  const { code, stderr, report } = input
+
+  if (looksLikeMissingBinary(code, stderr)) {
+    return { kind: 'skip', reason: 'gitleaks não encontrado no PATH — não foi possível escanear segredos versionados' }
+  }
+
+  const trimmed = (report ?? '').trim()
+  const parseReport = (): GitleaksFinding[] => {
+    if (!trimmed) return []
+    const parsed = JSON.parse(trimmed) as GitleaksFinding[]
+    return Array.isArray(parsed) ? parsed : []
+  }
+
+  if (code === 0) return { kind: 'findings', findings: parseReport() }
+
+  if (code === 1) {
+    if (!trimmed) {
+      return { kind: 'error', reason: 'gitleaks saiu com código 1 (vazamentos) mas não gerou relatório — resultado inconclusivo, não tratado como "limpo"' }
+    }
+    return { kind: 'findings', findings: parseReport() }
+  }
+
+  return { kind: 'error', reason: `gitleaks saiu com código inesperado (${code ?? 'null'})` }
+}
+
+/**
  * Impl real: roda `gitleaks detect` gravando o relatório JSON num arquivo temporário,
- * lê+parseia e limpa. gitleaks sai 1 quando ACHA vazamentos e 0 quando não acha —
- * AMBOS são sucesso. Só vira erro real se o binário falhar de verdade.
+ * lê+parseia e limpa. A decisão sobre o resultado é delegada a `interpretGitleaks`
+ * (pura/testada): binário ausente → SkippedCheck honesto; anomalia → erro visível.
+ * NUNCA reporta "limpo" quando o scan não rodou de verdade (#8).
  */
 export const defaultGitleaksScan: GitleaksScanner = async (repoPath, timeoutMs) => {
   const dir = await mkdtemp(join(tmpdir(), 'fracta-gitleaks-'))
   const reportPath = join(dir, 'report.json')
   try {
     let code: number | null
+    let stderr = ''
     try {
       const result = await runCommand(
         'gitleaks',
@@ -51,6 +117,7 @@ export const defaultGitleaksScan: GitleaksScanner = async (repoPath, timeoutMs) 
         { timeoutMs },
       )
       code = result.code
+      stderr = result.stderr
     } catch (err) {
       const e = err as NodeJS.ErrnoException
       if (e.code === 'ENOENT') {
@@ -59,20 +126,18 @@ export const defaultGitleaksScan: GitleaksScanner = async (repoPath, timeoutMs) 
       throw err // erro real de execução → status: error (visível, não falso "seguro")
     }
 
-    // gitleaks: 0 = limpo, 1 = vazamentos encontrados. Qualquer outro código é erro real.
-    let raw: string
+    // Lê o relatório (pode não existir). `null` = ausente — interpretGitleaks decide.
+    let report: string | null = null
     try {
-      raw = await readFile(reportPath, 'utf8')
-    } catch (readErr) {
-      // Relatório ausente + código de sucesso (0/1) → trate como "nenhum achado".
-      if (code === 0 || code === 1) return []
-      throw new Error(`gitleaks falhou (código ${code}) e não gerou relatório: ${(readErr as Error).message}`)
+      report = await readFile(reportPath, 'utf8')
+    } catch {
+      report = null
     }
 
-    const trimmed = raw.trim()
-    if (!trimmed) return []
-    const parsed = JSON.parse(trimmed) as GitleaksFinding[]
-    return Array.isArray(parsed) ? parsed : []
+    const outcome = interpretGitleaks({ code, stderr, report })
+    if (outcome.kind === 'skip') throw new SkippedCheck(outcome.reason)
+    if (outcome.kind === 'error') throw new Error(outcome.reason)
+    return outcome.findings
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
