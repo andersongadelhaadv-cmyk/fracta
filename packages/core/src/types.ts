@@ -149,6 +149,8 @@ export interface RequestOptions {
   headers?: Record<string, string>
   body?: unknown
   timeoutMs?: number
+  /** Política de redirect do fetch. Default 'follow' (comportamento histórico). */
+  redirect?: 'follow' | 'manual' | 'error'
 }
 
 export interface SecurityTest {

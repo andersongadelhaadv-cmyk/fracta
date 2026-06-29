@@ -3,7 +3,9 @@ import { SqliteScanStore } from '../scan-store.js'
 import type { PassiveScanResult } from '../types.js'
 
 const result = (url: string): PassiveScanResult => ({
-  url, findings: [], grade: 'A', score: 100, verdict: 'ok', scannedAt: '2026-06-29T00:00:00.000Z',
+  url, findings: [], grade: 'A', score: 100, verdict: 'ok',
+  checks: [{ name: 'security-headers', status: 'ok' }],
+  scannedAt: '2026-06-29T00:00:00.000Z',
 })
 
 describe('SqliteScanStore', () => {

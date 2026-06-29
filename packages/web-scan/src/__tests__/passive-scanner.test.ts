@@ -21,9 +21,13 @@ describe('PassiveScanner (integração)', () => {
     expect(r.verdict).toBe('ok')
     expect(r.findings.length).toBeGreaterThan(0) // headers ausentes + cookie sem flags + lgpd-lite
     expect(['A', 'B', 'C', 'D', 'E', 'F']).toContain(r.grade)
+    expect(r.checks.find((c) => c.name === 'security-headers')?.status).toBe('ok')
   })
-  it('veredito inconclusive p/ alvo inacessível', async () => {
+  it('veredito inconclusive + nota NULL p/ alvo inacessível (nunca F falso)', async () => {
     const r = await new PassiveScanner({ allowPrivateForTest: true }).scan('http://127.0.0.1:1') // porta fechada
     expect(r.verdict).toBe('inconclusive')
+    expect(r.grade).toBeNull()
+    expect(r.score).toBeNull()
+    expect(r.checks.find((c) => c.name === 'security-headers')?.status).toBe('skipped')
   })
 })

@@ -31,7 +31,8 @@
   },
   "dependencies": {
     "@fracta/core": "workspace:*",
-    "@fracta/agent-headers": "workspace:*"
+    "@fracta/agent-headers": "workspace:*",
+    "undici": "^6.21.0"
   },
   "devDependencies": {
     "tsup": "*",
