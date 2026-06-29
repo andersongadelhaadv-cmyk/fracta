@@ -1,0 +1,16 @@
+# Vive na VPS em /opt/apps/fracta-web/docker-compose.yml.
+# A VPS só faz pull + restart (NUNCA builda). Imagem vem do GHCR via Actions.
+services:
+  web:
+    image: ghcr.io/andersongadelhaadv-cmyk/fracta-web:latest
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3850:3850" # só loopback; nginx termina o TLS
+    volumes:
+      - ./data:/data # persiste fracta-web.db (shareIds + cache + emails)
+    environment:
+      - NODE_ENV=production
+      - PORT=3850
+      - HOSTNAME=0.0.0.0
+      - FRACTA_WEB_DB=/data/fracta-web.db

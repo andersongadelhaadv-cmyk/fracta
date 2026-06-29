@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+**/*.db
+**/*.db-wal
+**/*.db-shm
+.git
+.github
+fracta-reports
+**/*.local.yaml
+configs/targets.local.yaml
+**/.env*.local

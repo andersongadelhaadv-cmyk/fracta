@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Neutros — dark-first, leve tint frio */
+  --bg: #0a0b0d;
+  --surface: #111317;
+  --surface-2: #15181d;
+  --border: #1f2329;
+  --border-strong: #2b3038;
+  --text: #e7e9ec;
+  --muted: #8b9299;
+  --faint: #5b636b;
+
+  /* Acento de marca — ÚNICO, disciplinado (ciano-instrumento). NÃO é roxo/rosa. */
+  --accent: #3ad6cf;
+  --accent-dim: #1c6f6b;
+
+  /* Escala semântica de NOTA (legenda forense, separada do acento) */
+  --grade-a: #34d399;
+  --grade-b: #a3e635;
+  --grade-c: #facc15;
+  --grade-d: #fb923c;
+  --grade-e: #f87171;
+  --grade-f: #ef4444;
+  --grade-na: #5b636b;
+
+  /* Severidade de finding */
+  --sev-critical: #ef4444;
+  --sev-high: #fb923c;
+  --sev-medium: #facc15;
+  --sev-low: #8b9299;
+  --sev-info: #5b636b;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  background: var(--bg);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+/* Foco visível e na cor da marca — acessibilidade + identidade */
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Grade de fundo sutil tipo instrumento — textura, não decoração */
+.grid-backdrop {
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+  opacity: 0.5;
+}
+
+/* Scanline do herói — o "acento vivo". Respeita reduced-motion. */
+.scanline {
+  position: absolute;
+  inset-inline: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.35;
+  animation: scan 6s linear infinite;
+}
+@keyframes scan {
+  0% { top: 0; opacity: 0; }
+  10% { opacity: 0.4; }
+  90% { opacity: 0.4; }
+  100% { top: 100%; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanline { animation: none; opacity: 0.2; top: 0; }
+}
