@@ -23,7 +23,7 @@ function loadSqlite(): typeof import('node:sqlite') {
  */
 export class SqliteScanStore {
   private readonly db: DatabaseSyncType
-  constructor(path = './fracta-web.db') {
+  constructor(path = './fracta-web.db', opts: { retentionDays?: number } = {}) {
     const { DatabaseSync } = loadSqlite()
     this.db = new DatabaseSync(path)
     if (path !== ':memory:') {
@@ -36,6 +36,11 @@ export class SqliteScanStore {
       CREATE INDEX IF NOT EXISTS idx_scan_url_ts ON scan (url, scanned_at_ms);
       CREATE TABLE IF NOT EXISTS email (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, context TEXT, at_ms INTEGER NOT NULL);
     `)
+    // Retenção: limpa scans antigos no boot (limita crescimento de disco num endpoint público).
+    const days = opts.retentionDays ?? 90
+    if (days > 0) {
+      try { this.pruneOlderThan(days * 24 * 60 * 60 * 1000) } catch { /* best-effort */ }
+    }
   }
   save(r: PassiveScanResult, opts: { genId?: () => string; now?: () => number } = {}): string {
     const id = (opts.genId ?? randomUUID)()
@@ -49,10 +54,25 @@ export class SqliteScanStore {
     return row ? (JSON.parse(row.result_json) as PassiveScanResult) : null
   }
   getCached(url: string, ttlMs: number, now = Date.now()): PassiveScanResult | null {
-    const row = this.db.prepare('SELECT result_json, scanned_at_ms FROM scan WHERE url = ? ORDER BY scanned_at_ms DESC LIMIT 1')
-      .get(url) as { result_json: string; scanned_at_ms: number } | undefined
+    return this.getCachedEntry(url, ttlMs, now)?.result ?? null
+  }
+
+  /**
+   * Como getCached, mas retorna também o share_id existente — para reusar o link
+   * compartilhável no cache-hit em vez de mintar uma nova linha a cada acesso
+   * (evita crescimento ilimitado + geração gratuita de shareIds).
+   */
+  getCachedEntry(url: string, ttlMs: number, now = Date.now()): { shareId: string; result: PassiveScanResult } | null {
+    const row = this.db.prepare('SELECT share_id, result_json, scanned_at_ms FROM scan WHERE url = ? ORDER BY scanned_at_ms DESC LIMIT 1')
+      .get(url) as { share_id: string; result_json: string; scanned_at_ms: number } | undefined
     if (!row || now - row.scanned_at_ms > ttlMs) return null
-    return JSON.parse(row.result_json) as PassiveScanResult
+    return { shareId: row.share_id, result: JSON.parse(row.result_json) as PassiveScanResult }
+  }
+
+  /** Remove scans mais antigos que `maxAgeMs`. Retorna quantas linhas saíram. */
+  pruneOlderThan(maxAgeMs: number, now = Date.now()): number {
+    const res = this.db.prepare('DELETE FROM scan WHERE scanned_at_ms < ?').run(now - maxAgeMs)
+    return Number(res.changes ?? 0)
   }
   saveEmail(email: string, context = ''): void {
     this.db.prepare('INSERT INTO email (email, context, at_ms) VALUES (?, ?, ?)').run(email, context, Date.now())
