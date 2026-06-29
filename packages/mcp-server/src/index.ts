@@ -23,6 +23,37 @@ import { SupabaseSkill } from '@fracta/skill-supabase'
 import { FractaReporter } from '@fracta/reporter'
 import { SqliteFindingStore } from '@fracta/store'
 import { LlmEnricher } from '@fracta/llm'
+import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
+
+// ── Auto-elevação para Node 22+ (estado entre runs no MCP) ──────────────────────
+// O store usa `node:sqlite`, builtin só em Node >=22.5. Quando o cliente MCP invoca
+// este server sob um Node mais antigo (ex.: o Node 20 de sistema da VPS), re-executa
+// o processo sob um Node 22 ESCOPADO se houver um disponível — assim regressão/supressão
+// ligam sem depender do config do cliente (que pode estar fora do nosso alcance).
+// Guard `FRACTA_REEXEC` evita loop. No-op se já há node:sqlite (Node>=22.5) ou se nenhum
+// binário Node 22 for encontrado (ex.: dev local Windows) → segue sem estado (degradação graciosa).
+function hasNodeSqlite(): boolean {
+  try {
+    createRequire(import.meta.url)('node:sqlite')
+    return true
+  } catch {
+    return false
+  }
+}
+if (!process.env.FRACTA_REEXEC && !hasNodeSqlite()) {
+  const node22 = [process.env.FRACTA_NODE, '/opt/node-22/bin/node']
+    .filter((p): p is string => Boolean(p))
+    .find((p) => existsSync(p))
+  if (node22 && process.argv[1]) {
+    const res = spawnSync(node22, [process.argv[1], ...process.argv.slice(2)], {
+      stdio: 'inherit',
+      env: { ...process.env, FRACTA_REEXEC: '1' },
+    })
+    process.exit(res.status ?? 0)
+  }
+}
 
 const TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? './configs/targets.yaml'
 

@@ -18,7 +18,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22+ (>=22.5) é obrigatório: @fracta/store usa node:sqlite (builtin
+          # só nessa faixa). Em Node 20 os testes do store falham. Casa com o Node 22
+          # escopado usado em produção p/ ligar estado/regressão.
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
