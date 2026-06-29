@@ -50,6 +50,9 @@ jobs:
   deploy:
     needs: build-push
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Configure SSH
         run: |
@@ -58,22 +61,28 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 76.13.170.79 >> ~/.ssh/known_hosts
 
+      # Login GHCR ISOLADO (config temporário) com o GITHUB_TOKEN efêmero — lê o
+      # pacote do próprio repo sem tocar a credencial GHCR compartilhada da VPS
+      # (que outros apps usam). `docker compose up` depois usa a imagem já local.
       - name: Pull image and restart on VPS (no build on VPS)
         run: |
-          ssh -i ~/.ssh/id_ed25519 root@76.13.170.79 '
-            set -e
-            cd /opt/apps/fracta-web
-            docker compose pull
-            docker compose up -d
-            ok=0
-            for i in $(seq 1 20); do
-              if curl -fsS http://127.0.0.1:3850 >/dev/null 2>&1; then ok=1; break; fi
-              sleep 3
-            done
-            if [ "$ok" != "1" ]; then
-              echo "::error::healthcheck do fracta-web falhou"
-              docker compose logs --tail 60
-              exit 1
-            fi
-            echo "fracta-web OK em 127.0.0.1:3850"
-          '
+          ssh -i ~/.ssh/id_ed25519 root@76.13.170.79 bash -s <<'EOF'
+          set -e
+          DC=$(mktemp -d)
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker --config "$DC" login ghcr.io -u "${{ github.actor }}" --password-stdin
+          cd /opt/apps/fracta-web
+          docker --config "$DC" compose pull
+          rm -rf "$DC"
+          docker compose up -d
+          ok=0
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3850 >/dev/null 2>&1; then ok=1; break; fi
+            sleep 3
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::healthcheck do fracta-web falhou"
+            docker compose logs --tail 60
+            exit 1
+          fi
+          echo "fracta-web OK em 127.0.0.1:3850"
+          EOF

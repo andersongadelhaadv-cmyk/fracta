@@ -54,20 +54,22 @@ export async function POST(req: NextRequest) {
 
   const store = getStore()
 
-  // Cache por URL — evita re-escanear o mesmo alvo em janela curta.
-  let result: PassiveScanResult | null = store?.getCached(normalized, CACHE_TTL_MS) ?? null
+  // Cache por URL — reusa o resultado E o shareId existente (sem mintar nova linha).
+  const cached = store?.getCachedEntry(normalized, CACHE_TTL_MS) ?? null
+  if (cached) {
+    return NextResponse.json(
+      { shareId: cached.shareId, grade: cached.result.grade, verdict: cached.result.verdict },
+      { status: 200 },
+    )
+  }
 
-  if (!result) {
-    try {
-      result = await new PassiveScanner().scan(normalized)
-    } catch (e) {
-      // Pós-validação o scanner não deveria lançar (alvo inacessível vira inconclusive),
-      // mas qualquer erro inesperado é honesto: nunca afirmamos "seguro".
-      return NextResponse.json(
-        { error: `Não foi possível concluir a análise: ${(e as Error).message}` },
-        { status: 502 },
-      )
-    }
+  let result: PassiveScanResult
+  try {
+    result = await new PassiveScanner().scan(normalized)
+  } catch {
+    // Pós-validação o scanner não deveria lançar (alvo inacessível vira inconclusive);
+    // qualquer erro inesperado é honesto e genérico — nunca afirmamos "seguro" nem vazamos stack.
+    return NextResponse.json({ error: 'Não foi possível concluir a análise. Tente novamente.' }, { status: 502 })
   }
 
   // Persiste (gera shareId). Se o store estiver indisponível, retorna inline.
