@@ -68,8 +68,10 @@ try {
   console.error(`[Fracta] MCP seguindo SEM regressão/supressão (detecção intacta).`)
 }
 
-// Borda LLM (no-op sem ANTHROPIC_API_KEY).
-const enricher = new LlmEnricher()
+// Borda LLM no MCP: OPT-IN via FRACTA_LLM=1. A chave (ANTHROPIC_API_KEY) costuma
+// viver no config do cliente MCP, então ligar por padrão gastaria tokens (Opus) em
+// TODO scan_target silenciosamente. Default: SEM LLM (zero tokens) — detecção intacta.
+const enricher = process.env.FRACTA_LLM === '1' ? new LlmEnricher() : undefined
 
 async function loadTargets(): Promise<Target[]> {
   const raw = await readFile(TARGETS_CONFIG, 'utf-8')
