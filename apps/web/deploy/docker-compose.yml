@@ -3,7 +3,10 @@
 services:
   web:
     image: ghcr.io/andersongadelhaadv-cmyk/fracta-web:latest
-    pull_policy: always
+    # NÃO usar `pull_policy: always`: o deploy faz `docker compose pull` com login
+    # GHCR isolado (config temporário). Com `always`, o `up -d` tentaria re-puxar
+    # usando a credencial GHCR compartilhada da VPS → denied. O `pull` explícito já
+    # busca o latest; o `up` usa a imagem local.
     restart: unless-stopped
     ports:
       - "127.0.0.1:3850:3850" # só loopback; nginx termina o TLS
