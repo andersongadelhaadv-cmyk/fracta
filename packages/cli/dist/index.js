@@ -51,6 +51,7 @@ async function main() {
       output: { type: "string", short: "o", default: "./fracta-reports" },
       state: { type: "string", default: "./fracta-state.db" },
       "no-state": { type: "boolean", default: false },
+      llm: { type: "boolean", default: false },
       "no-llm": { type: "boolean", default: false },
       "fail-on": { type: "string", default: "critical,high" },
       "docs-path": { type: "string", default: "./" },
@@ -74,7 +75,10 @@ Options:
   -o, --output      Output directory (default: ./fracta-reports)
   --state           SQLite state file for regression/suppression (default: ./fracta-state.db)
   --no-state        Disable cross-run state (no regression/suppression)
-  --no-llm          Disable the LLM edge (prioritization/fix drafting)
+  --llm             OPT-IN: enable the LLM edge (prioritization/fix drafting).
+                    CONSOME TOKENS. Default OFF \u2192 zero tokens. Requires ANTHROPIC_API_KEY.
+                    Modelo via FRACTA_LLM_MODEL (default claude-opus-4-8; use um mais barato p/ economizar).
+  --no-llm          (redundante; LLM j\xE1 \xE9 off por padr\xE3o) for\xE7a o LLM desligado
   --fail-on         Severities that cause exit(1) (default: critical,high)
   --docs-path       Repo path for the dedicated 'docs' command (default: ./).
                     In 'scan', DOCS uses the target's repoPath and skips if absent.
@@ -135,7 +139,14 @@ ${String(err)}`);
       console.warn(`[Fracta] Seguindo SEM regress\xE3o/supress\xE3o (detec\xE7\xE3o intacta). Use --no-state para silenciar.`);
     }
   }
-  const enricher = values["no-llm"] ? void 0 : new LlmEnricher({ verbose: values.verbose });
+  const llmOn = values.llm && !values["no-llm"];
+  if (values.llm && !process.env.ANTHROPIC_API_KEY) {
+    console.warn("[Fracta] --llm pedido, mas ANTHROPIC_API_KEY ausente \u2014 seguindo SEM LLM (zero tokens).");
+  }
+  const enricher = llmOn ? new LlmEnricher({ verbose: values.verbose }) : void 0;
+  if (enricher) {
+    console.log(`[Fracta] LLM enrichment LIGADO \u2014 CONSOME TOKENS (modelo: ${process.env.FRACTA_LLM_MODEL ?? "claude-opus-4-8"}).`);
+  }
   const orchestrator = new FractaOrchestrator({
     concurrency: 3,
     failOn,

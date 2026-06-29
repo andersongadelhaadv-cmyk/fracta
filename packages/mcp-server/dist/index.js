@@ -23,6 +23,27 @@ import { SupabaseSkill } from "@fracta/skill-supabase";
 import { FractaReporter } from "@fracta/reporter";
 import { SqliteFindingStore } from "@fracta/store";
 import { LlmEnricher } from "@fracta/llm";
+import { spawnSync } from "child_process";
+import { existsSync } from "fs";
+import { createRequire } from "module";
+function hasNodeSqlite() {
+  try {
+    createRequire(import.meta.url)("node:sqlite");
+    return true;
+  } catch {
+    return false;
+  }
+}
+if (!process.env.FRACTA_REEXEC && !hasNodeSqlite()) {
+  const node22 = [process.env.FRACTA_NODE, "/opt/node-22/bin/node"].filter((p) => Boolean(p)).find((p) => existsSync(p));
+  if (node22 && process.argv[1]) {
+    const res = spawnSync(node22, [process.argv[1], ...process.argv.slice(2)], {
+      stdio: "inherit",
+      env: { ...process.env, FRACTA_REEXEC: "1" }
+    });
+    process.exit(res.status ?? 0);
+  }
+}
 var TARGETS_CONFIG = process.env.TARGETS_CONFIG ?? "./configs/targets.yaml";
 var store;
 try {
@@ -31,7 +52,7 @@ try {
   console.error(`[Fracta] Estado entre runs indispon\xEDvel: ${err.message}`);
   console.error(`[Fracta] MCP seguindo SEM regress\xE3o/supress\xE3o (detec\xE7\xE3o intacta).`);
 }
-var enricher = new LlmEnricher();
+var enricher = process.env.FRACTA_LLM === "1" ? new LlmEnricher() : void 0;
 async function loadTargets() {
   const raw = await readFile(TARGETS_CONFIG, "utf-8");
   const resolved = raw.replace(/\$\{([^}]+)\}/g, (_, key) => process.env[key] ?? "");

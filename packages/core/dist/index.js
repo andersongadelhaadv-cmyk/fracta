@@ -39,26 +39,32 @@ var SkippedCheck = class extends Error {
 var FractaHttpClient = class _FractaHttpClient {
   baseUrl;
   baseHeaders;
-  constructor(baseUrl, baseHeaders = {}) {
+  clientOptions;
+  constructor(baseUrl, baseHeaders = {}, options = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.baseHeaders = {
       "Content-Type": "application/json",
       "User-Agent": "Fracta-Security-Scanner/0.1",
       ...baseHeaders
     };
+    this.clientOptions = options;
   }
   async request(path, options = {}) {
-    const { method = "GET", headers = {}, body, timeoutMs = 1e4 } = options;
+    const { method = "GET", headers = {}, body, timeoutMs = 1e4, redirect } = options;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-      const res = await fetch(`${this.baseUrl}${normalizedPath}`, {
+      const init = {
         method,
         headers: { ...this.baseHeaders, ...headers },
         body: body !== void 0 ? JSON.stringify(body) : void 0,
         signal: controller.signal
-      });
+      };
+      const eff = redirect ?? this.clientOptions.redirect;
+      if (eff) init.redirect = eff;
+      if (this.clientOptions.dispatcher) init.dispatcher = this.clientOptions.dispatcher;
+      const res = await fetch(`${this.baseUrl}${normalizedPath}`, init);
       const raw = await res.text();
       let parsed = raw;
       const ct = res.headers.get("content-type") ?? "";
