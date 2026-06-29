@@ -15,10 +15,19 @@ A VPS (76.13.170.79, `ssh hostinger`) **nunca** builda Docker.
 ```bash
 ssh hostinger
 mkdir -p /opt/apps/fracta-web/data
+# O container roda como uid 1001 (nextjs). O volume ./data precisa ser gravável
+# por ele, senão o node:sqlite falha ("unable to open database file") e o scan
+# degrada para sem-persistência (sem shareId/link compartilhável).
+chown -R 1001:1001 /opt/apps/fracta-web/data
 # copiar apps/web/deploy/docker-compose.yml para /opt/apps/fracta-web/docker-compose.yml
 cd /opt/apps/fracta-web && docker compose pull && docker compose up -d
 curl -fsS http://127.0.0.1:3850 >/dev/null && echo OK   # porta 3850 (loopback)
 ```
+
+> **Cloudflare:** `fracta.pro` está atrás do Cloudflare (modo Full). O CF conecta no
+> origin via :443, então o vhost PRECISA do bloco :443 com cert (certbot). Sem ele, o
+> CF cai no :443 default do origin e serve outro app. O `default_server`→444 fecha hosts
+> desconhecidos que batem direto no IP do origin.
 Porta **3850** escolhida fora das faixas em uso (ver memory infra-vps-deploy).
 
 ## 3. nginx — vhost + TLS + endurecer o default
