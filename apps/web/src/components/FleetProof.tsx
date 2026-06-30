@@ -9,12 +9,12 @@ import { gradeColor } from '@/lib/grade-ui'
  * Notas/relatórios snapshot; o link "rode agora" re-checa ao vivo.
  */
 const FLEET: Array<{ name: string; domain: string; grade: ScanGrade; shareId: string }> = [
-  { name: 'ADVOCUS', domain: 'advocus.com.br', grade: 'A', shareId: '9cb5cb8f-9709-45f1-ae56-042ecd9f1287' },
-  { name: 'Veredicto', domain: 'veredicto.tech', grade: 'A', shareId: '58daa64d-1a89-452a-afe5-fe4be04eebda' },
-  { name: 'DoutorINSS', domain: 'doutorinss.com', grade: 'A', shareId: 'f30b36bd-b738-4bce-9902-b4fc3fcc3822' },
-  { name: 'VeriJus', domain: 'verijus.com.br', grade: 'A', shareId: 'ea8ee7a7-bd7d-4958-b29a-e4467d44cc72' },
-  { name: 'Pleita', domain: 'pleita.pro', grade: 'A', shareId: 'c5d3c380-e5b9-4887-969e-d71706a8515b' },
-  { name: 'PreviusIA', domain: 'previusia.com.br', grade: 'A', shareId: 'c73eca1e-f08b-4806-a5d9-21f94f91b659' },
+  { name: 'ADVOCUS', domain: 'advocus.com.br', grade: 'A', shareId: '9e6fd1cb-4614-496f-863e-a52dab9c35f0' },
+  { name: 'Veredicto', domain: 'veredicto.tech', grade: 'A', shareId: 'fe1376da-c9bd-4af1-bb60-d641b0438812' },
+  { name: 'DoutorINSS', domain: 'doutorinss.com', grade: 'A', shareId: '063ea93d-8f61-42c5-8fdb-d735c157ca20' },
+  { name: 'VeriJus', domain: 'verijus.com.br', grade: 'A', shareId: '92445b8f-7c11-4e81-b9d4-add40f2f706b' },
+  { name: 'Pleita', domain: 'pleita.pro', grade: 'A', shareId: '339127b3-dfef-4953-9bdd-69e8fc3cdd78' },
+  { name: 'PreviusIA', domain: 'previusia.com.br', grade: 'A', shareId: '9fa6b2fc-9ebc-49f0-905a-6fb6b01ad59e' },
 ]
 
 function GradeChip({ grade }: { grade: ScanGrade }) {
