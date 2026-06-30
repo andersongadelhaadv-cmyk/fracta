@@ -5,7 +5,9 @@ import type {
 } from '@fracta/core'
 import { SkippedCheck, stableFindingId } from '@fracta/core'
 
-const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo'])
+// __tests__ = fixtures deliberadamente vulneráveis (não é superfície de produção);
+// fracta-reports = saída do próprio scanner (escanear o próprio relatório é ruído).
+const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports'])
 
 // Lê apenas arquivos de texto relevantes (código + config + env). Determinístico, read-only.
 const TEXT_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|json)$/i
