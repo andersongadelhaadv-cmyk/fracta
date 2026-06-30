@@ -25,6 +25,8 @@ RUN useradd -m -u 1001 nextjs \
 # espelha o repo: ./apps/web/server.js + ./node_modules + ./packages).
 COPY --from=builder --chown=nextjs:nextjs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/apps/web/.next/static ./apps/web/.next/static
+# Estáticos servidos de public/ (og.png, ícones PWA) — standalone NÃO inclui sozinho.
+COPY --from=builder --chown=nextjs:nextjs /app/apps/web/public ./apps/web/public
 
 USER nextjs
 EXPOSE 3850
