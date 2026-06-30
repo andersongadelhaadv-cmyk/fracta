@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { checkLgpdLite } from '../lgpd-lite.js'
+import { checkLgpdLite, findPrivacyHref } from '../lgpd-lite.js'
 
 const find = (fs: ReturnType<typeof checkLgpdLite>, rulePart: string) =>
   fs.find((f) => f.title.toLowerCase().includes(rulePart))
@@ -56,5 +56,42 @@ describe('checkLgpdLite (v2)', () => {
 
   it('a clean page (privacy link, no trackers, no tracking cookies) yields no findings', () => {
     expect(checkLgpdLite('<a href="/privacidade">Privacidade</a>', ['sid=x; Secure'], 'demo', 'run1')).toEqual([])
+  })
+
+  // 4) leitura determinística da política de privacidade
+  const PADDING = ' lorem ipsum '.repeat(30)
+  it('reads the policy and reports it covers all key disclosures', () => {
+    const text =
+      'Política de Privacidade. O encarregado (DPO) atende em dpo@x.com. A base legal é o consentimento e a ' +
+      'execução de contrato. Você tem os direitos do titular do Art. 18 (portabilidade, eliminação). Retenção: ' +
+      'guardamos os dados pelo prazo necessário. Há transferência internacional com cláusulas-padrão.' + PADDING
+    const f = checkLgpdLite('<a href="/privacidade">x</a>', [], 'demo', 'run1', { text, url: 'https://x/privacidade' })
+    const a = find(f, 'política de privacidade analisada')
+    expect(a).toBeDefined()
+    expect(a?.severity).toBe('info')
+    expect(a?.description).toMatch(/menciona todos os itens-chave/i)
+  })
+  it('reads the policy and lists missing disclosures', () => {
+    const text = 'Política de Privacidade. Coletamos seu nome e e-mail para melhorar a experiência do site.' + PADDING
+    const a = find(checkLgpdLite('<a href="/p">x</a>', [], 'demo', 'run1', { text, url: 'https://x/p' }), 'política de privacidade analisada')
+    expect(a).toBeDefined()
+    expect(a?.description).toMatch(/NÃO encontrei menção clara a/i)
+    expect(a?.description).toMatch(/transferência internacional/i)
+  })
+  it('does not run policy analysis when no policy was read', () => {
+    const f = checkLgpdLite('<a href="/privacidade">x</a>', [], 'demo', 'run1')
+    expect(find(f, 'política de privacidade analisada')).toBeUndefined()
+  })
+
+  describe('findPrivacyHref', () => {
+    it('finds the privacy policy href by url', () => {
+      expect(findPrivacyHref('<a href="/politica-de-privacidade">Termos</a>')).toBe('/politica-de-privacidade')
+    })
+    it('finds it by anchor text', () => {
+      expect(findPrivacyHref('<a href="/legal/x">Política de Privacidade</a>')).toBe('/legal/x')
+    })
+    it('returns null when absent', () => {
+      expect(findPrivacyHref('<a href="/sobre">Sobre</a>')).toBeNull()
+    })
   })
 })

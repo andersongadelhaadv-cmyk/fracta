@@ -74,7 +74,7 @@ export default function Home() {
               <li><span className="text-text">Security headers</span> — HSTS, X-Content-Type-Options, X-Frame-Options, Referrer/Permissions-Policy, CORS.</li>
               <li><span className="text-text">TLS / HTTPS</span> — o alvo força HTTPS e responde com TLS válido.</li>
               <li><span className="text-text">Flags de cookie</span> — Secure, HttpOnly, SameSite nos <code className="font-mono text-xs">Set-Cookie</code>.</li>
-              <li><span className="text-text">LGPD-lite (beta)</span> — política de privacidade, rastreadores de terceiros e cookies não-essenciais. Heurístico, rotulado.</li>
+              <li><span className="text-text">LGPD-lite (beta)</span> — <span className="text-text">lemos a sua Política de Privacidade</span> e conferimos os itens do Art. 9º (encarregado, base legal, direitos do titular, retenção, transferência internacional), além de rastreadores de terceiros e cookies não-essenciais. Determinístico, sem IA.</li>
             </ul>
           </div>
           <div className="rounded-md border border-border bg-surface p-6">

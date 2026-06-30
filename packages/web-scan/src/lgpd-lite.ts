@@ -19,6 +19,39 @@ const TRACKERS: Array<{ name: string; re: RegExp }> = [
 /** Nomes de cookies de rastreamento conhecidos (não-essenciais). */
 const TRACKING_COOKIE = /^(_ga|_gid|_gat|_gcl|_fbp|_fbc|_hj|_clck|_clsk|_tt_|_uet|IDE|MUID|personalization_id)/i
 
+/** Âncoras do HTML — pra achar o link da Política de Privacidade. */
+const ANCHOR_RE = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
+
+/**
+ * Acha o href do link de Política de Privacidade no HTML (determinístico, sem JS).
+ * Prefere href que pareça de política; cai no texto da âncora. null se não achar.
+ */
+export function findPrivacyHref(html: string): string | null {
+  if (!html) return null
+  const candidates: string[] = []
+  ANCHOR_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = ANCHOR_RE.exec(html)) !== null) {
+    const href = m[1]
+    const text = m[2].replace(/<[^>]+>/g, ' ')
+    if (PRIVACY_HINT.test(href) || PRIVACY_HINT.test(text)) candidates.push(href)
+  }
+  if (candidates.length === 0) return null
+  return candidates.find((h) => /privac|politica/i.test(h)) ?? candidates[0]
+}
+
+/**
+ * Disclosures que a política DEVE conter (Art. 9º/18/33/41). Checagem determinística
+ * por palavras-chave (zero LLM): heurística ampla pra evitar falso "ausente".
+ */
+const DISCLOSURES: Array<{ label: string; re: RegExp }> = [
+  { label: 'encarregado/DPO e contato', re: /encarregad|\bDPO\b|data protection officer|respons[áa]vel pela prote[çc][ãa]o de dados/i },
+  { label: 'base legal do tratamento', re: /base[s]? legal|hip[óo]tese[s]? de tratamento|leg[íi]timo interesse|execu[çc][ãa]o (do|de) contrato|\bconsentimento\b|obriga[çc][ãa]o legal|art(igo)?\.?\s*7[ºo°]?/i },
+  { label: 'direitos do titular (Art. 18)', re: /direitos? do[s]? titular|art(igo)?\.?\s*18|portabilidade|anonimiza[çc][ãa]o|(direito|solicitar?).{0,40}(elimina|exclus|corre[çc])/i },
+  { label: 'retenção/eliminação de dados', re: /reten[çc][ãa]o|por quanto tempo|prazo.{0,30}(armazena|conserva|guard)|art(igo)?\.?\s*1[56]\b/i },
+  { label: 'transferência internacional (Art. 33)', re: /transfer[êe]ncia internacional|art(igo)?\.?\s*33|cl[áa]usulas?[- ]?padr[ãa]o|standard contractual|fora do (pa[íi]s|Brasil)/i },
+]
+
 function lgpdFinding(
   saas: string,
   runId: string,
@@ -53,9 +86,17 @@ function lgpdFinding(
  *    todo site com Google Analytics seria desonesto). Avisa se há/não banner de consentimento.
  * 3) Cookie de rastreamento setado no 1º acesso (via Set-Cookie, server-side) → low:
  *    observação concreta de cookie não-essencial antes de qualquer consentimento (Art. 8º).
+ * 4) Se a Política de Privacidade foi lida (`policy`), análise DETERMINÍSTICA do texto
+ *    (palavras-chave, zero LLM): quais disclosures do Art. 9º/18/33/41 ela menciona ou não.
  * Cada finding é rotulado beta e pode ser falso-positivo.
  */
-export function checkLgpdLite(html: string, setCookies: string[], saas: string, runId: string): Finding[] {
+export function checkLgpdLite(
+  html: string,
+  setCookies: string[],
+  saas: string,
+  runId: string,
+  policy?: { text: string; url: string },
+): Finding[] {
   const out: Finding[] = []
   const h = html || ''
 
@@ -93,6 +134,25 @@ export function checkLgpdLite(html: string, setCookies: string[], saas: string, 
       `O(s) cookie(s) ${trackingCookies.join(', ')} — de rastreamento — foram definidos já no primeiro acesso, antes de qualquer interação ou consentimento. A LGPD exige consentimento PRÉVIO para cookies não-essenciais (Art. 8º).`,
       'Só defina cookies não-essenciais após o consentimento explícito do usuário.',
       `Set-Cookie: ${trackingCookies.join(', ')}`,
+    ))
+  }
+
+  // 4) Leitura determinística da política de privacidade (quando lida com sucesso).
+  if (policy && policy.text.trim().length > 200) {
+    const covered: string[] = []
+    const missing: string[] = []
+    for (const d of DISCLOSURES) (d.re.test(policy.text) ? covered : missing).push(d.label)
+    const desc = missing.length
+      ? `Li automaticamente a sua Política de Privacidade. Ela MENCIONA: ${covered.join('; ') || '—'}. NÃO encontrei menção clara a: ${missing.join('; ')}. Análise determinística por palavras-chave (Art. 9º/18/33/41), sem IA — pode ser falso-positivo se a sua política usa outra redação.`
+      : `Li automaticamente a sua Política de Privacidade: ela menciona todos os itens-chave que verifico — ${covered.join('; ')}. Análise determinística por palavras-chave; não substitui revisão jurídica.`
+    out.push(lgpdFinding(
+      saas, runId, 'lgpd-policy-analysis', 'info',
+      'Política de Privacidade analisada automaticamente (LGPD-lite, beta)',
+      desc,
+      missing.length
+        ? 'Revise a política para cobrir explicitamente os itens não encontrados, conforme os artigos da LGPD.'
+        : 'Mantenha a política coerente com o tratamento real de dados.',
+      `política lida: ${policy.url}`,
     ))
   }
 
