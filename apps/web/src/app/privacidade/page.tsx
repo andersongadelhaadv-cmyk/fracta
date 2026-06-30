@@ -58,8 +58,23 @@ export default function Privacidade() {
           <p>O scanner faz apenas requisições GET passivas à superfície pública do endereço que você informa — não coletamos dados de usuários do site analisado, não fazemos login, não executamos ataques. Não vendemos, alugamos nem compartilhamos dados pessoais com terceiros para marketing.</p>
         </Section>
 
+        <Section title="Operadores (sub-processadores)">
+          <p>O Fracta utiliza os seguintes operadores para prestar o serviço. Cada um trata dados em nome da PreviusIA sob contrato:</p>
+          <ul className="list-disc space-y-2 pl-5">
+            <li><span className="text-text">Cloudflare</span> — CDN/proxy e terminação TLS; todo tráfego passa pela borda da Cloudflare antes de chegar aos nossos servidores.</li>
+            <li><span className="text-text">GitHub / Microsoft (GHCR)</span> — integração contínua (CI) e registro de imagem de contêiner.</li>
+            <li><span className="text-text">Provedor de hospedagem (VPS)</span> — infraestrutura onde os dados são armazenados e o serviço é executado.</li>
+          </ul>
+        </Section>
+
+        <Section title="Transferência internacional">
+          <p>O fracta.pro opera atrás do <span className="text-text">Cloudflare</span> (CDN/proxy com infraestrutura nos EUA e globalmente) e utiliza <span className="text-text">GitHub / Microsoft (GHCR)</span> para integração contínua e registro de imagem. O endereço IP do visitante trafega pela borda da Cloudflare antes de chegar aos nossos servidores.</p>
+          <p>Esses fluxos configuram transferência internacional de dados. A hipótese legal aplicável é o <span className="text-text">art. 33 da LGPD</span>, com base em <span className="text-text">cláusulas-padrão contratuais (EU SCCs)</span> — já incorporadas automaticamente nos DPAs públicos da Cloudflare e do GitHub/Microsoft, ambos certificados com ISO 27001 e SOC 2.</p>
+        </Section>
+
         <Section title="Retenção">
-          <p>Relatórios de scan são mantidos por aproximadamente 90 dias e depois removidos automaticamente. E-mails da lista de espera ficam até você pedir a remoção.</p>
+          <p>Relatórios de scan são mantidos por aproximadamente 90 dias e depois removidos automaticamente.</p>
+          <p>E-mails da lista de espera são mantidos até o lançamento do monitoramento contínuo ou até pedido de remoção pelo titular, o que ocorrer primeiro. Realizamos revisão e expurgo anual de endereços inativos.</p>
         </Section>
 
         <Section title="Seus direitos (LGPD art. 18)">

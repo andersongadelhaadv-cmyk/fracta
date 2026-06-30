@@ -74,8 +74,14 @@ export class SqliteScanStore {
     const res = this.db.prepare('DELETE FROM scan WHERE scanned_at_ms < ?').run(now - maxAgeMs)
     return Number(res.changes ?? 0)
   }
-  saveEmail(email: string, context = ''): void {
-    this.db.prepare('INSERT INTO email (email, context, at_ms) VALUES (?, ?, ?)').run(email, context, Date.now())
+  saveEmail(email: string, context = '', opts: { now?: () => number } = {}): void {
+    const at = (opts.now ?? Date.now)()
+    this.db.prepare('INSERT INTO email (email, context, at_ms) VALUES (?, ?, ?)').run(email, context, at)
+  }
+  /** Remove e-mails mais antigos que `maxAgeMs`. Retorna quantas linhas saíram (G007 LGPD). */
+  pruneEmailsOlderThan(maxAgeMs: number, now = Date.now()): number {
+    const res = this.db.prepare('DELETE FROM email WHERE at_ms < ?').run(now - maxAgeMs)
+    return Number(res.changes ?? 0)
   }
   countEmails(): number {
     return (this.db.prepare('SELECT COUNT(*) AS c FROM email').get() as { c: number }).c

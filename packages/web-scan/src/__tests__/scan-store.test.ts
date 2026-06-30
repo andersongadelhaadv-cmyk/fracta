@@ -46,4 +46,17 @@ describe('SqliteScanStore', () => {
     expect(s.getByShareId('old')).toBeNull()
     expect(s.getByShareId('new')?.url).toBe('https://new.example')
   })
+  it('pruneEmailsOlderThan removes only old emails and returns the count (G007 LGPD)', () => {
+    const s = new SqliteScanStore(':memory:')
+    // old email: at_ms = 1_000
+    s.saveEmail('old@example.com', 'waitlist', { now: () => 1_000 })
+    // recent email: at_ms = 1_000_000
+    s.saveEmail('new@example.com', 'waitlist', { now: () => 1_000_000 })
+    expect(s.countEmails()).toBe(2)
+    // prune anything older than 100_000 ms relative to now=1_000_000 → threshold=900_000
+    // old (1_000) < 900_000 → removed; new (1_000_000) >= 900_000 → kept
+    const removed = s.pruneEmailsOlderThan(100_000, 1_000_000)
+    expect(removed).toBe(1)
+    expect(s.countEmails()).toBe(1)
+  })
 })

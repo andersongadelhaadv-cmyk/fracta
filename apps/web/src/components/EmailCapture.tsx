@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 /** Captura de e-mail opcional (sinal de demanda p/ monitoramento contínuo). */
 export function EmailCapture({ context = 'home' }: { context?: string }) {
@@ -67,7 +68,11 @@ export function EmailCapture({ context = 'home' }: { context?: string }) {
         </button>
       </form>
       {error && <p role="alert" className="mt-2 text-sm text-[var(--sev-high)]">{error}</p>}
-      <p className="mt-2 font-mono text-[11px] text-faint">Só para isso. Sem spam. Você pode pedir remoção quando quiser (LGPD).</p>
+      <p className="mt-2 font-mono text-[11px] text-faint">
+        Ao enviar, você concorda com a nossa{' '}
+        <Link href="/privacidade" className="underline hover:text-accent">Política de Privacidade</Link>.
+        Só para isso. Sem spam. Você pode pedir remoção quando quiser (LGPD).
+      </p>
     </div>
   )
 }

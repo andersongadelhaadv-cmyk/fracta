@@ -23,7 +23,9 @@ export async function POST(req: NextRequest) {
   }
 
   const email = typeof body.email === 'string' ? body.email.trim() : ''
-  const context = typeof body.context === 'string' ? body.context.slice(0, 64) : 'home'
+  const rawContext = typeof body.context === 'string' ? body.context.slice(0, 64) : 'home'
+  // G005: stamp consent version so we know which policy revision covered this opt-in.
+  const context = rawContext === 'waitlist' ? 'waitlist:consent-2026-06' : rawContext
   if (!EMAIL_RE.test(email) || email.length > 254) {
     return NextResponse.json({ error: 'E-mail inválido.' }, { status: 400 })
   }
