@@ -30,7 +30,7 @@ targets:
     #
     # repoPath: ./                      # repo local p/ dependencies, secrets, stack, compliance, docs
     # infra:                            # agente-infra (100% leitura, jamais executa nada)
-    #   host: 76.13.170.79
+    #   host: 203.0.113.10               # IP/host da sua VPS (exemplo)
     #   sshConfigPath: /etc/ssh/sshd_config
     #   dockerComposePath: ./docker-compose.yml
     # frontend:                         # checks de frontend do agente-stack

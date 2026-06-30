@@ -59,14 +59,14 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 76.13.170.79 >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
       # Login GHCR ISOLADO (config temporário) com o GITHUB_TOKEN efêmero — lê o
       # pacote do próprio repo sem tocar a credencial GHCR compartilhada da VPS
       # (que outros apps usam). `docker compose up` depois usa a imagem já local.
       - name: Pull image and restart on VPS (no build on VPS)
         run: |
-          ssh -i ~/.ssh/id_ed25519 root@76.13.170.79 bash -s <<'EOF'
+          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.VPS_HOST }} bash -s <<'EOF'
           set -e
           DC=$(mktemp -d)
           echo "${{ secrets.GITHUB_TOKEN }}" | docker --config "$DC" login ghcr.io -u "${{ github.actor }}" --password-stdin

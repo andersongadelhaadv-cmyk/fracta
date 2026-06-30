@@ -16,3 +16,7 @@ diagnostico-lgpd/
 
 # artefatos de teste local
 .playwright-mcp/
+
+# docs internos de planejamento/QA (rascunho, não-público)
+docs/superpowers/
+docs/qa/

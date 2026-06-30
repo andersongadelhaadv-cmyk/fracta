@@ -10,7 +10,7 @@ describe('isBlockedIp', () => {
     }
   })
   it('allows normal public IPv4', () => {
-    for (const ip of ['8.8.8.8', '1.1.1.1', '76.13.170.79']) {
+    for (const ip of ['8.8.8.8', '1.1.1.1', '93.184.216.34']) {
       expect(isBlockedIp(ip), ip).toBe(false)
     }
   })

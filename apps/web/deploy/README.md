@@ -1,7 +1,7 @@
 # Deploy — fracta.pro
 
 Padrão da frota: **build no GitHub Actions → imagem no GHCR → VPS só faz pull + restart**.
-A VPS (76.13.170.79, `ssh hostinger`) **nunca** builda Docker.
+A VPS (`ssh hostinger`) **nunca** builda Docker.
 
 ## 1. Imagem (automático)
 `.github/workflows/deploy-web.yml` builda `apps/web/Dockerfile` e publica
@@ -41,7 +41,7 @@ certbot --nginx -d fracta.pro -d www.fracta.pro
 ```
 
 ### Endurecer o `default_server` → 444 (corrige a causa-raiz)
-Hoje `fracta.pro` caía no `default_server` e servia a home do ADVOCUS (erro de CORS).
+Hoje `fracta.pro` caía no `default_server` e servia a home de outro app da VPS (erro de CORS).
 Achar o catch-all (`nginx -T | grep -n default_server`) e, **só nesse bloco** (sem tocar nos
 `server_name` legítimos dos outros apps), retornar 444 para host desconhecido em :80 e :443
 (o :443 default precisa de um cert snakeoil para não vazar outro vhost):
@@ -65,6 +65,6 @@ server {
 
 ## 4. Verificação
 ```bash
-curl -I https://fracta.pro                      # 200, home do Fracta (não ADVOCUS), TLS válido
-curl -sI http://76.13.170.79 -H 'Host: lixo.x'  # conexão fechada (444)
+curl -I https://fracta.pro                      # 200, home do Fracta (não o app do default), TLS válido
+curl -sI http://<IP_DO_ORIGIN> -H 'Host: lixo.x'  # conexão fechada (444)
 ```
