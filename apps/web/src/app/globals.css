@@ -63,6 +63,24 @@ body {
   border-radius: 3px;
 }
 
+/* Marca: símbolo da falha (vetor inline) + "Fracta" quadrada (Chakra Petch). */
+.fracta-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 700;
+  line-height: 1;
+}
+.fracta-mark {
+  width: 1.55em;
+  height: 1.55em;
+  flex: none;
+}
+.fracta-name {
+  font-family: var(--font-display), var(--font-mono), ui-monospace, monospace;
+  letter-spacing: -0.01em;
+}
+
 /* Grade de fundo sutil tipo instrumento — textura, não decoração */
 .grid-backdrop {
   background-image:
