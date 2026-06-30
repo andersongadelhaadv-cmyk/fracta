@@ -38,8 +38,9 @@ export default function Home() {
             <div className="mt-8 max-w-xl">
               <ScanForm autoFocus />
             </div>
-            <p className="mt-5 font-mono text-xs text-faint">
-              12 SaaS auditados na nossa frota · open-source · sem cadastro · grátis
+            <p className="mt-5 text-sm text-muted">
+              <span className="font-mono font-medium text-accent">100% grátis</span>{' '}
+              <span className="text-faint font-mono text-xs">· sem cadastro · resultado na hora · open-source · 12 SaaS da nossa frota auditados</span>
             </p>
           </div>
           <div className="relative">

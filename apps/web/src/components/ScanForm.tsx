@@ -68,7 +68,7 @@ export function ScanForm({ autoFocus = false }: { autoFocus?: boolean }) {
           disabled={loading || !url.trim()}
           className="rounded-md border border-accent bg-accent/10 px-5 py-3 font-medium text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? 'Analisando…' : 'Analisar'}
+          {loading ? 'Analisando…' : 'Analisar grátis'}
         </button>
       </form>
       {error && (

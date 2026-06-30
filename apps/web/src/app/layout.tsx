@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     template: '%s · Fracta',
   },
   description:
-    'Analise headers de segurança, TLS, cookies e sinais de LGPD do seu site. Detecção determinística, sem cadastro. Nota A–F na hora — e dizemos quando não conseguimos verificar.',
+    'Analise GRÁTIS os headers de segurança, TLS, cookies e sinais de LGPD do seu site. Sem cadastro, nota A–F na hora, detecção determinística — e dizemos quando não conseguimos verificar.',
   keywords: ['segurança', 'headers', 'TLS', 'LGPD', 'scanner', 'SaaS', 'OWASP', 'cookies'],
   authors: [{ name: 'Anderson Gadelha' }],
   openGraph: {
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Fracta — scanner de segurança e LGPD',
-    description: 'Nota A–F na hora. Detecção determinística. Sem cadastro.',
+    description: 'Grátis, sem cadastro. Nota A–F na hora. Detecção determinística.',
     images: ['/brand/og.png'],
   },
   robots: { index: true, follow: true },
