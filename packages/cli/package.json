@@ -51,7 +51,7 @@
     "@fracta/reporter": "workspace:*",
     "@fracta/store": "workspace:*",
     "@fracta/llm": "workspace:*",
-    "yaml": "^2.4.0"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "tsup": "*",
