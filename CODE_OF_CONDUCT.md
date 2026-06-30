@@ -56,7 +56,7 @@ offline.
 
 Casos de comportamento abusivo, de assédio ou de outra forma inaceitáveis podem ser comunicados
 aos líderes da comunidade responsáveis pela aplicação através do email
-[andersongadelha.adv@gmail.com](mailto:andersongadelha.adv@gmail.com).
+[contato@previusia.com.br](mailto:contato@previusia.com.br).
 Todas as reclamações serão revistas e investigadas prontamente e de forma justa.
 
 Todos os líderes comunitários são obrigados a respeitar a privacidade e a segurança de quem

@@ -8,8 +8,8 @@ O Fracta é uma ferramenta de auditoria de segurança — levamos a segurança d
 
 Reporte por um dos canais privados abaixo:
 
-1. **Email**: [andersongadelha.adv@gmail.com](mailto:andersongadelha.adv@gmail.com) com o assunto `[SECURITY] <resumo>`
-2. **GitHub Private Security Advisory**: [Reportar via GitHub](https://github.com/andersongadelha/fracta/security/advisories/new) (preferido)
+1. **Email**: [contato@previusia.com.br](mailto:contato@previusia.com.br) com o assunto `[SECURITY] <resumo>`
+2. **GitHub Private Security Advisory**: [Reportar via GitHub](https://github.com/andersongadelhaadv-cmyk/fracta/security/advisories/new) (preferido)
 
 Inclua no relato:
 

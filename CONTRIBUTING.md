@@ -9,7 +9,7 @@ Este guia descreve como rodar o projeto localmente, o padrão de commits, fluxo 
 Pré-requisitos: Node.js 20+ e [pnpm](https://pnpm.io) 9+.
 
 ```bash
-git clone https://github.com/andersongadelha/fracta.git
+git clone https://github.com/andersongadelhaadv-cmyk/fracta.git
 cd fracta
 pnpm install
 pnpm build
@@ -130,4 +130,4 @@ Registre o agent no `packages/cli` para que apareça no `fracta scan`.
 
 ## Dúvidas?
 
-Abra uma issue com a label `question` ou contate o mantenedor em [andersongadelha.adv@gmail.com](mailto:andersongadelha.adv@gmail.com).
+Abra uma issue com a label `question` ou contate o mantenedor em [contato@previusia.com.br](mailto:contato@previusia.com.br).
