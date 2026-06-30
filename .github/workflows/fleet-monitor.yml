@@ -1,0 +1,79 @@
+name: Fleet monitor
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # diário 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write   # commit do baseline
+  issues: write     # abrir issue em regressão
+
+concurrency:
+  group: fleet-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22   # o motor (node:sqlite/undici) pede >= 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@fracta/fleet-monitor..." build
+
+      - name: Re-scan passivo da frota
+        run: node packages/fleet-monitor/dist/cli.js --baseline fleet-baseline.json --out .
+
+      - name: Publicar relatório no resumo do run
+        if: always()
+        run: cat fleet-report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Commit do baseline (se mudou)
+        run: |
+          if ! git diff --quiet fleet-baseline.json 2>/dev/null; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add fleet-baseline.json
+            git commit -m "chore(monitor): atualiza baseline da frota [skip ci]"
+            git push
+          fi
+
+      - name: Abrir issue em regressão
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            if (!fs.existsSync('regressions.json')) return
+            const regs = JSON.parse(fs.readFileSync('regressions.json', 'utf8'))
+            if (!regs.length) { core.info('Sem regressões.'); return }
+            const lines = regs.map(r => {
+              const what = r.kind === 'grade-drop' ? `nota caiu **${r.before} → ${r.after}**` : `**${r.before} → ${r.after}**`
+              return `- **${r.label}** (\`${r.domain}\`): ${what}`
+            })
+            const body = [
+              '## ⚠️ Regressão de segurança detectada na frota',
+              '',
+              'O monitor passivo do Fracta detectou queda em um ou mais alvos:',
+              '',
+              ...lines,
+              '',
+              '> Gerado por `.github/workflows/fleet-monitor.yml`. Veja o relatório completo no resumo do run.',
+            ].join('\n')
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔻 Regressão na frota (${regs.length})`,
+              body,
+              labels: ['monitor', 'security'],
+            })

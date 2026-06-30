@@ -20,3 +20,8 @@ diagnostico-lgpd/
 # docs internos de planejamento/QA (rascunho, não-público)
 docs/superpowers/
 docs/qa/
+
+# fleet-monitor: artefatos de run + build (CI rebuilda)
+fleet-report.md
+regressions.json
+packages/fleet-monitor/dist/

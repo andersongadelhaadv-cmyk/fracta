@@ -416,6 +416,25 @@ importers:
         specifier: '*'
         version: 1.6.1(@types/node@20.19.39)
 
+  packages/fleet-monitor:
+    dependencies:
+      '@fracta/web-scan':
+        specifier: workspace:*
+        version: link:../web-scan
+    devDependencies:
+      '@types/node':
+        specifier: '*'
+        version: 22.20.0
+      tsup:
+        specifier: '*'
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 1.6.1(@types/node@22.20.0)
+
   packages/llm:
     dependencies:
       '@anthropic-ai/sdk':
