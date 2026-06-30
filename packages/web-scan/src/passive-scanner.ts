@@ -57,7 +57,7 @@ export class PassiveScanner {
       const sc = res.headers['set-cookie'] as unknown as string[] | string | undefined
       const setCookie = Array.isArray(sc) ? sc : sc ? [sc] : []
       findings.push(...findCookieIssues(setCookie, saas, runId))
-      findings.push(...checkLgpdLite(res.raw ?? '', saas, runId))
+      findings.push(...checkLgpdLite(res.raw ?? '', setCookie, saas, runId))
     } catch { /* idem */ }
 
     const checks: ScanCheck[] = [

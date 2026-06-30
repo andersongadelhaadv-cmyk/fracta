@@ -72,7 +72,7 @@ export default function Home() {
               <li><span className="text-text">Security headers</span> — HSTS, X-Content-Type-Options, X-Frame-Options, Referrer/Permissions-Policy, CORS.</li>
               <li><span className="text-text">TLS / HTTPS</span> — o alvo força HTTPS e responde com TLS válido.</li>
               <li><span className="text-text">Flags de cookie</span> — Secure, HttpOnly, SameSite nos <code className="font-mono text-xs">Set-Cookie</code>.</li>
-              <li><span className="text-text">LGPD-lite (beta)</span> — sinais de política de privacidade. Heurístico e rotulado.</li>
+              <li><span className="text-text">LGPD-lite (beta)</span> — política de privacidade, rastreadores de terceiros e cookies não-essenciais. Heurístico, rotulado.</li>
             </ul>
           </div>
           <div className="rounded-md border border-border bg-surface p-6">
@@ -110,6 +110,22 @@ export default function Home() {
 
       {/* prova: notas reais da frota */}
       <FleetProof />
+
+      {/* auto-auditoria LGPD — praticamos o que pregamos */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-content px-5 py-12">
+          <div className="rounded-md border border-border bg-surface p-6">
+            <p className="font-mono text-xs uppercase tracking-wide text-accent">praticamos o que pregamos</p>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted">
+              Não auditamos só a superfície dos outros. Rodamos a auditoria <span className="text-text">completa de LGPD</span> —
+              as <span className="text-text">16 dimensões</span> da lei (bases legais, transferência internacional, retenção,
+              encarregado, governança) — <span className="text-text">em nós mesmos</span>. Resultado: <span className="text-text">adequado em 100%</span>,
+              com ROPA, plano de incidentes e TIA arquivados.{' '}
+              <a href="/privacidade" className="text-accent hover:underline">Nossa Política de Privacidade →</a>
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* ecossistema */}
       <section className="border-b border-border">

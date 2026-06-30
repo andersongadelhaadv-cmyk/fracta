@@ -3,6 +3,7 @@ import { GradeRing } from './GradeRing'
 import { FindingRow } from './FindingRow'
 import { Honesty } from './Honesty'
 import { EmailCapture } from './EmailCapture'
+import { LgpdFullOffer } from './LgpdFullOffer'
 import { ZapApiSupporter } from './ZapApiSupporter'
 import { sevColor, sevLabel, sortBySeverity, severityCounts } from '@/lib/grade-ui'
 
@@ -59,6 +60,10 @@ export function ReportView({ result, shareId }: { result: PassiveScanResult; sha
           </ul>
         </section>
       )}
+
+      <section className="mt-4">
+        <LgpdFullOffer />
+      </section>
 
       <section className="mt-4">
         <EmailCapture context={shareId ? `result:${shareId}` : 'result'} />
