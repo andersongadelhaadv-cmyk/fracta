@@ -26,7 +26,7 @@ export function generateMetadata({ params }: { params: { shareId: string } }): M
     openGraph: {
       title: `${title} · Fracta`,
       description: `Headers, TLS, cookies e LGPD-lite de ${host}.`,
-      images: [`/api/badge/${params.shareId}`],
+      // imagem OG = card dinâmico 1200×630 (opengraph-image.tsx, convenção do Next).
     },
   }
 }
