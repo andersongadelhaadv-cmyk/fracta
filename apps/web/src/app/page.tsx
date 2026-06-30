@@ -2,7 +2,9 @@ import { Wordmark } from '@/components/Wordmark'
 import { ScanForm } from '@/components/ScanForm'
 import { SampleReport } from '@/components/SampleReport'
 import { Pipeline } from '@/components/Pipeline'
+import { FleetProof } from '@/components/FleetProof'
 import { ZapApiSupporter } from '@/components/ZapApiSupporter'
+import { Footer } from '@/components/Footer'
 import { REPO_URL } from '@/lib/config'
 
 export default function Home() {
@@ -106,6 +108,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* prova: notas reais da frota */}
+      <FleetProof />
+
       {/* ecossistema */}
       <section className="border-b border-border">
         <div className="mx-auto max-w-content px-5 py-10">
@@ -114,16 +119,7 @@ export default function Home() {
       </section>
 
       {/* footer */}
-      <footer className="mx-auto max-w-content px-5 py-10">
-        <div className="flex flex-col items-start justify-between gap-4 text-sm text-muted sm:flex-row sm:items-center">
-          <Wordmark className="text-sm" />
-          <div className="flex flex-wrap items-center gap-5">
-            <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:text-accent">código aberto ↗</a>
-            <span className="font-mono text-xs text-faint">detecção determinística · sem cadastro</span>
-            <span className="font-mono text-xs text-faint">feito no Brasil</span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   )
 }

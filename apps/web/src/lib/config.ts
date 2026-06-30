@@ -8,4 +8,5 @@ export const RATE_LIMIT = { limit: 10, windowMs: 10 * 60 * 1000 } // 10 análise
 export const DB_PATH = process.env.FRACTA_WEB_DB ?? './fracta-web.db'
 
 export const REPO_URL = 'https://github.com/andersongadelhaadv-cmyk/fracta'
-export const ZAP_API_URL = 'https://zappbot.pro'
+export const ZAP_API_URL = 'https://zap-api.tech'
+export const PREVIUSIA_URL = 'https://previusia.com.br'
