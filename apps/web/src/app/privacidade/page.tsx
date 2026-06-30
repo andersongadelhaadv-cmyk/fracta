@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'Como o Fracta trata dados pessoais — em conformidade com a LGPD (Lei 13.709/2018).',
 }
 
-const PRIVACY_EMAIL = 'privacidade@previusia.com.br'
+const PRIVACY_EMAIL = 'contato@previusia.com.br'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
