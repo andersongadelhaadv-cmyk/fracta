@@ -40,12 +40,12 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* ecossistema */}
+          {/* PreviusIA = o ecossistema; ZAP-API é um produto irmão */}
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-wide text-faint">ecossistema</p>
+            <p className="font-mono text-[11px] uppercase tracking-wide text-faint">previusia</p>
             <ul className="mt-3 space-y-2 text-sm text-muted">
+              <li><a {...ext} href={PREVIUSIA_URL} className="hover:text-text">O ecossistema ↗</a></li>
               <li><a {...ext} href={ZAP_API_URL} className="hover:text-text">ZAP-API ↗</a></li>
-              <li><a {...ext} href={PREVIUSIA_URL} className="hover:text-text">PreviusIA ↗</a></li>
             </ul>
           </div>
         </div>

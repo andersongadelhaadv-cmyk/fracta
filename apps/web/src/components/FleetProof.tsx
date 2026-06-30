@@ -13,6 +13,7 @@ const FLEET: Array<{ name: string; domain: string; grade: ScanGrade; shareId: st
   { name: 'Veredicto', domain: 'veredicto.tech', grade: 'A', shareId: '58daa64d-1a89-452a-afe5-fe4be04eebda' },
   { name: 'DoutorINSS', domain: 'doutorinss.com', grade: 'A', shareId: 'f30b36bd-b738-4bce-9902-b4fc3fcc3822' },
   { name: 'VeriJus', domain: 'verijus.com.br', grade: 'A', shareId: 'ea8ee7a7-bd7d-4958-b29a-e4467d44cc72' },
+  { name: 'Pleita', domain: 'pleita.pro', grade: 'A', shareId: 'c5d3c380-e5b9-4887-969e-d71706a8515b' },
   { name: 'PreviusIA', domain: 'previusia.com.br', grade: 'A', shareId: 'c73eca1e-f08b-4806-a5d9-21f94f91b659' },
 ]
 
