@@ -185,6 +185,38 @@ describe('HeadersAgent', () => {
     expect(serverFinding?.recommendation?.toLowerCase()).toContain('origem')
   })
 
+  it('server SEM versão (CDN/proxy) → info (0 pts); COM versão → low', async () => {
+    const base = {
+      'strict-transport-security': 'max-age=31536000',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'DENY',
+      'referrer-policy': 'no-referrer',
+      'permissions-policy': 'geolocation=()',
+    }
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+
+    // sem versão → info
+    fetchMock.mockImplementation(() => Promise.resolve(responseWith({ ...base, server: 'cloudflare' })))
+    let findings = await new HeadersAgent().run(scope)
+    let sf = findings.find(f => f.evidence?.startsWith('server:'))
+    expect(sf).toBeDefined()
+    expect(sf?.severity).toBe('info')
+
+    // nginx puro (server_tokens off) → info
+    fetchMock.mockImplementation(() => Promise.resolve(responseWith({ ...base, server: 'nginx' })))
+    sf = (await new HeadersAgent().run(scope)).find(f => f.evidence?.startsWith('server:'))
+    expect(sf?.severity).toBe('info')
+
+    // COM versão → low (risco de fingerprinting)
+    fetchMock.mockImplementation(() => Promise.resolve(responseWith({ ...base, server: 'nginx/1.24.0' })))
+    sf = (await new HeadersAgent().run(scope)).find(f => f.evidence?.startsWith('server:'))
+    expect(sf?.severity).toBe('low')
+
+    fetchMock.mockImplementation(() => Promise.resolve(responseWith({ ...base, server: 'Apache/2.4.1 (Ubuntu)' })))
+    sf = (await new HeadersAgent().run(scope)).find(f => f.evidence?.startsWith('server:'))
+    expect(sf?.severity).toBe('low')
+  })
+
   it('(#11) no recommendation in any finding contains the string "serverInfo"', async () => {
     const headers = {
       'server': 'Apache/2.4.41',

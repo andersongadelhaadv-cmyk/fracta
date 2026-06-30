@@ -21,6 +21,16 @@ function isKnownCdn(serverValue: string): boolean {
 }
 
 /**
+ * O risco real de um header `server`/`x-powered-by` é o disclosure de VERSÃO
+ * (facilita fingerprinting de CVEs). Um `server` SEM versão (`cloudflare`, `vercel`,
+ * `nginx` puro com server_tokens off) é apenas informativo e não-acionável — definido
+ * por CDN/proxy, não removível na origem. `name/1.2` → tem versão. Vendor-agnóstico.
+ */
+function hasVersionToken(value: string): boolean {
+  return /\/\s*\d/.test(value)
+}
+
+/**
  * Returns a stack-aware fix snippet for a required security header.
  *
  * - nestjs / nodejs / express → helmet() example (noting what helmet covers and what it doesn't)
@@ -175,11 +185,6 @@ const REQUIRED_HEADERS: Array<{
   },
 ]
 
-const FORBIDDEN_HEADERS: Array<{ name: string; severity: Finding['severity']; message: string }> = [
-  { name: 'x-powered-by', severity: 'low', message: 'X-Powered-By expõe o framework/versão' },
-  { name: 'server', severity: 'low', message: 'Server header expõe informações do servidor web' },
-]
-
 export class HeadersAgent implements SecurityAgent {
   name = 'HEADERS Agent'
   category: AgentCategory = 'security'
@@ -244,22 +249,36 @@ export class HeadersAgent implements SecurityAgent {
       }
     }
 
-    for (const rule of FORBIDDEN_HEADERS) {
-      if (headers[rule.name]) {
-        const headerValue = headers[rule.name] as string
-        const rec =
-          rule.name === 'x-powered-by'
-            ? xPoweredByRec(target.stack ?? [])
-            : serverHeaderRec(headerValue, target.stack ?? [])
-        findings.push(mk(
-          `header-forbidden:${rule.name}`,
-          rule.severity,
-          `Header proibido presente: ${rule.name}`,
-          rule.message,
-          rec,
-          { evidence: `${rule.name}: ${headerValue}` },
-        ))
-      }
+    // x-powered-by: vaza framework/versão → sempre low.
+    if (headers['x-powered-by']) {
+      const v = headers['x-powered-by'] as string
+      findings.push(mk(
+        'header-forbidden:x-powered-by',
+        'low',
+        'Header proibido presente: x-powered-by',
+        'X-Powered-By expõe o framework/versão',
+        xPoweredByRec(target.stack ?? []),
+        { evidence: `x-powered-by: ${v}` },
+      ))
+    }
+
+    // server: VERSÃO exposta (nginx/1.24.0, Apache/2.4.1) = risco de fingerprinting → low.
+    // Sem versão (cloudflare, vercel, nginx puro) = informativo e não-acionável (CDN/proxy,
+    // não removível na origem) → info (0 pontos): mostramos p/ transparência, mas não
+    // descontamos nota por algo que o próprio relatório admite ser incontrolável.
+    if (headers['server']) {
+      const v = headers['server'] as string
+      const versioned = hasVersionToken(v)
+      findings.push(mk(
+        'header-forbidden:server',
+        versioned ? 'low' : 'info',
+        versioned ? 'Server header expõe a versão do servidor: server' : 'Server header presente (informativo): server',
+        versioned
+          ? 'O header `server` revela a versão do servidor web (facilita fingerprinting de vulnerabilidades conhecidas).'
+          : 'Header `server` presente, sem versão exposta — informativo e não-acionável (definido por CDN/proxy, não removível na origem).',
+        serverHeaderRec(v, target.stack ?? []),
+        { evidence: `server: ${v}` },
+      ))
     }
 
     await this.testCors(scope, client, findings, mk)
