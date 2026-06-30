@@ -66,6 +66,18 @@ describe('FractaOrchestrator', () => {
     expect(report.summary.critical).toBe(0)
   })
 
+  it('não falha quando o achado de severidade failOn está suprimido (falso-positivo revisado)', async () => {
+    const supp: Finding = { ...makeFinding('A', 'high'), status: 'suppressed' }
+    const orch = makeOrch({ failOn: ['critical', 'high'] })
+    orch.registerAgent(makeAgent('A', [supp]))
+
+    const report = await orch.scan(target)
+
+    expect(report.summary.high).toBe(0) // suprimido fora da conta de severidade
+    expect(report.passed).toBe(true) // e fora do pass/fail
+    expect(report.findings).toHaveLength(1) // mas segue no relatório p/ transparência
+  })
+
   it('runs agents in parallel chunks bounded by concurrency', async () => {
     const calls: string[] = []
     const slow = (name: string): SecurityAgent => ({

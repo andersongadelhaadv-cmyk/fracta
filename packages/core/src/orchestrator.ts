@@ -126,8 +126,11 @@ export class FractaOrchestrator {
 
     findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
 
+    // Suprimidos (falso-positivo revisado) NÃO entram na conta de severidade nem no
+    // pass/fail — seguem em `findings` (status 'suppressed') para histórico/transparência.
     const summary = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 }
     for (const f of findings) {
+      if (f.status === 'suppressed') continue
       summary.total++
       summary[f.severity]++
     }
