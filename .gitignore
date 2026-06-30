@@ -12,3 +12,7 @@ coverage/
 .DS_Store
 *.log
 .claude/
+diagnostico-lgpd/
+
+# artefatos de teste local
+.playwright-mcp/

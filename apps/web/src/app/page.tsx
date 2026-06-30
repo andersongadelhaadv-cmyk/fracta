@@ -15,6 +15,7 @@ export default function Home() {
         <Wordmark className="text-base" />
         <nav className="flex items-center gap-5 text-sm text-muted">
           <a href="#medimos" className="hover:text-text">o que medimos</a>
+          <a href="/blog" className="hover:text-text">blog</a>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:text-accent">
             github ↗
           </a>
