@@ -21,7 +21,10 @@ export class FractaHttpClient {
     this.baseUrl = baseUrl.replace(/\/$/, '')
     this.baseHeaders = {
       'Content-Type': 'application/json',
-      'User-Agent': 'Fracta-Security-Scanner/0.1',
+      // UA honesto estilo bot (padrão Googlebot): identifica o Fracta + URL, mas
+      // sem a palavra "Scanner" que dispara regras ingênuas de WAF. Não resolve
+      // fingerprint TLS (JA3) de bot-protection avançada (ex.: Cloudflare em IP de datacenter).
+      'User-Agent': 'Mozilla/5.0 (compatible; FractaBot/0.1; +https://fracta.pro)',
       ...baseHeaders,
     }
     this.clientOptions = options
