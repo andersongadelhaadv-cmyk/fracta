@@ -37,7 +37,7 @@
     "@types/node": "^20.0.0",
     "tsup": "^8.0.0",
     "vitest": "^1.6.0",
-    "yaml": "^2.4.0"
+    "yaml": "^2.9.0"
   },
   "pnpm": {
     "overrides": {

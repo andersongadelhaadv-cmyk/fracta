@@ -49,7 +49,7 @@
     "@fracta/store": "workspace:*",
     "@fracta/llm": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "yaml": "^2.4.0"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "tsup": "*",
