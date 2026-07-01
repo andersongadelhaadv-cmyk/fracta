@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Finding, ScanScope } from '@fracta/core'
 import { HeadersAgent } from '@fracta/agent-headers'
+import { DnsAgent } from '@fracta/agent-dns'
 import { validateScanUrl } from './ssrf-guard.js'
 import { createSafeClient } from './safe-fetch.js'
 import { findCookieIssues } from './cookie-check.js'
@@ -99,9 +100,24 @@ export class PassiveScanner {
       }
     } catch { /* idem */ }
 
+    // 3) Postura de e-mail/DNS (SPF/DMARC/DKIM) — passivo (só queries DNS), anti-spoofing.
+    let dnsRan = false
+    try {
+      const scope: ScanScope = {
+        target: { name: saas, url: url.toString(), stack: [] },
+        depth: 'quick',
+        agents: ['DNS Agent'],
+        runId,
+        startedAt: new Date(),
+      }
+      findings.push(...(await new DnsAgent().run(scope)))
+      dnsRan = true
+    } catch { /* DNS indisponível — segue sem, honesto */ }
+
     const checks: ScanCheck[] = [
       { name: 'security-headers', status: headersRan ? 'ok' : 'skipped' },
       { name: 'cookies+lgpd', status: contentRan ? 'ok' : 'skipped' },
+      { name: 'email-dns', status: dnsRan ? 'ok' : 'skipped' },
     ]
 
     // Honestidade (H2/H3): a nota só sai se o check PRIMÁRIO (headers) rodou — senão

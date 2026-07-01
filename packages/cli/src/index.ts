@@ -6,6 +6,7 @@ import { FractaOrchestrator } from '@fracta/core'
 import type { Target, ScanDepth, Severity } from '@fracta/core'
 import { AuthAgent } from '@fracta/agent-auth'
 import { HeadersAgent } from '@fracta/agent-headers'
+import { DnsAgent } from '@fracta/agent-dns'
 import { IdorAgent } from '@fracta/agent-idor'
 import { DocsAgent } from '@fracta/agent-docs'
 import { TenantAgent } from '@fracta/agent-tenant'
@@ -146,6 +147,7 @@ Options:
     ? [new DocsAgent(docsPath)]
     : [
         new HeadersAgent(),
+        new DnsAgent(),
         new AuthAgent(),
         new IdorAgent(),
         // No scan, o DOCS Agent deriva o repo de `target.repoPath` e PULA se ausente

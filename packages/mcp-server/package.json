@@ -31,6 +31,7 @@
     "@fracta/web-scan": "workspace:*",
     "@fracta/agent-auth": "workspace:*",
     "@fracta/agent-headers": "workspace:*",
+    "@fracta/agent-dns": "workspace:*",
     "@fracta/agent-idor": "workspace:*",
     "@fracta/agent-docs": "workspace:*",
     "@fracta/agent-tenant": "workspace:*",

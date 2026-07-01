@@ -8,6 +8,7 @@ import type { Target, ScanReport, ScanDepth, TargetHealth } from '@fracta/core'
 import { PassiveScanner } from '@fracta/web-scan'
 import { AuthAgent } from '@fracta/agent-auth'
 import { HeadersAgent } from '@fracta/agent-headers'
+import { DnsAgent } from '@fracta/agent-dns'
 import { IdorAgent } from '@fracta/agent-idor'
 import { DocsAgent } from '@fracta/agent-docs'
 import { TenantAgent } from '@fracta/agent-tenant'
@@ -84,7 +85,7 @@ async function loadTargets(): Promise<Target[]> {
 function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {
   const o = new FractaOrchestrator({ depth, failOn: ['critical', 'high'], verbose: false, store, enricher })
   o.registerAgents([
-    new HeadersAgent(), new AuthAgent(), new IdorAgent(),
+    new HeadersAgent(), new DnsAgent(), new AuthAgent(), new IdorAgent(),
     new DocsAgent(), new TenantAgent(), new RaceAgent(),
     new StripeAgent(), new DependenciesAgent(),
     new SecretsAgent(), new StackAgent(), new InfraAgent(), new ComplianceAgent(),

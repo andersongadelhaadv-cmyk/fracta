@@ -32,6 +32,7 @@
   "dependencies": {
     "@fracta/core": "workspace:*",
     "@fracta/agent-headers": "workspace:*",
+    "@fracta/agent-dns": "workspace:*",
     "undici": "^6.21.0"
   },
   "devDependencies": {
