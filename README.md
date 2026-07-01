@@ -52,22 +52,43 @@ author's own SaaS portfolio (DoutorINSS, Veredicto, Tribux, IATech).
 
 ## Quickstart
 
+### CLI — `npx`, sem clonar (Node 20+)
+
 ```bash
-# 1. Clone and install
-git clone https://github.com/andersongadelhaadv-cmyk/fracta.git
-cd fracta
-pnpm install
-pnpm build
+# scan de um alvo declarado no targets.yaml (aponte para STAGING, nunca prod)
+npx @fracta/cli scan --config ./targets.yaml --target meu-saas --depth full
 
-# 2. Configure your target
-cp configs/targets.yaml configs/targets.local.yaml
-$EDITOR configs/targets.local.yaml   # point at *staging*, never prod
+# ou instale global e use `fracta`:
+npm i -g @fracta/cli
+fracta scan --config ./targets.yaml --target meu-saas
+```
 
-# 3. Run a scan — --target is REQUIRED (one SaaS per run)
-pnpm --filter @fracta/cli exec fracta scan \
-  --config ./configs/targets.local.yaml \
-  --target exemplo-saas \
-  --depth full
+O `targets.yaml` declara o alvo (url de staging, `stack`, `repoPath` opcional para o SAST). Modelo em [`configs/targets.yaml`](configs/targets.yaml).
+
+> Só quer o **scan passivo de uma URL pública** (headers/TLS/cookies/LGPD/DNS/CSP), sem setup? Use **[fracta.pro](https://fracta.pro)** ou o MCP abaixo.
+
+### MCP — Claude Code / Cursor (config de 1 linha)
+
+```json
+{
+  "mcpServers": {
+    "fracta": { "command": "npx", "args": ["-y", "@fracta/mcp-server"] }
+  }
+}
+```
+
+Aí peça no editor:
+- *"scaneie https://exemplo.com"* → `passive_scan` (qualquer URL, zero setup)
+- *"audite este repositório"* → `scan_repo` (SAST do projeto atual: deps, secrets, stack, **LGPD/inventário**, docs)
+- scan completo de um target do `targets.yaml` → `scan_target`
+
+### A partir do código (contribuir)
+
+```bash
+git clone https://github.com/andersongadelhaadv-cmyk/fracta.git && cd fracta
+pnpm install && pnpm build
+cp configs/targets.yaml configs/targets.local.yaml   # aponte para staging
+pnpm --filter @fracta/cli exec fracta scan --config ./configs/targets.local.yaml --target exemplo-saas --depth full
 ```
 
 Reports land in `./fracta-reports/<slug>-<timestamp>.md` and `.json` — identical

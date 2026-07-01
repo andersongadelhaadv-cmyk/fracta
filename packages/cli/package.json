@@ -13,25 +13,28 @@
   "bugs": {
     "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
   },
-  "keywords": ["fracta", "cli", "security", "scanner"],
+  "keywords": ["fracta", "cli", "security", "scanner", "lgpd", "owasp"],
   "type": "module",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "bin": {
     "fracta": "./dist/index.js"
   },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+  "files": ["dist", "README.md"],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
     "@fracta/core": "workspace:*",
     "@fracta/agent-auth": "workspace:*",
     "@fracta/agent-headers": "workspace:*",
@@ -52,9 +55,6 @@
     "@fracta/reporter": "workspace:*",
     "@fracta/store": "workspace:*",
     "@fracta/llm": "workspace:*",
-    "yaml": "^2.4.0"
-  },
-  "devDependencies": {
     "tsup": "*",
     "typescript": "*",
     "@types/node": "*"

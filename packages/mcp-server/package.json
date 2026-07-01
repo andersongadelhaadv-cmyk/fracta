@@ -1,7 +1,7 @@
 {
   "name": "@fracta/mcp-server",
   "version": "0.1.0",
-  "description": "Model Context Protocol server exposing Fracta scan tools",
+  "description": "Model Context Protocol server exposing Fracta scan tools (passive_scan, scan_repo, …)",
   "license": "MIT",
   "author": "Anderson Gadelha",
   "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
@@ -13,20 +13,30 @@
   "bugs": {
     "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
   },
-  "keywords": ["fracta", "mcp", "model-context-protocol", "security"],
+  "keywords": ["fracta", "mcp", "model-context-protocol", "security", "lgpd"],
   "type": "module",
   "main": "dist/index.js",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js"
-    }
+  "bin": {
+    "fracta-mcp": "./dist/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "undici": "^6.21.0",
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
     "@fracta/core": "workspace:*",
     "@fracta/web-scan": "workspace:*",
     "@fracta/agent-auth": "workspace:*",
@@ -48,10 +58,6 @@
     "@fracta/reporter": "workspace:*",
     "@fracta/store": "workspace:*",
     "@fracta/llm": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "yaml": "^2.4.0"
-  },
-  "devDependencies": {
     "tsup": "*",
     "typescript": "*",
     "@types/node": "*"

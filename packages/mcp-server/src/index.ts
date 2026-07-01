@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { readFile } from 'fs/promises'
 import { parse as parseYaml } from 'yaml'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
