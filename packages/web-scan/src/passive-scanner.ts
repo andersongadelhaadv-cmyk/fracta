@@ -5,6 +5,7 @@ import { validateScanUrl } from './ssrf-guard.js'
 import { createSafeClient } from './safe-fetch.js'
 import { findCookieIssues } from './cookie-check.js'
 import { checkLgpdLite, findPrivacyHref } from './lgpd-lite.js'
+import { detectBotChallenge } from './bot-challenge.js'
 import { grade } from './grader.js'
 import type { PassiveScanResult, ScanCheck, ScanGrade, ScanVerdict } from './types.js'
 
@@ -66,25 +67,36 @@ export class PassiveScanner {
       const client = createClient(url.toString())
       const res = await client.request('/', { timeoutMs: 8000 })
       contentRan = true
+      const html = res.raw ?? ''
       const sc = res.headers['set-cookie'] as unknown as string[] | string | undefined
       const setCookie = Array.isArray(sc) ? sc : sc ? [sc] : []
-      findings.push(...findCookieIssues(setCookie, saas, runId))
 
-      // Lê a Política de Privacidade (MESMO host) p/ análise determinística do Art. 9º.
-      // +1 GET passivo. Externa/ilegível → segue sem ela (honesto, sem inventar).
-      let policy: { text: string; url: string } | undefined
-      const href = findPrivacyHref(res.raw ?? '')
-      if (href) {
-        try {
-          const policyUrl = new URL(href, url)
-          if (policyUrl.host === url.host && /^https?:$/.test(policyUrl.protocol)) {
-            const pres = await client.request(policyUrl.pathname + policyUrl.search, { timeoutMs: 8000 })
-            if (pres.raw) policy = { text: stripHtml(pres.raw), url: policyUrl.toString() }
-          }
-        } catch { /* política ilegível/externa — segue sem ela */ }
+      // Se o alvo respondeu com desafio de bot-management, a "página" é o desafio —
+      // não inferimos nada dela. Nota honesta e paramos os checks de conteúdo.
+      const challenge = detectBotChallenge(res.status, res.headers, html)
+      if (challenge.challenged && challenge.vendor) {
+        findings.push(...checkLgpdLite(html, setCookie, saas, runId, undefined, { vendor: challenge.vendor }))
+      } else {
+        findings.push(...findCookieIssues(setCookie, saas, runId))
+
+        // Lê a Política de Privacidade (MESMO host) p/ análise determinística do Art. 9º.
+        // +1 GET passivo. Externa/ilegível/desafiada → segue sem ela (honesto).
+        let policy: { text: string; url: string } | undefined
+        const href = findPrivacyHref(html)
+        if (href) {
+          try {
+            const policyUrl = new URL(href, url)
+            if (policyUrl.host === url.host && /^https?:$/.test(policyUrl.protocol)) {
+              const pres = await client.request(policyUrl.pathname + policyUrl.search, { timeoutMs: 8000 })
+              if (pres.raw && !detectBotChallenge(pres.status, pres.headers, pres.raw).challenged) {
+                policy = { text: stripHtml(pres.raw), url: policyUrl.toString() }
+              }
+            }
+          } catch { /* política ilegível/externa — segue sem ela */ }
+        }
+
+        findings.push(...checkLgpdLite(html, setCookie, saas, runId, policy))
       }
-
-      findings.push(...checkLgpdLite(res.raw ?? '', setCookie, saas, runId, policy))
     } catch { /* idem */ }
 
     const checks: ScanCheck[] = [

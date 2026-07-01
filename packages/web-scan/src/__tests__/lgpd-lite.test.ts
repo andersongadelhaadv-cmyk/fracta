@@ -83,6 +83,20 @@ describe('checkLgpdLite (v2)', () => {
     expect(find(f, 'política de privacidade analisada')).toBeUndefined()
   })
 
+  // 5) desafio de bot-management → nota honesta, sem inferir nada da página de desafio
+  it('when content is bot-challenged, emits ONE honest finding and no false inferences', () => {
+    // mesmo com html "sem privacidade" e um tracker, NÃO infere — só a nota honesta
+    const html = '<script src="https://www.googletagmanager.com/gtag/js"></script>'
+    const f = checkLgpdLite(html, ['_ga=x'], 'demo', 'run1', undefined, { vendor: 'Cloudflare' })
+    expect(f).toHaveLength(1)
+    expect(f[0].title).toMatch(/bot-management \(Cloudflare\)/i)
+    expect(f[0].severity).toBe('info')
+    expect(f[0].description).toMatch(/SINAL DE SEGURANÇA/i)
+    // não emitiu "sem link", "rastreadores" nem "cookie de rastreamento"
+    expect(find(f, 'rastreadores')).toBeUndefined()
+    expect(find(f, 'cookie de rastreamento')).toBeUndefined()
+  })
+
   describe('findPrivacyHref', () => {
     it('finds the privacy policy href by url', () => {
       expect(findPrivacyHref('<a href="/politica-de-privacidade">Termos</a>')).toBe('/politica-de-privacidade')

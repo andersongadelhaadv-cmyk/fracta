@@ -96,7 +96,20 @@ export function checkLgpdLite(
   saas: string,
   runId: string,
   policy?: { text: string; url: string },
+  botChallenge?: { vendor: string },
 ): Finding[] {
+  // Honestidade: se o alvo respondeu com desafio de bot-management, NÃO inferimos
+  // "sem política/rastreadores" a partir da página de desafio (seria falso). Dizemos
+  // a verdade — não conseguimos ler — e enquadramos como sinal de segurança do alvo.
+  if (botChallenge) {
+    return [lgpdFinding(
+      saas, runId, 'lgpd-content-blocked', 'info',
+      `Conteúdo protegido por bot-management (${botChallenge.vendor}) — leitura passiva limitada`,
+      `Não consegui ler o conteúdo da página automaticamente: o ${botChallenge.vendor} respondeu ao scan com um desafio de bot. Isso é um SINAL DE SEGURANÇA do seu site, não uma falha. Consequência honesta: passivamente não dá pra verificar Política de Privacidade, rastreadores nem cookies — e os headers/TLS refletem a borda do ${botChallenge.vendor}, não necessariamente a sua origem.`,
+      `Para um diagnóstico do que está atrás da proteção, rode a análise autenticada (CLI). Se quiser um scan passivo mais fiel, libere o "FractaBot" no seu bot-management.`,
+    )]
+  }
+
   const out: Finding[] = []
   const h = html || ''
 
