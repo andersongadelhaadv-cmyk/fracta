@@ -41,14 +41,15 @@ describe('registrableDomain', () => {
 })
 
 describe('DnsAgent', () => {
-  it('flagra SPF e DMARC ausentes (medium, confiança alta)', async () => {
-    const agent = new DnsAgent(mock({})) // nada resolve
-    const fs = await agent.run(scopeFor('https://exemplo.com'))
-    const spf = fs.find(f => f.title.startsWith('Sem registro SPF'))
-    const dmarc = fs.find(f => f.title.startsWith('Sem registro DMARC'))
-    expect(spf?.severity).toBe('medium')
-    expect(spf?.confidence).toBe('high')
-    expect(dmarc?.severity).toBe('medium')
+  it('SPF/DMARC ausentes: medium COM MX, low SEM MX (confiança alta)', async () => {
+    const withMx = await new DnsAgent(mock({}, { 'exemplo.com': [{ exchange: 'mx', priority: 10 }] })).run(scopeFor('https://exemplo.com'))
+    expect(withMx.find(f => f.title.startsWith('Sem registro SPF'))?.severity).toBe('medium')
+    expect(withMx.find(f => f.title.startsWith('Sem registro DMARC'))?.severity).toBe('medium')
+    expect(withMx.find(f => f.title.startsWith('Sem registro SPF'))?.confidence).toBe('high')
+
+    const noMx = await new DnsAgent(mock({})).run(scopeFor('https://exemplo.com'))
+    expect(noMx.find(f => f.title.startsWith('Sem registro SPF'))?.severity).toBe('low')
+    expect(noMx.find(f => f.title.startsWith('Sem registro DMARC'))?.severity).toBe('low')
   })
 
   it('flagra SPF permissivo +all como high', async () => {

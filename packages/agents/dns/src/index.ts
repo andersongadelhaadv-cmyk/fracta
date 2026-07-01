@@ -134,13 +134,17 @@ export class DnsAgent implements SecurityAgent {
   private toFindings(scope: ScanScope, r: EmailDnsResult): Finding[] {
     const out: Finding[] = []
     const d = r.domain
+    // Prioridade escala com uso de e-mail: domínio COM MX (envia/recebe) = medium;
+    // sem MX (não usa e-mail) = low — spoofing ainda é possível, mas prioridade menor.
+    const missSev: Severity = r.hasMx ? 'medium' : 'low'
+    const noMxHint = r.hasMx ? '' : ' (o domínio não tem MX — mesmo assim, o NOME pode ser forjado; o ideal é travar com "-all"/p=reject).'
 
     // SPF
     if (!r.spf.present) {
-      out.push(this.make(scope, 'dns-spf-missing', 'medium',
+      out.push(this.make(scope, 'dns-spf-missing', missSev,
         `Sem registro SPF em ${d}`,
-        `O domínio ${d} não tem registro SPF (TXT v=spf1). Sem SPF, é mais fácil forjar e-mails com o seu domínio (phishing) — receptores não sabem quais servidores podem enviar em seu nome. Importa mesmo se você "não manda e-mail": o phishing usa o NOME do domínio.`,
-        'Publique um registro SPF listando seus servidores de envio e termine com "-all" (hardfail).'))
+        `O domínio ${d} não tem registro SPF (TXT v=spf1). Sem SPF, é mais fácil forjar e-mails com o seu domínio (phishing) — receptores não sabem quais servidores podem enviar em seu nome.${noMxHint}`,
+        'Publique um registro SPF listando seus servidores de envio e termine com "-all" (hardfail). Se o domínio não envia e-mail, use apenas "v=spf1 -all".'))
     } else if (r.spf.all === 'pass') {
       out.push(this.make(scope, 'dns-spf-permissive', 'high',
         `SPF permissivo (+all) em ${d}`,
@@ -157,9 +161,9 @@ export class DnsAgent implements SecurityAgent {
 
     // DMARC
     if (!r.dmarc.present) {
-      out.push(this.make(scope, 'dns-dmarc-missing', 'medium',
+      out.push(this.make(scope, 'dns-dmarc-missing', missSev,
         `Sem registro DMARC em ${d}`,
-        `O domínio ${d} não tem DMARC (TXT em _dmarc.${d}). Sem DMARC, mesmo com SPF/DKIM os receptores não têm uma POLÍTICA para barrar e-mails forjados, e você não recebe relatórios de abuso.`,
+        `O domínio ${d} não tem DMARC (TXT em _dmarc.${d}). Sem DMARC, mesmo com SPF/DKIM os receptores não têm uma POLÍTICA para barrar e-mails forjados, e você não recebe relatórios de abuso.${noMxHint}`,
         'Publique um DMARC começando por p=none (monitorar) e evolua para p=quarantine e p=reject; use rua= para receber relatórios.'))
     } else if (r.dmarc.policy === 'none') {
       out.push(this.make(scope, 'dns-dmarc-none', 'low',
