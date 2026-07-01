@@ -4,6 +4,7 @@ import type {
   SecurityAgent, ScanScope, Finding, AgentCategory, Severity, ProposedFix,
 } from '@fracta/core'
 import { SkippedCheck, stableFindingId } from '@fracta/core'
+import { parsePrismaModels, buildInventory, detectOperators, type InventoryEntry, type OperatorMatch } from './lgpd-inventory.js'
 
 // __tests__ = fixtures deliberadamente vulneráveis (não é superfície de produção);
 // fracta-reports = saída do próprio scanner (escanear o próprio relatório é ruído).
@@ -125,7 +126,90 @@ export class ComplianceAgent implements SecurityAgent {
       findings.push(this.encryptionUnclear(scope))
     }
 
+    // ---- Check 5: LGPD ancorada no CÓDIGO — inventário de dados (rascunho de ROPA) ----
+    const prismaText = files.filter(f => f.relPath.endsWith('.prisma')).map(f => f.content).join('\n')
+    if (prismaText.trim()) {
+      const inventory = buildInventory(parsePrismaModels(prismaText))
+      if (inventory.length) findings.push(this.dataInventory(scope, inventory))
+    }
+
+    // ---- Check 6: operadores/sub-processadores + transferência internacional (Art. 33) ----
+    const opMap = new Map<string, OperatorMatch>()
+    for (const f of files) {
+      if (f.relPath === 'package.json' || f.relPath.endsWith('/package.json')) {
+        for (const op of detectOperators(f.content)) if (!opMap.has(op.name)) opMap.set(op.name, op)
+      }
+    }
+    if (opMap.size) findings.push(this.operatorsMapping(scope, Array.from(opMap.values())))
+
     return findings
+  }
+
+  // -------------------------------------------------------------------------
+  // Check 5 — inventário de dados pessoais ancorado no schema (rascunho de ROPA)
+  // -------------------------------------------------------------------------
+  private dataInventory(scope: ScanScope, inv: InventoryEntry[]): Finding {
+    const rule = 'lgpd-data-inventory'
+    const totalSens = inv.reduce((n, e) => n + e.sensivel.length, 0)
+    const lines = inv.map(e => {
+      const parts = [
+        e.sensivel.length ? `sensível: ${e.sensivel.join(', ')}` : '',
+        e.pessoal.length ? `pessoal: ${e.pessoal.join(', ')}` : '',
+      ].filter(Boolean)
+      return `• ${e.model} → ${parts.join(' | ')}`
+    })
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'info' as Severity,
+      title: `Inventário de dados pessoais ancorado no schema (rascunho de ROPA) — ${inv.length} modelos, ${totalSens} campos sensíveis`,
+      description:
+        'Li o schema Prisma e montei o esqueleto de um INVENTÁRIO DE DADOS / ROPA (Art. 37) ' +
+        'ancorado no seu código — não num formulário auto-declarado. Modelos com dado pessoal:\n' +
+        lines.join('\n') +
+        '\n\nHeurística determinística por nome de campo (zero IA) — pode ter falso-positivo/negativo. ' +
+        'Cada tratamento ainda precisa de finalidade, base legal e retenção (o julgamento jurídico).',
+      evidence: `${inv.length} modelos com dado pessoal; ${totalSens} campos classificados como sensíveis (Art. 5º, II).`,
+      recommendation:
+        'Use isto como ponto de partida do ROPA: para cada modelo/finalidade, defina base legal ' +
+        '(Art. 7º/11), prazo de retenção (Art. 15/16) e compartilhamentos. Dado sensível exige ' +
+        'base do Art. 11 e cuidado agravado.',
+      createdAt: new Date(),
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Check 6 — operadores/sub-processadores + transferência internacional (Art. 33)
+  // -------------------------------------------------------------------------
+  private operatorsMapping(scope: ScanScope, ops: OperatorMatch[]): Finding {
+    const rule = 'lgpd-operators-transfer'
+    const intl = ops.filter(o => o.international)
+    const lines = ops.map(o => `• ${o.name} (${o.purpose})${o.international ? ' — transferência internacional' : ''}`)
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'info' as Severity,
+      title: `Operadores/sub-processadores detectados no código — ${ops.length} (${intl.length} com transferência internacional)`,
+      description:
+        'Mapeei operadores/sub-processadores pelas dependências do projeto (Art. 39). ' +
+        'Cada um trata dado pessoal por sua conta e precisa de contrato (DPA):\n' +
+        lines.join('\n') +
+        (intl.length
+          ? `\n\n⚠️ ${intl.length} implicam TRANSFERÊNCIA INTERNACIONAL de dados (Art. 33) — que precisa ser declarada na política e ancorada numa hipótese (cláusulas-padrão da ANPD, país adequado, etc.).`
+          : '') +
+        '\n\nHeurística por nome de pacote — confirme a stack real e os contratos.',
+      evidence: `Operadores: ${ops.map(o => o.name).join(', ')}. Transferência internacional: ${intl.map(o => o.name).join(', ') || 'nenhuma detectada'}.`,
+      recommendation:
+        'Garanta um DPA com cada operador (Art. 39), liste os sub-processadores, e declare a ' +
+        'transferência internacional na Política de Privacidade ancorada numa hipótese do Art. 33.',
+      createdAt: new Date(),
+    }
   }
 
   // -------------------------------------------------------------------------

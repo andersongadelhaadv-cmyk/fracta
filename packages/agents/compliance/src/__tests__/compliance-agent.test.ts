@@ -125,4 +125,31 @@ describe('ComplianceAgent', () => {
     const findings = await new ComplianceAgent().run(scopeFor(repoDir))
     expect(findings).toHaveLength(0)
   })
+
+  it('gera inventário de dados (ROPA) do schema Prisma + mapa de operadores das deps', async () => {
+    await writeFile(
+      join(repoDir, 'schema.prisma'),
+      'model User {\n  id    String @id\n  email String\n  cpf   String\n  nome  String\n}\nmodel AuditLog {\n  id     String @id\n  action String\n}\n',
+    )
+    await writeFile(
+      join(repoDir, 'package.json'),
+      JSON.stringify({ name: 'demo', dependencies: { stripe: '^1', '@aws-sdk/client-s3': '^3', openai: '^4' } }),
+    )
+
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+
+    const inv = findings.find(f => f.title.startsWith('Inventário de dados pessoais'))
+    expect(inv).toBeDefined()
+    expect(inv!.severity).toBe('info')
+    expect(inv!.description).toContain('User')
+    expect(inv!.description).toContain('cpf')
+    // AuditLog (sem dado pessoal) NÃO entra no inventário
+    expect(inv!.description).not.toContain('AuditLog')
+
+    const ops = findings.find(f => f.title.startsWith('Operadores/sub-processadores'))
+    expect(ops).toBeDefined()
+    expect(ops!.severity).toBe('info')
+    expect(ops!.description).toContain('transferência internacional')
+    expect(ops!.evidence).toContain('Stripe')
+  })
 })
