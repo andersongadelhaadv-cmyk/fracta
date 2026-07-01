@@ -1,5 +1,6 @@
 import type { SecurityAgent, ScanScope, Finding, AgentCategory, StackType } from '@fracta/core'
 import { FractaHttpClient, SkippedCheck, stableFindingId } from '@fracta/core'
+import { analyzeCsp } from './csp.js'
 
 /**
  * O fetch junta headers repetidos numa única string separada por vírgula
@@ -245,6 +246,38 @@ export class HeadersAgent implements SecurityAgent {
           `Security header ausente: ${rule.name}`,
           rule.message,
           requiredHeaderRec(rule.name, target.stack ?? []),
+        ))
+      }
+    }
+
+    // ── Content-Security-Policy: análise PROFUNDA (parseia a policy, não só presença) ──
+    const csp = (headers['content-security-policy'] ?? '').trim()
+    const cspReportOnly = (headers['content-security-policy-report-only'] ?? '').trim()
+    if (!csp && !cspReportOnly) {
+      // Ausência = defesa-em-profundidade faltando → low (não é um buraco direto).
+      findings.push(mk(
+        'csp-missing', 'low',
+        'Content-Security-Policy ausente',
+        'Sem CSP, o navegador não tem uma política para bloquear scripts/recursos injetados — é a defesa mais forte contra XSS. Ausência não é um buraco direto, mas é a camada que mais reduz o impacto de um XSS.',
+        "Adicione um CSP. Comece em Report-Only para não quebrar, com baseline: default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'. Em Next.js, use nonce por request.",
+        { confidence: 'high', proposedFix: {
+          description: "Baseline (endureça conforme o app):  Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none' . Suba primeiro como Content-Security-Policy-Report-Only para observar violações sem quebrar, depois troque para enforcement.",
+          riskOfApplying: 'PROPOSTA — um CSP estrito pode quebrar scripts/estilos inline legítimos. Por isso: Report-Only primeiro, ajuste, e só então imponha. Em Next.js use nonce (senão a hidratação quebra).',
+        } },
+      ))
+    } else if (!csp && cspReportOnly) {
+      findings.push(mk(
+        'csp-report-only', 'low',
+        'CSP presente apenas em Report-Only (não bloqueia)',
+        'Há um Content-Security-Policy-Report-Only, mas nenhum CSP em modo de imposição. Report-Only só coleta violações — NÃO bloqueia scripts injetados.',
+        'Depois de validar as violações do Report-Only, publique a mesma policy como Content-Security-Policy (enforcement).',
+        { confidence: 'high' },
+      ))
+    } else {
+      for (const issue of analyzeCsp(csp)) {
+        findings.push(mk(
+          issue.rule, issue.severity, issue.title, issue.detail, issue.recommendation,
+          { confidence: 'high', evidence: `content-security-policy: ${csp.length > 220 ? csp.slice(0, 220) + '…' : csp}` },
         ))
       }
     }
