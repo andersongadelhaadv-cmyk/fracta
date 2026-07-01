@@ -58,6 +58,22 @@ export function FindingRow({ finding }: { finding: Finding }) {
               <Recommendation text={finding.recommendation} />
             </div>
           )}
+          {finding.proposedFix && (
+            <div className="mt-2 rounded-md border border-accent/20 bg-surface/50 px-3 py-2 text-sm">
+              <span className="font-mono text-[10px] uppercase tracking-wide text-accent">correção proposta · gated</span>
+              <div className="mt-1 text-text/80">
+                <Recommendation text={finding.proposedFix.description} />
+              </div>
+              {finding.proposedFix.command && (
+                <pre className="mt-2 overflow-x-auto rounded border border-border bg-bg px-3 py-2 font-mono text-xs text-muted">{finding.proposedFix.command}</pre>
+              )}
+              {finding.proposedFix.riskOfApplying && (
+                <p className="mt-1.5 text-xs text-faint">
+                  <span className="text-muted">risco de aplicar:</span> {finding.proposedFix.riskOfApplying}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </li>

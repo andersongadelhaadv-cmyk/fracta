@@ -26,6 +26,14 @@ export function findCookieIssues(setCookies: string[], saas: string, runId: stri
       description: `O cookie "${name}" não define: ${missing.join(', ')}. Sem essas flags ele é mais exposto a roubo (XSS) e envio cross-site (CSRF).`,
       evidence: `Set-Cookie: ${name}=… (faltam: ${missing.join(', ')})`,
       recommendation: 'Defina Secure, HttpOnly e SameSite (Lax/Strict) nos cookies de sessão.',
+      proposedFix: {
+        description:
+          `Recrie o cookie "${name}" com as flags que faltam. No header:  Set-Cookie: ${name}=<valor>; Secure; HttpOnly; SameSite=Lax; Path=/ .  ` +
+          `Express:  res.cookie('${name}', v, { secure: true, httpOnly: true, sameSite: 'lax' }) .  ` +
+          `Next.js (route handler):  cookies().set('${name}', v, { secure: true, httpOnly: true, sameSite: 'lax', path: '/' }) .`,
+        riskOfApplying:
+          'PROPOSTA — não aplicada. HttpOnly impede leitura via JS (correto p/ cookie de sessão; quebra só se algum front lê esse cookie por JS). SameSite=Strict pode quebrar login via redirect cross-site — use Lax nesses casos.',
+      },
       references: ['https://owasp.org/www-community/controls/SecureCookieAttribute'],
       createdAt: new Date(),
     })

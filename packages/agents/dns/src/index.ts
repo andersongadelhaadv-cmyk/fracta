@@ -1,6 +1,6 @@
 import { resolveTxt as dnsResolveTxt, resolveMx as dnsResolveMx } from 'node:dns/promises'
 import { isIP } from 'node:net'
-import type { SecurityAgent, ScanScope, Finding, AgentCategory, Severity } from '@fracta/core'
+import type { SecurityAgent, ScanScope, Finding, AgentCategory, Severity, ProposedFix } from '@fracta/core'
 import { stableFindingId } from '@fracta/core'
 
 /** Resolver DNS injetável (default: node:dns). Permite testes herméticos, sem rede. */
@@ -113,7 +113,7 @@ export class DnsAgent implements SecurityAgent {
     return this.toFindings(scope, r)
   }
 
-  private make(scope: ScanScope, rule: string, severity: Severity, title: string, description: string, recommendation: string, evidence?: string): Finding {
+  private make(scope: ScanScope, rule: string, severity: Severity, title: string, description: string, recommendation: string, proposedFix?: ProposedFix, evidence?: string): Finding {
     return {
       id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
       runId: scope.runId,
@@ -127,6 +127,7 @@ export class DnsAgent implements SecurityAgent {
       recommendation,
       references: REFS,
       createdAt: new Date(),
+      ...(proposedFix ? { proposedFix } : {}),
       ...(evidence ? { evidence } : {}),
     }
   }
@@ -144,18 +145,30 @@ export class DnsAgent implements SecurityAgent {
       out.push(this.make(scope, 'dns-spf-missing', missSev,
         `Sem registro SPF em ${d}`,
         `O domínio ${d} não tem registro SPF (TXT v=spf1). Sem SPF, é mais fácil forjar e-mails com o seu domínio (phishing) — receptores não sabem quais servidores podem enviar em seu nome.${noMxHint}`,
-        'Publique um registro SPF listando seus servidores de envio e termine com "-all" (hardfail). Se o domínio não envia e-mail, use apenas "v=spf1 -all".'))
+        'Publique um registro SPF listando seus servidores de envio e termine com "-all" (hardfail). Se o domínio não envia e-mail, use apenas "v=spf1 -all".',
+        {
+          description: `Adicione um TXT no host "@" de ${d}: se NÃO envia e-mail, use exatamente  v=spf1 -all . Se envia, liste os remetentes e termine com -all, ex.:  v=spf1 include:_spf.resend.com -all .`,
+          riskOfApplying: 'PROPOSTA — não aplicada. Se você envia e-mail, liste TODOS os remetentes (provedor transacional, ERP, etc.) ANTES de "-all", senão e-mail legítimo é rejeitado.',
+        }))
     } else if (r.spf.all === 'pass') {
       out.push(this.make(scope, 'dns-spf-permissive', 'high',
         `SPF permissivo (+all) em ${d}`,
         `O SPF de ${d} termina com "+all", que autoriza QUALQUER servidor a enviar e-mail em nome do domínio — equivale a não ter proteção e facilita spoofing.`,
         'Troque "+all" por "-all" (hardfail), listando apenas os servidores de envio legítimos.',
+        {
+          description: `No TXT do host "@" de ${d}, troque o " +all " final por " -all ", mantendo os includes dos seus remetentes legítimos.`,
+          riskOfApplying: 'PROPOSTA — confirme que todos os remetentes estão nos includes antes de trocar por -all.',
+        },
         r.spf.record))
     } else if (r.spf.all === 'neutral') {
       out.push(this.make(scope, 'dns-spf-neutral', 'low',
         `SPF neutro (?all) em ${d}`,
         `O SPF de ${d} usa "?all" (neutral): não afirma nada sobre remetentes não listados, então não protege efetivamente contra spoofing.`,
         'Use "-all" (hardfail) ou ao menos "~all" (softfail) em vez de "?all".',
+        {
+          description: `No TXT do host "@" de ${d}, troque " ?all " por " -all " (mantendo os includes dos remetentes legítimos).`,
+          riskOfApplying: 'PROPOSTA — confirme os remetentes antes de -all; se preferir cauteloso, use "~all".',
+        },
         r.spf.record))
     }
 
@@ -164,12 +177,22 @@ export class DnsAgent implements SecurityAgent {
       out.push(this.make(scope, 'dns-dmarc-missing', missSev,
         `Sem registro DMARC em ${d}`,
         `O domínio ${d} não tem DMARC (TXT em _dmarc.${d}). Sem DMARC, mesmo com SPF/DKIM os receptores não têm uma POLÍTICA para barrar e-mails forjados, e você não recebe relatórios de abuso.${noMxHint}`,
-        'Publique um DMARC começando por p=none (monitorar) e evolua para p=quarantine e p=reject; use rua= para receber relatórios.'))
+        'Publique um DMARC começando por p=none (monitorar) e evolua para p=quarantine e p=reject; use rua= para receber relatórios.',
+        {
+          description: r.hasMx
+            ? `Adicione um TXT no host "_dmarc.${d}":  v=DMARC1; p=none; rua=mailto:dmarc@${d}; fo=1  (monitora, não bloqueia). Após validar os relatórios, evolua para p=quarantine e depois p=reject.`
+            : `Adicione um TXT no host "_dmarc.${d}":  v=DMARC1; p=reject  (o domínio não envia e-mail — reject é seguro e trava spoofing de imediato).`,
+          riskOfApplying: 'PROPOSTA — p=none NÃO afeta entrega (só monitora). Só suba para quarantine/reject após confirmar que SPF/DKIM alinham no e-mail legítimo.',
+        }))
     } else if (r.dmarc.policy === 'none') {
       out.push(this.make(scope, 'dns-dmarc-none', 'low',
         `DMARC em modo monitor (p=none) em ${d}`,
         `O DMARC de ${d} está com p=none: só monitora, NÃO instrui os receptores a barrar e-mail forjado. É o primeiro passo, mas não protege contra spoofing enquanto não endurecer.`,
         'Após validar os relatórios, evolua para p=quarantine e depois p=reject.',
+        {
+          description: `No TXT "_dmarc.${d}", troque  p=none  por  p=quarantine  (e depois  p=reject ), mantendo o rua=.`,
+          riskOfApplying: 'PROPOSTA — suba a régua só após os relatórios rua= mostrarem que o e-mail legítimo passa.',
+        },
         r.dmarc.record))
     }
 
@@ -178,7 +201,11 @@ export class DnsAgent implements SecurityAgent {
       out.push(this.make(scope, 'dns-dkim-not-found', 'info',
         `DKIM não detectado nos seletores comuns em ${d}`,
         `O domínio ${d} recebe e-mail (tem MX) mas não encontrei DKIM nos seletores comuns testados (${r.dkim.probed.join(', ')}). Best-effort: você pode usar um seletor diferente — isto é informativo, não penaliza.`,
-        'Confirme que o e-mail transacional assina com DKIM (o seletor correto do seu provedor).'))
+        'Confirme que o e-mail transacional assina com DKIM (o seletor correto do seu provedor).',
+        {
+          description: `Ative DKIM no seu provedor de e-mail transacional — ele fornece o seletor e a chave pública a publicar como TXT em  <seletor>._domainkey.${d} .`,
+          riskOfApplying: 'PROPOSTA — configuração no provedor; adiciona assinatura, sem quebrar entrega. Confirme o seletor correto.',
+        }))
     }
 
     return out
