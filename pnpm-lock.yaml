@@ -516,6 +516,9 @@ importers:
       '@fracta/store':
         specifier: workspace:*
         version: link:../store
+      '@fracta/web-scan':
+        specifier: workspace:*
+        version: link:../web-scan
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.29.0(zod@4.4.3)

@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@fracta/core": "workspace:*",
+    "@fracta/web-scan": "workspace:*",
     "@fracta/agent-auth": "workspace:*",
     "@fracta/agent-headers": "workspace:*",
     "@fracta/agent-idor": "workspace:*",

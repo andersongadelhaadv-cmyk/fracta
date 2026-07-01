@@ -4,7 +4,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { FractaOrchestrator } from '@fracta/core'
-import type { Target, ScanReport, ScanDepth } from '@fracta/core'
+import type { Target, ScanReport, ScanDepth, TargetHealth } from '@fracta/core'
+import { PassiveScanner } from '@fracta/web-scan'
 import { AuthAgent } from '@fracta/agent-auth'
 import { HeadersAgent } from '@fracta/agent-headers'
 import { IdorAgent } from '@fracta/agent-idor'
@@ -92,6 +93,20 @@ function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {
   return o
 }
 
+/** Orchestrator SÓ dos agentes de repositório (SAST) — para `scan_repo` sem targets.yaml. */
+function buildSastOrchestrator(repoPath: string): FractaOrchestrator {
+  const healthCheck = async (): Promise<TargetHealth> => {
+    const ok = existsSync(repoPath)
+    return { repoAccessible: ok, status: ok ? 'healthy' : 'unreachable' }
+  }
+  const o = new FractaOrchestrator({ depth: 'full', failOn: ['critical', 'high'], verbose: false, store, enricher, healthCheck })
+  o.registerAgents([
+    new DependenciesAgent(), new SecretsAgent(), new StackAgent(),
+    new ComplianceAgent(), new DocsAgent(),
+  ])
+  return o
+}
+
 const lastReports = new Map<string, ScanReport>()
 
 const server = new Server(
@@ -101,6 +116,28 @@ const server = new Server(
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
+    {
+      name: 'passive_scan',
+      description:
+        'Scan PASSIVO de qualquer URL, SEM config (headers, TLS, cookies, LGPD-lite: lê a política e detecta bot-management). Zero intrusão — seguro para qualquer site. Retorna nota A–F na hora.',
+      inputSchema: {
+        type: 'object',
+        properties: { url: { type: 'string', description: 'URL a analisar (ex.: https://exemplo.com.br)' } },
+        required: ['url'],
+      },
+    },
+    {
+      name: 'scan_repo',
+      description:
+        'Auditoria SAST do REPOSITÓRIO local, SEM config (dependências, secrets, SAST stack-aware, LGPD/compliance, docs). Read-only. Ideal para auditar o projeto que você está desenvolvendo, na IDE.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Caminho do repositório (default: diretório atual)' },
+          stack: { type: 'array', items: { type: 'string' }, description: 'Stack p/ checks dedicados (ex.: ["nestjs","prisma"]). Opcional.' },
+        },
+      },
+    },
     {
       name: 'scan_target',
       description: 'Executa scan completo de segurança em um target configurado no targets.yaml',
@@ -167,6 +204,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const a = (args ?? {}) as Record<string, string>
 
   try {
+    // ── Zero-config: scan passivo de qualquer URL (reusa o motor do fracta.pro) ──
+    if (name === 'passive_scan') {
+      const url = a.url
+      if (!url) return { content: [{ type: 'text', text: 'Informe `url`.' }] }
+      const r = await new PassiveScanner().scan(url)
+      const head = r.verdict === 'inconclusive'
+        ? 'INCONCLUSIVO (alvo não avaliável — ausência de achados ≠ seguro)'
+        : `Nota ${r.grade} (${r.score}/100)`
+      const bySev = r.findings.reduce<Record<string, number>>((m, f) => ((m[f.severity] = (m[f.severity] ?? 0) + 1), m), {})
+      const lines = r.findings.map(f => `- [${f.severity}] ${f.title}`)
+      const txt = `Scan passivo de ${r.url}\n${head} · checks: ${r.checks.map(c => `${c.name}=${c.status}`).join(', ')}\nSeveridades: ${JSON.stringify(bySev)}\n\n${lines.join('\n') || '(sem achados nos checks executados)'}`
+      return { content: [{ type: 'text', text: txt }] }
+    }
+
+    // ── Zero-config: auditoria SAST do repositório local (sem targets.yaml) ──
+    if (name === 'scan_repo') {
+      const path = (a.path && a.path.trim()) || process.cwd()
+      if (!existsSync(path)) return { content: [{ type: 'text', text: `Caminho não encontrado: ${path}` }] }
+      const rawStack = (args as Record<string, unknown> | undefined)?.stack
+      const stack = Array.isArray(rawStack) ? rawStack.map(String) : []
+      const target: Target = { name: 'repo-scan', url: 'file://local', stack, repoPath: path }
+      const report = await buildSastOrchestrator(path).scan(target)
+      lastReports.set('repo-scan', report)
+      const { mdPath } = await new FractaReporter().save(report)
+      const statusTxt = report.verdict === 'inconclusive' ? 'INCONCLUSIVO' : report.passed ? 'PASSOU' : 'FALHOU'
+      const lines = report.findings.slice(0, 40).map(f => `- [${f.severity}] ${f.title}`)
+      const more = report.findings.length > 40 ? `\n… +${report.findings.length - 40} achados` : ''
+      const txt = `Auditoria SAST de ${path}\n${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium, ${report.summary.low} low. Status: ${statusTxt}.\nRelatório: ${mdPath}\n\n${lines.join('\n')}${more}`
+      return { content: [{ type: 'text', text: txt }] }
+    }
+
     if (name === 'scan_target' || name === 'test_auth' || name === 'test_idor' || name === 'check_headers') {
       const targets = await loadTargets()
       const target = targets.find(t => t.name === a.target)
