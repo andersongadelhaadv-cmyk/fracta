@@ -2,6 +2,13 @@ import { randomUUID, createHash } from 'crypto'
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info'
 
+/**
+ * Confiança do achado (camada de verificação). `high` = determinístico/inequívoco;
+ * `low` = heurístico/em arquivo propenso a falso-positivo (teste/fixture/exemplo).
+ * Só achado de confiança ≥ média derruba o build (failOn); baixa apenas avisa.
+ */
+export type Confidence = 'high' | 'medium' | 'low'
+
 /** Status de um Finding entre execuções (ver regressão/supressão na Fase 2). */
 export type FindingStatus = 'open' | 'suppressed' | 'regression'
 
@@ -88,6 +95,8 @@ export interface Finding {
   /** Camada de auditoria. Default = `category` quando o agente não distingue. */
   camada?: AgentCategory
   severity: Severity
+  /** Confiança (camada de verificação). Default `high`; downgrade determinístico p/ FP-prone. */
+  confidence?: Confidence
   /** Estado entre execuções. Preenchido pelo store na Fase 2; default `open`. */
   status?: FindingStatus
   title: string

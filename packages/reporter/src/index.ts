@@ -102,6 +102,9 @@ export class FractaReporter {
       for (const f of findings) {
         md += `### ${f.title}\n\n`
         md += `**Agente:** \`${f.agent}\` | **Categoria:** \`${f.category}\`\n`
+        if (f.confidence === 'low') {
+          md += `**Confiança:** 🔵 baixa — heurístico ou em arquivo propenso a falso-positivo (teste/fixture/exemplo). Para revisão; **não** derruba o build.\n`
+        }
         if (f.endpoint) md += `**Endpoint:** \`${f.endpoint}\`\n`
         md += `\n${f.description}\n\n`
         if (f.evidence) {
@@ -172,8 +175,11 @@ export class FractaReporter {
       }
     }
 
-    // Caminho determinístico: destaca critical + high no topo.
-    const topo = report.findings.filter(f => f.severity === 'critical' || f.severity === 'high')
+    // Caminho determinístico: destaca critical + high CONFIRMADOS (confiança ≥ média) no
+    // topo. Achado de confiança baixa aparece na sua seção, mas não é "ação prioritária".
+    const topo = report.findings.filter(
+      f => (f.severity === 'critical' || f.severity === 'high') && f.confidence !== 'low',
+    )
     if (topo.length === 0) return ''
 
     let md = `## 🎯 Ação Prioritária (${topo.length})\n\n`

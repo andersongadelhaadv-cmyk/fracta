@@ -310,6 +310,7 @@ export class ComplianceAgent implements SecurityAgent {
       category: this.category,
       camada: this.category,
       severity: 'high' as Severity,
+      confidence: 'low', // heurística conservadora (hashing pode ser externo) — avisa, não derruba
       title: 'Possível armazenamento de senha sem hashing',
       description:
         'O repositório aparenta ter autenticação (menção a senha/password próxima de uma ' +
@@ -359,6 +360,7 @@ export class ComplianceAgent implements SecurityAgent {
       category: this.category,
       camada: this.category,
       severity: 'low' as Severity,
+      confidence: 'low', // heurística p/ revisão humana (pode ser RLS/middleware ou query global)
       title: `Query sem escopo de tenant em arquivo com dado sensível: ${relPath}:${line}`,
       description:
         'HEURÍSTICA PARA REVISÃO HUMANA. Uma chamada Prisma findMany/findFirst nesta linha ' +
@@ -398,6 +400,7 @@ export class ComplianceAgent implements SecurityAgent {
       category: this.category,
       camada: this.category,
       severity: 'low' as Severity,
+      confidence: 'low', // heurística conservadora (TLS pode terminar no proxy/LB) — avisa, não derruba
       title: 'Criptografia em trânsito/repouso não evidenciada',
       description:
         'O repositório manipula dado sensível, mas não foi encontrado sinal de TLS/HTTPS ' +

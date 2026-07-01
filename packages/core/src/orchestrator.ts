@@ -3,6 +3,7 @@ import {
   SkippedCheck,
 } from './types.js'
 import { checkTargetHealth } from './health.js'
+import { applyConfidence } from './confidence.js'
 import type {
   Target, SecurityAgent, AuditReport, ScanScope, Finding, Severity,
   ScanDepth, CheckResult, AgentCategory, TargetHealth, FindingStore, ReportEnricher, Verdict,
@@ -124,19 +125,27 @@ export class FractaOrchestrator {
       }
     }
 
+    // Camada de VERIFICAÇÃO (Fase 2): atribui/rebaixa confiança por contexto (FP-prone).
+    findings = applyConfidence(findings)
     findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
 
-    // Suprimidos (falso-positivo revisado) NÃO entram na conta de severidade nem no
-    // pass/fail — seguem em `findings` (status 'suppressed') para histórico/transparência.
+    // `summary` = exibição (todos os não-suprimidos). `failSummary` = decisão de pass/fail
+    // (só achados de confiança ≥ média; heurístico/FP-prone AVISA, não derruba o build).
+    // Suprimidos (falso-positivo revisado) ficam fora de ambos, mas seguem em `findings`.
     const summary = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 }
+    const failSummary = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 }
     for (const f of findings) {
       if (f.status === 'suppressed') continue
       summary.total++
       summary[f.severity]++
+      if (f.confidence !== 'low') {
+        failSummary.total++
+        failSummary[f.severity]++
+      }
     }
 
     const finishedAt = new Date()
-    const verdict = deriveVerdict(summary, this.options.failOn, health)
+    const verdict = deriveVerdict(failSummary, this.options.failOn, health)
     const passed = verdict === 'passed'
 
     const targetHealth: TargetHealth = health

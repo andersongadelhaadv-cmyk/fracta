@@ -78,6 +78,28 @@ describe('FractaOrchestrator', () => {
     expect(report.findings).toHaveLength(1) // mas segue no relatório p/ transparência
   })
 
+  it('achado failOn de confiança BAIXA aparece mas NÃO derruba o build', async () => {
+    const lo: Finding = { ...makeFinding('A', 'high'), confidence: 'low' }
+    const orch = makeOrch({ failOn: ['critical', 'high'] })
+    orch.registerAgent(makeAgent('A', [lo]))
+
+    const report = await orch.scan(target)
+
+    expect(report.passed).toBe(true) // confiança baixa não falha
+    expect(report.summary.high).toBe(1) // mas é mostrado (transparência)
+  })
+
+  it('rebaixa (verificação) achado failOn localizado em arquivo de teste → não derruba', async () => {
+    const t: Finding = { ...makeFinding('A', 'high'), evidence: 'src/foo.test.ts:3' }
+    const orch = makeOrch({ failOn: ['critical', 'high'] })
+    orch.registerAgent(makeAgent('A', [t]))
+
+    const report = await orch.scan(target)
+
+    expect(report.passed).toBe(true)
+    expect(report.findings.find(x => x.id === t.id)?.confidence).toBe('low')
+  })
+
   it('runs agents in parallel chunks bounded by concurrency', async () => {
     const calls: string[] = []
     const slow = (name: string): SecurityAgent => ({
