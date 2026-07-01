@@ -8,8 +8,10 @@
 export type DataCategory = 'sensivel' | 'pessoal' | 'comum'
 
 // Dado sensível/alto risco no contexto (Art. 5º, II + domínio jurídico/previdenciário BR).
+// `hash`/`digital` isolados dariam falso-positivo (phash, digitalUrl); senha coberta por `password`,
+// biometria por `biometr`. Mantém a intenção sem o ruído.
 const SENSITIVE_FIELD =
-  /(cpf|cnpj|cnis|\brg\b|senha|password|passwd|hash|secret|processo|prontuario|prontuário|\bnis\b|\bpis\b|cart[aã]o|benef[ií]cio|sa[uú]de|health|biometr|digital|genetic|gen[eé]tico|racial|etnia|religi|orienta[cç][aã]o|sexual|criminal|diagn[oó]stico)/i
+  /(cpf|cnpj|cnis|\brg\b|senha|password|passwd|secret|processo|prontuario|prontuário|\bnis\b|\bpis\b|cart[aã]o|benef[ií]cio|sa[uú]de|health|biometr|genetic|gen[eé]tico|racial|etnia|religi|orienta[cç][aã]o|sexual|criminal|diagn[oó]stico)/i
 
 // Dado pessoal comum.
 const PERSONAL_FIELD =
