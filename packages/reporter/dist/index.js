@@ -96,6 +96,10 @@ var FractaReporter = class {
 `;
         md += `**Agente:** \`${f.agent}\` | **Categoria:** \`${f.category}\`
 `;
+        if (f.confidence === "low") {
+          md += `**Confian\xE7a:** \u{1F535} baixa \u2014 heur\xEDstico ou em arquivo propenso a falso-positivo (teste/fixture/exemplo). Para revis\xE3o; **n\xE3o** derruba o build.
+`;
+        }
         if (f.endpoint) md += `**Endpoint:** \`${f.endpoint}\`
 `;
         md += `
@@ -180,7 +184,9 @@ ${f.evidence}
         return md2;
       }
     }
-    const topo = report.findings.filter((f) => f.severity === "critical" || f.severity === "high");
+    const topo = report.findings.filter(
+      (f) => (f.severity === "critical" || f.severity === "high") && f.confidence !== "low"
+    );
     if (topo.length === 0) return "";
     let md = `## \u{1F3AF} A\xE7\xE3o Priorit\xE1ria (${topo.length})
 

@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup'
 /**
  * O MCP server é publicado no npm como binário SELF-CONTAINED (igual ao CLI):
  * os pacotes @fracta/* são embutidos (noExternal). Deps reais de npm ficam externas
- * (@modelcontextprotocol/sdk, yaml, undici). Resultado: `npx @fracta/mcp-server`
+ * (@modelcontextprotocol/sdk, yaml, undici). Resultado: `npx fractascan-mcp`
  * roda o servidor stdio sem clonar o monorepo.
  */
 export default defineConfig({

@@ -1,7 +1,7 @@
 {
-  "name": "@fracta/cli",
+  "name": "fractascan",
   "version": "0.1.0",
-  "description": "Fracta command-line interface (fracta scan, fracta docs)",
+  "description": "Fracta — auditor de segurança + LGPD multi-agente e determinístico para SaaS (DAST + SAST, relatório A–F). CLI: fracta scan.",
   "license": "MIT",
   "author": "Anderson Gadelha",
   "homepage": "https://github.com/andersongadelhaadv-cmyk/fracta#readme",

@@ -2,7 +2,7 @@
 import { readdir, readFile, stat } from "fs/promises";
 import { join, relative } from "path";
 import { stableFindingId, SkippedCheck } from "@fracta/core";
-var IGNORE_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo"]);
+var IGNORE_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports"]);
 var LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i;
 var MS_IN_DAY = 864e5;
 var DocsAgent = class {

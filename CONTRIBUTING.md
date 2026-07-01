@@ -19,7 +19,7 @@ pnpm test
 Para rodar o CLI em modo dev:
 
 ```bash
-pnpm --filter @fracta/cli dev -- scan ./path/to/target
+pnpm --filter fractascan dev -- scan ./path/to/target
 ```
 
 ## Padrão de commits

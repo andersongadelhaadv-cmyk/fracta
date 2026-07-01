@@ -56,10 +56,10 @@ author's own SaaS portfolio (DoutorINSS, Veredicto, Tribux, IATech).
 
 ```bash
 # scan de um alvo declarado no targets.yaml (aponte para STAGING, nunca prod)
-npx @fracta/cli scan --config ./targets.yaml --target meu-saas --depth full
+npx fractascan scan --config ./targets.yaml --target meu-saas --depth full
 
 # ou instale global e use `fracta`:
-npm i -g @fracta/cli
+npm i -g fractascan
 fracta scan --config ./targets.yaml --target meu-saas
 ```
 
@@ -72,7 +72,7 @@ O `targets.yaml` declara o alvo (url de staging, `stack`, `repoPath` opcional pa
 ```json
 {
   "mcpServers": {
-    "fracta": { "command": "npx", "args": ["-y", "@fracta/mcp-server"] }
+    "fracta": { "command": "npx", "args": ["-y", "fractascan-mcp"] }
   }
 }
 ```
@@ -88,7 +88,7 @@ Aí peça no editor:
 git clone https://github.com/andersongadelhaadv-cmyk/fracta.git && cd fracta
 pnpm install && pnpm build
 cp configs/targets.yaml configs/targets.local.yaml   # aponte para staging
-pnpm --filter @fracta/cli exec fracta scan --config ./configs/targets.local.yaml --target exemplo-saas --depth full
+pnpm --filter fractascan exec fracta scan --config ./configs/targets.local.yaml --target exemplo-saas --depth full
 ```
 
 Reports land in `./fracta-reports/<slug>-<timestamp>.md` and `.json` — identical
@@ -183,8 +183,8 @@ severity, and graded `passed/failed` from the `failOn` list.
 | `@fracta/skill-prisma`      | Prisma-only: Studio exposure, P-code/stack-trace error leakage  |
 | `@fracta/skill-supabase`    | Supabase-only: REST table enumeration, public Storage buckets   |
 | `@fracta/reporter`          | Consolidated Markdown + JSON report (JSON ≡ MD) |
-| `@fracta/cli`               | `fracta` command-line entry point               |
-| `@fracta/mcp-server`        | MCP server exposing every scan tool             |
+| `fractascan` (npm)          | `fracta` command-line entry point               |
+| `fractascan-mcp` (npm)      | MCP server exposing every scan tool             |
 
 ## Configurando CI
 

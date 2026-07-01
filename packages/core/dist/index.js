@@ -35,6 +35,19 @@ var SkippedCheck = class extends Error {
   motivo;
 };
 
+// src/confidence.ts
+var FP_PRONE = /(\.(test|spec|stories)\.[cm]?[jt]sx?|[\\/](tests?|__tests__|fixtures?|__fixtures__|mocks?|__mocks__|examples?|samples?|stories|e2e|cypress|playwright)[\\/]|\.(example|sample|mock|fixture)\.|[\\/](demo|seed)s?[\\/]|\.d\.ts$)/i;
+function locationOf(f) {
+  return [f.title, f.evidence, f.endpoint].filter(Boolean).join(" ");
+}
+function applyConfidence(findings) {
+  return findings.map((f) => {
+    let confidence = f.confidence ?? "high";
+    if (confidence !== "low" && FP_PRONE.test(locationOf(f))) confidence = "low";
+    return confidence === f.confidence ? f : { ...f, confidence };
+  });
+}
+
 // src/http-client.ts
 var FractaHttpClient = class _FractaHttpClient {
   baseUrl;
@@ -44,7 +57,10 @@ var FractaHttpClient = class _FractaHttpClient {
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.baseHeaders = {
       "Content-Type": "application/json",
-      "User-Agent": "Fracta-Security-Scanner/0.1",
+      // UA honesto estilo bot (padrão Googlebot): identifica o Fracta + URL, mas
+      // sem a palavra "Scanner" que dispara regras ingênuas de WAF. Não resolve
+      // fingerprint TLS (JA3) de bot-protection avançada (ex.: Cloudflare em IP de datacenter).
+      "User-Agent": "Mozilla/5.0 (compatible; FractaBot/0.1; +https://fracta.pro)",
       ...baseHeaders
     };
     this.clientOptions = options;
@@ -261,14 +277,21 @@ var FractaOrchestrator = class {
         if (this.options.verbose) console.error(`[Fracta] Store.applyStatus falhou: ${String(err)}`);
       }
     }
+    findings = applyConfidence(findings);
     findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
     const summary = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+    const failSummary = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 };
     for (const f of findings) {
+      if (f.status === "suppressed") continue;
       summary.total++;
       summary[f.severity]++;
+      if (f.confidence !== "low") {
+        failSummary.total++;
+        failSummary[f.severity]++;
+      }
     }
     const finishedAt = /* @__PURE__ */ new Date();
-    const verdict = deriveVerdict(summary, this.options.failOn, health);
+    const verdict = deriveVerdict(failSummary, this.options.failOn, health);
     const passed = verdict === "passed";
     const targetHealth = health;
     let report = {
@@ -467,6 +490,7 @@ export {
   FractaOrchestrator,
   KNOWN_STACKS,
   SkippedCheck,
+  applyConfidence,
   checkTargetHealth,
   deriveHealthStatus,
   deriveVerdict,

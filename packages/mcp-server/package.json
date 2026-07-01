@@ -1,5 +1,5 @@
 {
-  "name": "@fracta/mcp-server",
+  "name": "fractascan-mcp",
   "version": "0.1.0",
   "description": "Model Context Protocol server exposing Fracta scan tools (passive_scan, scan_repo, …)",
   "license": "MIT",

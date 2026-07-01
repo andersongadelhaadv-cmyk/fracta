@@ -1,4 +1,10 @@
 type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
+/**
+ * Confiança do achado (camada de verificação). `high` = determinístico/inequívoco;
+ * `low` = heurístico/em arquivo propenso a falso-positivo (teste/fixture/exemplo).
+ * Só achado de confiança ≥ média derruba o build (failOn); baixa apenas avisa.
+ */
+type Confidence = 'high' | 'medium' | 'low';
 /** Status de um Finding entre execuções (ver regressão/supressão na Fase 2). */
 type FindingStatus = 'open' | 'suppressed' | 'regression';
 type AgentCategory = 'security' | 'docs' | 'code' | 'deps' | 'secrets' | 'infra' | 'compliance' | 'performance';
@@ -63,6 +69,8 @@ interface Finding {
     /** Camada de auditoria. Default = `category` quando o agente não distingue. */
     camada?: AgentCategory;
     severity: Severity;
+    /** Confiança (camada de verificação). Default `high`; downgrade determinístico p/ FP-prone. */
+    confidence?: Confidence;
     /** Estado entre execuções. Preenchido pelo store na Fase 2; default `open`. */
     status?: FindingStatus;
     title: string;
@@ -243,6 +251,14 @@ interface ReportEnricher {
 }
 
 /**
+ * Verifica e normaliza a confiança dos achados. Puro: mesma entrada → mesma saída.
+ * - Respeita a confiança já declarada pelo agente (ex.: heurística conservadora = low).
+ * - Sem confiança declarada → `high` (a maioria dos checks é determinística).
+ * - Rebaixa p/ `low` se a localização casar padrões de FP (teste/fixture/exemplo).
+ */
+declare function applyConfidence(findings: Finding[]): Finding[];
+
+/**
  * Opções de transporte do cliente. `dispatcher` é um undici Dispatcher/Agent
  * opcional (tipado como unknown para o core não depender de undici): o
  * `@fracta/web-scan` injeta um agent com `connect.lookup` validador de IP para
@@ -357,4 +373,4 @@ type CommandRunner = (command: string, args: string[], opts?: RunCommandOptions)
  */
 declare const runCommand: CommandRunner;
 
-export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpClientOptions, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };
+export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Confidence, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpClientOptions, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, applyConfidence, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };

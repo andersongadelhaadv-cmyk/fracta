@@ -1,4 +1,4 @@
-# @fracta/mcp-server
+# fractascan-mcp
 
 Servidor **MCP** (Model Context Protocol) do [Fracta](https://github.com/andersongadelhaadv-cmyk/fracta) — expõe o scanner de segurança + LGPD como ferramentas para o Claude Code, Cursor ou qualquer cliente MCP.
 
@@ -7,7 +7,7 @@ Servidor **MCP** (Model Context Protocol) do [Fracta](https://github.com/anderso
 ```json
 {
   "mcpServers": {
-    "fracta": { "command": "npx", "args": ["-y", "@fracta/mcp-server"] }
+    "fracta": { "command": "npx", "args": ["-y", "fractascan-mcp"] }
   }
 }
 ```
