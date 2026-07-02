@@ -142,7 +142,8 @@ ${f.evidence}
    */
   buildInconclusiveCallout(report) {
     const h = report.targetHealth;
-    const motivo = h.stagingResponding === false ? "o alvo (staging) n\xE3o respondeu \u2014 a camada DAST n\xE3o p\xF4de ser exercida." : h.repoAccessible === false ? "o reposit\xF3rio obrigat\xF3rio est\xE1 inacess\xEDvel \u2014 n\xE3o houve o que auditar." : "o alvo n\xE3o p\xF4de ser exercido nesta execu\xE7\xE3o.";
+    const comErro = report.resumo?.checksComErro ?? [];
+    const motivo = h.stagingResponding === false ? "o alvo (staging) n\xE3o respondeu \u2014 a camada DAST n\xE3o p\xF4de ser exercida." : h.repoAccessible === false ? "o reposit\xF3rio obrigat\xF3rio est\xE1 inacess\xEDvel \u2014 n\xE3o houve o que auditar." : comErro.length > 0 ? `${comErro.length} verifica\xE7\xE3o(\xF5es) falhou(aram) com erro (${comErro.join(", ")}) \u2014 essa(s) dimens\xE3o(\xF5es) N\xC3O foi(ram) medida(s).` : "o alvo n\xE3o p\xF4de ser exercido nesta execu\xE7\xE3o.";
     let md = `> \u26A0\uFE0F **Veredito INCONCLUSIVO:** ${motivo}
 `;
     md += `> **Aus\xEAncia de achados aqui N\xC3O significa "seguro"** \u2014 apenas que a auditoria n\xE3o rodou de ponta a ponta.

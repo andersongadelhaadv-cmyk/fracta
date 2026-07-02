@@ -2,7 +2,7 @@
 import { readFile } from 'fs/promises'
 import { parseArgs } from 'util'
 import { parse as parseYaml } from 'yaml'
-import { FractaOrchestrator } from '@fracta/core'
+import { FractaOrchestrator, assertUsableTarget } from '@fracta/core'
 import type { Target, ScanDepth, Severity } from '@fracta/core'
 import { AuthAgent } from '@fracta/agent-auth'
 import { HeadersAgent } from '@fracta/agent-headers'
@@ -43,7 +43,11 @@ async function loadTargets(configPath: string): Promise<Target[]> {
   const raw = await readFile(configPath, 'utf-8')
   const resolved = raw.replace(/\$\{([^}]+)\}/g, (_, key) => process.env[key] ?? '')
   const parsed = parseYaml(resolved) as TargetsFile
-  return Object.entries(parsed.targets).map(([name, t]) => ({ name, ...t }))
+  const targets = Object.entries(parsed.targets).map(([name, t]) => ({ name, ...t }))
+  // Erra cedo com mensagem clara se um target estiver inutilizável (ex.: `baseUrl:`
+  // trocado por `url:`) — nunca deixa virar crash cru + veredito verde enganoso (#26).
+  for (const t of targets) assertUsableTarget(t)
+  return targets
 }
 
 async function main(): Promise<void> {

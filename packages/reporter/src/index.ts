@@ -134,11 +134,14 @@ export class FractaReporter {
    */
   private buildInconclusiveCallout(report: AuditReport): string {
     const h = report.targetHealth
+    const comErro = report.resumo?.checksComErro ?? []
     const motivo = h.stagingResponding === false
       ? 'o alvo (staging) não respondeu — a camada DAST não pôde ser exercida.'
       : h.repoAccessible === false
         ? 'o repositório obrigatório está inacessível — não houve o que auditar.'
-        : 'o alvo não pôde ser exercido nesta execução.'
+        : comErro.length > 0
+          ? `${comErro.length} verificação(ões) falhou(aram) com erro (${comErro.join(', ')}) — essa(s) dimensão(ões) NÃO foi(ram) medida(s).`
+          : 'o alvo não pôde ser exercido nesta execução.'
     let md = `> ⚠️ **Veredito INCONCLUSIVO:** ${motivo}\n`
     md += `> **Ausência de achados aqui NÃO significa "seguro"** — apenas que a auditoria não rodou de ponta a ponta.\n`
     md += `> Garanta que o alvo está no ar e rode de novo.\n\n`

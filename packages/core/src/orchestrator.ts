@@ -14,19 +14,26 @@ const SEVERITY_ORDER: Record<Severity, number> = {
 }
 
 /**
- * Veredito honesto a partir do resumo + saúde do alvo (lógica pura, testável).
+ * Veredito honesto a partir do resumo + saúde do alvo + estado dos checks
+ * (lógica pura, testável).
  * - Achado de severidade `failOn` presente → `failed` (problema concreto vence).
  * - Senão, alvo `unreachable` → `inconclusive`: a camada testável (DAST) nunca
  *   exerceu o alvo, então "0 achados" NÃO é "seguro" (regra de honestidade).
+ * - Senão, algum check CRASHOU (status `error`) → `inconclusive`: aquela dimensão
+ *   não foi medida, então não pode conviver com "✅ PASSOU" no topo (#26 / 🧭-A).
+ *   Um check `skipped` (pulado por design, ex.: agente repo-only sem repoPath) NÃO
+ *   rebaixa — só o `error` (anomalia: tentou medir e quebrou).
  * - Senão → `passed`.
  */
 export function deriveVerdict(
   summary: Record<Severity, number>,
   failOn: Severity[],
   health: TargetHealth,
+  checks: CheckResult[] = [],
 ): Verdict {
   if (failOn.some(s => summary[s] > 0)) return 'failed'
   if (health.status === 'unreachable') return 'inconclusive'
+  if (checks.some(c => c.status === 'error')) return 'inconclusive'
   return 'passed'
 }
 
@@ -145,7 +152,7 @@ export class FractaOrchestrator {
     }
 
     const finishedAt = new Date()
-    const verdict = deriveVerdict(failSummary, this.options.failOn, health)
+    const verdict = deriveVerdict(failSummary, this.options.failOn, health, checks)
     const passed = verdict === 'passed'
 
     const targetHealth: TargetHealth = health

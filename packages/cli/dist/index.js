@@ -46,6 +46,9 @@ var FractaHttpClient = class _FractaHttpClient {
   baseHeaders;
   clientOptions;
   constructor(baseUrl, baseHeaders = {}, options = {}) {
+    if (typeof baseUrl !== "string" || baseUrl.trim() === "") {
+      throw new SkippedCheck("sem url v\xE1lida para este alvo \u2014 o check n\xE3o p\xF4de exercer a superf\xEDcie (defina `url:` no target)");
+    }
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.baseHeaders = {
       "Content-Type": "application/json",
@@ -114,6 +117,24 @@ var FractaHttpClient = class _FractaHttpClient {
     return { client, token };
   }
 };
+function assertUsableTarget(target) {
+  const name = target?.name ?? "(sem nome)";
+  const url = target?.url;
+  const repoPath = target?.repoPath;
+  const hasRepo = typeof repoPath === "string" && repoPath.trim().length > 0;
+  if (url === void 0 || url === null || typeof url === "string" && url.trim() === "") {
+    if (hasRepo) return;
+    throw new Error(
+      `Target "${name}" n\xE3o tem \`url\` nem \`repoPath\`. Defina uma \`url\` http(s) (o campo can\xF4nico \xE9 \`url:\`, n\xE3o \`baseUrl:\`) ou um \`repoPath\` para auditoria de reposit\xF3rio.`
+    );
+  }
+  if (!/^https?:\/\//i.test(url)) {
+    if (hasRepo) return;
+    throw new Error(
+      `Target "${name}" tem uma \`url\` inv\xE1lida ("${url}"): precisa come\xE7ar com http:// ou https://.`
+    );
+  }
+}
 async function checkTargetHealth(target) {
   const hasRepo = !!target.repoPath;
   const repoAccessible = hasRepo ? await isGitRepo(target.repoPath) : true;
@@ -192,9 +213,10 @@ var SEVERITY_ORDER = {
   low: 3,
   info: 4
 };
-function deriveVerdict(summary, failOn, health) {
+function deriveVerdict(summary, failOn, health, checks = []) {
   if (failOn.some((s) => summary[s] > 0)) return "failed";
   if (health.status === "unreachable") return "inconclusive";
+  if (checks.some((c) => c.status === "error")) return "inconclusive";
   return "passed";
 }
 var FractaOrchestrator = class {
@@ -273,7 +295,7 @@ var FractaOrchestrator = class {
       }
     }
     const finishedAt = /* @__PURE__ */ new Date();
-    const verdict = deriveVerdict(failSummary, this.options.failOn, health);
+    const verdict = deriveVerdict(failSummary, this.options.failOn, health, checks);
     const passed = verdict === "passed";
     const targetHealth = health;
     let report = {
@@ -2277,12 +2299,41 @@ var SecretsAgent = class {
       throw new SkippedCheck("sem repoPath \u2014 SecretsAgent precisa do reposit\xF3rio local");
     }
     const findings = [];
-    const leaks = await this.scan(repoPath, this.timeoutMs);
-    for (const leak of leaks) {
-      findings.push(this.toLeakFinding(scope, leak));
+    let gitleaksSkip;
+    try {
+      const leaks = await this.scan(repoPath, this.timeoutMs);
+      for (const leak of leaks) {
+        findings.push(this.toLeakFinding(scope, leak));
+      }
+    } catch (err) {
+      if (err instanceof SkippedCheck) {
+        gitleaksSkip = err;
+      } else {
+        throw err;
+      }
     }
     findings.push(...await this.hygieneFindings(scope, repoPath));
+    if (gitleaksSkip) {
+      if (findings.length === 0) throw gitleaksSkip;
+      findings.unshift(this.gitleaksSkipFinding(scope, gitleaksSkip.motivo));
+    }
     return findings;
+  }
+  /** Finding informativo (nunca reprova) de que o scan de segredos versionados não rodou. */
+  gitleaksSkipFinding(scope, motivo) {
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "gitleaks-not-run", location: "gitleaks" }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "info",
+      title: "gitleaks ausente: segredos versionados N\xC3O foram escaneados",
+      description: `N\xE3o foi poss\xEDvel escanear segredos versionados (${motivo}). As checagens de higiene abaixo rodaram normalmente, mas a AUS\xCANCIA de achado de segredo N\xC3O significa que o reposit\xF3rio est\xE1 livre de segredos \u2014 instale o gitleaks para a varredura completa.`,
+      evidence: motivo,
+      recommendation: "Instale o gitleaks (https://github.com/gitleaks/gitleaks) e rode o scan novamente para cobrir segredos versionados no hist\xF3rico Git.",
+      createdAt: /* @__PURE__ */ new Date()
+    };
   }
   /** Mapeia um achado do gitleaks → Finding, SEM jamais incluir o valor do segredo. */
   toLeakFinding(scope, leak) {
@@ -4003,7 +4054,8 @@ ${f.evidence}
    */
   buildInconclusiveCallout(report) {
     const h = report.targetHealth;
-    const motivo = h.stagingResponding === false ? "o alvo (staging) n\xE3o respondeu \u2014 a camada DAST n\xE3o p\xF4de ser exercida." : h.repoAccessible === false ? "o reposit\xF3rio obrigat\xF3rio est\xE1 inacess\xEDvel \u2014 n\xE3o houve o que auditar." : "o alvo n\xE3o p\xF4de ser exercido nesta execu\xE7\xE3o.";
+    const comErro = report.resumo?.checksComErro ?? [];
+    const motivo = h.stagingResponding === false ? "o alvo (staging) n\xE3o respondeu \u2014 a camada DAST n\xE3o p\xF4de ser exercida." : h.repoAccessible === false ? "o reposit\xF3rio obrigat\xF3rio est\xE1 inacess\xEDvel \u2014 n\xE3o houve o que auditar." : comErro.length > 0 ? `${comErro.length} verifica\xE7\xE3o(\xF5es) falhou(aram) com erro (${comErro.join(", ")}) \u2014 essa(s) dimens\xE3o(\xF5es) N\xC3O foi(ram) medida(s).` : "o alvo n\xE3o p\xF4de ser exercido nesta execu\xE7\xE3o.";
     let md = `> \u26A0\uFE0F **Veredito INCONCLUSIVO:** ${motivo}
 `;
     md += `> **Aus\xEAncia de achados aqui N\xC3O significa "seguro"** \u2014 apenas que a auditoria n\xE3o rodou de ponta a ponta.
@@ -4421,7 +4473,9 @@ async function loadTargets(configPath) {
   const raw = await readFile6(configPath, "utf-8");
   const resolved = raw.replace(/\$\{([^}]+)\}/g, (_, key) => process.env[key] ?? "");
   const parsed = parseYaml(resolved);
-  return Object.entries(parsed.targets).map(([name, t]) => ({ name, ...t }));
+  const targets = Object.entries(parsed.targets).map(([name, t]) => ({ name, ...t }));
+  for (const t of targets) assertUsableTarget(t);
+  return targets;
 }
 async function main() {
   console.log(BANNER);

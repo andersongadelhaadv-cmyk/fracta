@@ -54,6 +54,9 @@ var FractaHttpClient = class _FractaHttpClient {
   baseHeaders;
   clientOptions;
   constructor(baseUrl, baseHeaders = {}, options = {}) {
+    if (typeof baseUrl !== "string" || baseUrl.trim() === "") {
+      throw new SkippedCheck("sem url v\xE1lida para este alvo \u2014 o check n\xE3o p\xF4de exercer a superf\xEDcie (defina `url:` no target)");
+    }
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.baseHeaders = {
       "Content-Type": "application/json",
@@ -122,6 +125,26 @@ var FractaHttpClient = class _FractaHttpClient {
     return { client, token };
   }
 };
+
+// src/target-validation.ts
+function assertUsableTarget(target) {
+  const name = target?.name ?? "(sem nome)";
+  const url = target?.url;
+  const repoPath = target?.repoPath;
+  const hasRepo = typeof repoPath === "string" && repoPath.trim().length > 0;
+  if (url === void 0 || url === null || typeof url === "string" && url.trim() === "") {
+    if (hasRepo) return;
+    throw new Error(
+      `Target "${name}" n\xE3o tem \`url\` nem \`repoPath\`. Defina uma \`url\` http(s) (o campo can\xF4nico \xE9 \`url:\`, n\xE3o \`baseUrl:\`) ou um \`repoPath\` para auditoria de reposit\xF3rio.`
+    );
+  }
+  if (!/^https?:\/\//i.test(url)) {
+    if (hasRepo) return;
+    throw new Error(
+      `Target "${name}" tem uma \`url\` inv\xE1lida ("${url}"): precisa come\xE7ar com http:// ou https://.`
+    );
+  }
+}
 
 // src/orchestrator.ts
 import { randomUUID as randomUUID2 } from "crypto";
@@ -210,9 +233,10 @@ var SEVERITY_ORDER = {
   low: 3,
   info: 4
 };
-function deriveVerdict(summary, failOn, health) {
+function deriveVerdict(summary, failOn, health, checks = []) {
   if (failOn.some((s) => summary[s] > 0)) return "failed";
   if (health.status === "unreachable") return "inconclusive";
+  if (checks.some((c) => c.status === "error")) return "inconclusive";
   return "passed";
 }
 var FractaOrchestrator = class {
@@ -291,7 +315,7 @@ var FractaOrchestrator = class {
       }
     }
     const finishedAt = /* @__PURE__ */ new Date();
-    const verdict = deriveVerdict(failSummary, this.options.failOn, health);
+    const verdict = deriveVerdict(failSummary, this.options.failOn, health, checks);
     const passed = verdict === "passed";
     const targetHealth = health;
     let report = {
@@ -491,6 +515,7 @@ export {
   KNOWN_STACKS,
   SkippedCheck,
   applyConfidence,
+  assertUsableTarget,
   checkTargetHealth,
   deriveHealthStatus,
   deriveVerdict,

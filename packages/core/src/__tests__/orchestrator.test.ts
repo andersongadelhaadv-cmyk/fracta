@@ -241,6 +241,23 @@ describe('FractaOrchestrator', () => {
     expect(report.passed).toBe(false)
   })
 
+  it('verdict is inconclusive (não "passed") quando um check crasha com erro (#26)', async () => {
+    // Um agente carro-chefe que crasha (ex.: url ausente → TypeError) não pode
+    // conviver com "✅ PASSOU" no topo: a dimensão dele NÃO foi medida.
+    const crasher: SecurityAgent = {
+      name: 'HEADERS Agent', category: 'security', concurrency: 1, timeoutMs: 1_000,
+      run: async () => { throw new Error("Cannot read properties of undefined (reading 'replace')") },
+    }
+    const orch = makeOrch({ failOn: ['critical', 'high'] })
+    orch.registerAgents([crasher, makeAgent('B', [makeFinding('B', 'low')])])
+
+    const report = await orch.scan(target)
+
+    expect(report.resumo.checksComErro).toContain('HEADERS Agent')
+    expect(report.verdict).toBe('inconclusive')
+    expect(report.passed).toBe(false)
+  })
+
   it('verdict is passed when healthy and no failOn severity is hit', async () => {
     const orch = makeOrch({ failOn: ['critical', 'high'] })
     orch.registerAgent(makeAgent('A', [makeFinding('A', 'low')]))
