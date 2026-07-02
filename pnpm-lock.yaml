@@ -7,6 +7,11 @@ settings:
 overrides:
   hono: ^4.12.27
 
+patchedDependencies:
+  next@14.2.35:
+    hash: vp2zwircbwppog4qdqnjqabdkm
+    path: patches/next@14.2.35.patch
+
 importers:
 
   .:
@@ -43,7 +48,7 @@ importers:
         version: 4.0.3
       next:
         specifier: 14.2.35
-        version: 14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 14.2.35(patch_hash=vp2zwircbwppog4qdqnjqabdkm)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -6139,7 +6144,7 @@ snapshots:
 
   negotiator@1.0.0: {}
 
-  next@14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  next@14.2.35(patch_hash=vp2zwircbwppog4qdqnjqabdkm)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       '@next/env': 14.2.35
       '@swc/helpers': 0.5.5
