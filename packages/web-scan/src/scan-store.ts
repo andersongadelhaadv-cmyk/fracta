@@ -130,5 +130,20 @@ export class SqliteScanStore {
     return { events, recent, emails: this.countEmails(), scansPersisted, windowDays }
   }
 
+  /**
+   * Assinaturas de monitoramento (#4): e-mails capturados no relatório
+   * (`context = 'result:<shareId>'`) juntados à URL do scan — só quem tem um alvo
+   * concreto p/ re-escanear. Deduplicado por (email, shareId). Contextos sem alvo
+   * ('home', 'waitlist') ficam de fora. É o INPUT do resumo semanal por e-mail;
+   * o envio em si é gated (infra + consentimento LGPD + opt-out).
+   */
+  listSubscriptions(): Array<{ email: string; shareId: string; url: string }> {
+    return this.db.prepare(
+      `SELECT DISTINCT e.email AS email, s.share_id AS shareId, s.url AS url
+       FROM email e JOIN scan s ON e.context = 'result:' || s.share_id
+       ORDER BY e.email, s.share_id`,
+    ).all() as Array<{ email: string; shareId: string; url: string }>
+  }
+
   close(): void { this.db.close() }
 }
