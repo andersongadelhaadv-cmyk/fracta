@@ -12,9 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9
+      - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -54,9 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9
+      - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -89,9 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9
+      - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 20
