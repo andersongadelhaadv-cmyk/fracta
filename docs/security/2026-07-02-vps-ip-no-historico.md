@@ -6,7 +6,8 @@
 
 ## Contexto
 
-O IP e a topologia da VPS de deploy (`76.13.170.79`, path `/opt/apps`, alias `ssh hostinger`)
+O IP e a topologia da VPS de deploy (o IP público — **não reproduzido aqui**, é justamente
+o valor que o guard do #27 barra —, path `/opt/apps`, alias `ssh hostinger`)
 foram commitados em docs de um repositório **público**. Foram **removidos do tree atual** na
 issue #27 (commit `ba103d4`), com um guard de regressão (`packages/core/src/__tests__/repo-hygiene.test.ts`)
 que impede reintroduzi-los. Porém o valor **permanece no histórico Git** (commits `a0dcaeb`,
