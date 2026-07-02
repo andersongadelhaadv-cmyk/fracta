@@ -1,6 +1,6 @@
 # Prompt premium — Home fracta.pro (rodar em sessão nova, contexto limpo)
 
-> Cole o bloco abaixo numa sessão nova do Claude Code aberta em `c:\Users\ander_kxypaxu\Fracta`.
+> Cole o bloco abaixo numa sessão nova do Claude Code aberta na raiz do repositório Fracta.
 
 ---
 
@@ -51,7 +51,7 @@ O brainstorming já foi feito (a spec existe) — **não refaça**. Vá para:
 ## 5. Deploy em PRODUÇÃO (use o skill `padroniza-cicd`)
 - Padrão da frota: **build no GitHub Actions → imagem no GHCR → VPS só faz pull + restart** (a VPS nunca builda). Dockerfile do `apps/web` (Next standalone).
 - **nginx:** criar server block dedicado **`fracta.pro`** + cert **Let's Encrypt**, e **endurecer o `default_server` para retornar 444** — isso corrige a causa-raiz (hoje `fracta.pro` cai no default e serve a home do ADVOCUS com erro de CORS).
-- VPS compartilhada `76.13.170.79` (`ssh hostinger`, apps em `/opt/apps`). **Nunca** buildar Docker na VPS; **nunca** tocar em outros apps além do necessário pro vhost.
+- Deploy na VPS compartilhada da frota via o alias/segredos SSH já configurados no ambiente (host, caminhos e credenciais vêm dos GitHub Secrets — **não** hardcode IP/topologia neste repo público). **Nunca** buildar Docker na VPS; **nunca** tocar em outros apps além do necessário pro vhost.
 - Variáveis/segredos via ambiente; nada de credencial commitada (o CI tem gitleaks — mantenha verde).
 
 ## 6. Verificação antes de declarar pronto (skills `qa-frota` + `verify`)
