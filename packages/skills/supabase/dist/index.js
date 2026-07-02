@@ -28,7 +28,7 @@ var SupabaseSkill = class {
   async run(scope) {
     const findings = [];
     const { target } = scope;
-    if (!target.stack.includes("supabase")) return findings;
+    if (!target.stack?.includes("supabase")) return findings;
     const client = new FractaHttpClient(target.url);
     const ignore = target.ignore ?? [];
     await this.probeRestRoot(scope, client, findings, ignore);

@@ -28,6 +28,15 @@ describe('SupabaseSkill', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
 
+  it('não crasha em target sem stack (repo-only) — #34', async () => {
+    const findings = await new SupabaseSkill().run({
+      ...scope,
+      target: { name: 'repo-only', repoPath: '.' } as typeof scope.target,
+    })
+    expect(findings).toHaveLength(0)
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
   it('flags REST root accessible without apikey as medium', async () => {
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
       if (url.endsWith('/rest/v1/')) {

@@ -30,7 +30,7 @@ var PrismaSkill = class {
   async run(scope) {
     const findings = [];
     const { target } = scope;
-    if (!target.stack.includes("prisma")) return findings;
+    if (!target.stack?.includes("prisma")) return findings;
     const client = new FractaHttpClient(target.url);
     const ignore = target.ignore ?? [];
     await this.probeStudio(scope, client, findings, ignore);

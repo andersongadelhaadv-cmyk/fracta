@@ -53,7 +53,9 @@ export class StripeAgent implements SecurityAgent {
     const findings: Finding[] = []
     const { target } = scope
 
-    if (!target.stack.includes('stripe')) {
+    // Sem `stack` declarado (ex.: target repo-only) = tech não declarada → no-op
+    // gracioso, nunca crash (#34).
+    if (!target.stack?.includes('stripe')) {
       return findings
     }
 

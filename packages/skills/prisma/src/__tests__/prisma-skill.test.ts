@@ -28,6 +28,15 @@ describe('PrismaSkill', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
 
+  it('não crasha em target sem stack (repo-only) — #34', async () => {
+    const findings = await new PrismaSkill().run({
+      ...scope,
+      target: { name: 'repo-only', repoPath: '.' } as typeof scope.target,
+    })
+    expect(findings).toHaveLength(0)
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
   it('flags exposed Prisma Studio as critical', async () => {
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
       if (url.includes('/prisma-studio')) {

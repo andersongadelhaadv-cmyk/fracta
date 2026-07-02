@@ -28,6 +28,15 @@ describe('NestJSSkill', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
 
+  it('não crasha em target sem stack (repo-only) — #34', async () => {
+    const findings = await new NestJSSkill().run({
+      ...scope,
+      target: { name: 'repo-only', repoPath: '.' } as typeof scope.target,
+    })
+    expect(findings).toHaveLength(0)
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
   it('flags exposed Swagger UI as high', async () => {
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
       if (url.includes('/api/docs')) {
