@@ -230,13 +230,54 @@ describe('SecretsAgent', () => {
     }
   })
 
-  it('skips (not errors) when gitleaks binary is absent', async () => {
-    const enoent: GitleaksScanner = async () => {
-      throw new SkippedCheck('gitleaks não encontrado no PATH — não foi possível escanear segredos versionados')
-    }
-    const repo = await makeRepo({ '.gitignore': 'node_modules\n.env\n' })
+  // Scanner que simula o gitleaks AUSENTE do PATH (estado default no Windows/npx).
+  const gitleaksAbsent: GitleaksScanner = async () => {
+    throw new SkippedCheck('gitleaks não encontrado no PATH — não foi possível escanear segredos versionados')
+  }
+
+  it('AINDA roda a higiene (rede de segurança) quando o gitleaks está ausente (#25)', async () => {
+    // Pior caso e mais comum: dev sem gitleaks, repo com .env versionado SEM .gitignore.
+    // Antes do fix, o SkippedCheck do gitleaks abortava o run() e a higiene nunca rodava.
+    const repo = await makeRepo({
+      '.env': 'API_KEY=sk-ant-SUPER-SECRET-12345\nDB_URL=postgres://prod:pw@host/db\n',
+      '.env.example': 'API_KEY=\n',
+    })
     try {
-      await expect(new SecretsAgent(enoent).run(scopeFor(repo)))
+      const findings = await new SecretsAgent(gitleaksAbsent).run(scopeFor(repo))
+      const hygiene = findings.find(x => x.title.includes('sem .gitignore'))
+      expect(hygiene, 'a higiene deve rodar mesmo sem gitleaks').toBeDefined()
+      expect(hygiene!.severity).toBe('high')
+      // Não re-expõe o segredo do .env.
+      expect(serialize(findings)).not.toContain('sk-ant-SUPER-SECRET-12345')
+    } finally {
+      await rm(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('emite um finding INFO honesto de que o gitleaks não rodou (ausência ≠ seguro) (#25)', async () => {
+    const repo = await makeRepo({
+      '.env': 'API_KEY=x\n', // higiene tem algo a dizer
+      '.env.example': 'API_KEY=\n',
+    })
+    try {
+      const findings = await new SecretsAgent(gitleaksAbsent).run(scopeFor(repo))
+      const skipNote = findings.find(x => x.severity === 'info' && /gitleaks/i.test(x.title))
+      expect(skipNote, 'deve registrar que segredos versionados NÃO foram escaneados').toBeDefined()
+      expect(skipNote!.description.toLowerCase()).toContain('não')
+    } finally {
+      await rm(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('quando o gitleaks está ausente E a higiene está limpa, pula honestamente (preserva #8)', async () => {
+    // Nada a reportar: gitignore cobre .env, .env.example placeholder, sem .env versionado.
+    // Sem findings de higiene → mantém o SkippedCheck honesto (SECRETS aparece como "não rodou").
+    const repo = await makeRepo({
+      '.gitignore': 'node_modules\n.env\n.env.*\n',
+      '.env.example': 'API_KEY=\n',
+    })
+    try {
+      await expect(new SecretsAgent(gitleaksAbsent).run(scopeFor(repo)))
         .rejects.toBeInstanceOf(SkippedCheck)
     } finally {
       await rm(repo, { recursive: true, force: true })
