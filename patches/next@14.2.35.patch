@@ -1,0 +1,17 @@
+diff --git a/dist/compiled/@vercel/og/index.node.js b/dist/compiled/@vercel/og/index.node.js
+index a516f4fec131f1a103605bdab0bf1b03d0f8a053..11cec10e14acf09dc2c393c60a02b6e06aca0a2c 100644
+--- a/dist/compiled/@vercel/og/index.node.js
++++ b/dist/compiled/@vercel/og/index.node.js
+@@ -18985,9 +18985,9 @@ function assertValue(v, errorMessage) {
+ 
+ // src/index.node.ts
+ var satori = wl.default || wl;
+-var fontData = fs.readFileSync(fileURLToPath(join(import.meta.url, "../noto-sans-v27-latin-regular.ttf")));
+-var yoga_wasm = fs.readFileSync(fileURLToPath(join(import.meta.url, "../yoga.wasm")));
+-var resvg_wasm = fs.readFileSync(fileURLToPath(join(import.meta.url, "../resvg.wasm")));
++var fontData = fs.readFileSync(fileURLToPath(new URL("./noto-sans-v27-latin-regular.ttf", import.meta.url)));
++var yoga_wasm = fs.readFileSync(fileURLToPath(new URL("./yoga.wasm", import.meta.url)));
++var resvg_wasm = fs.readFileSync(fileURLToPath(new URL("./resvg.wasm", import.meta.url)));
+ var initializedResvg = initWasm(resvg_wasm);
+ var initializedYoga = initYoga(yoga_wasm).then((yoga2) => Rl(yoga2));
+ var ImageResponse = class extends Response {
