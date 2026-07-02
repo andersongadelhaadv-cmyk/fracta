@@ -182,6 +182,7 @@ export class FractaOrchestrator {
         regressoes: findings.filter(f => f.status === 'regression').length,
         checksComErro: checks.filter(c => c.status === 'error').map(c => c.agent),
         checksPulados: checks.filter(c => c.status === 'skipped').map(c => c.agent),
+        checksDegradados: checks.filter(c => c.status === 'skipped' && c.degraded).map(c => c.agent),
       },
     }
 
@@ -234,7 +235,7 @@ export class FractaOrchestrator {
     } catch (err) {
       const durationMs = Date.now() - start
       if (err instanceof SkippedCheck) {
-        return { agent: agent.name, camada, status: 'skipped', motivo: err.motivo, durationMs, findings: [] }
+        return { agent: agent.name, camada, status: 'skipped', motivo: err.motivo, degraded: err.degraded, durationMs, findings: [] }
       }
       const motivo = err instanceof Error ? err.message : String(err)
       if (this.options.verbose) console.error(`[Fracta] Check error (${agent.name}): ${motivo}`)
@@ -280,9 +281,14 @@ export class FractaOrchestrator {
   }
 
   private printSummary(report: AuditReport): void {
+    const degradados = report.resumo.checksDegradados ?? []
     const status = report.verdict === 'inconclusive'
       ? '⚠️ INCONCLUSIVE (alvo não exercido)'
-      : report.passed ? '✅ PASSED' : '❌ FAILED'
+      : report.passed
+        ? (degradados.length > 0
+          ? `✅ PASSED ⚠️ COM RESSALVAS (${degradados.length} check(s) crítico(s) não rodaram: ${degradados.join(', ')})`
+          : '✅ PASSED')
+        : '❌ FAILED'
     console.log(`\n[Fracta] ${report.target} — ${status}`)
     console.log(`  Critical: ${report.summary.critical}  High: ${report.summary.high}  Medium: ${report.summary.medium}  Low: ${report.summary.low}  Info: ${report.summary.info}`)
     if (report.resumo.checksComErro.length > 0) {

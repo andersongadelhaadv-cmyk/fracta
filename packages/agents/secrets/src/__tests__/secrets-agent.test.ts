@@ -279,6 +279,12 @@ describe('SecretsAgent', () => {
     try {
       await expect(new SecretsAgent(gitleaksAbsent).run(scopeFor(repo)))
         .rejects.toBeInstanceOf(SkippedCheck)
+      // O skip do gitleaks é DEGRADADO (capacidade faltando), não benigno: o topo
+      // do relatório deve virar "COM RESSALVAS", não um verde limpo (🧭-A).
+      await new SecretsAgent(gitleaksAbsent).run(scopeFor(repo)).catch((err: unknown) => {
+        expect(err).toBeInstanceOf(SkippedCheck)
+        expect((err as SkippedCheck).degraded).toBe(true)
+      })
     } finally {
       await rm(repo, { recursive: true, force: true })
     }

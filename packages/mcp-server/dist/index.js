@@ -25,12 +25,21 @@ function stableFindingId(parts) {
   return createHash("sha256").update(key).digest("hex").slice(0, 16);
 }
 var SkippedCheck = class extends Error {
-  constructor(motivo) {
+  /**
+   * @param motivo   por que o check não rodou.
+   * @param degraded `true` quando a checagem DEVERIA ter rodado mas uma capacidade
+   *   faltou (ex.: gitleaks ausente) → vira ressalva no topo do relatório (🧭-A).
+   *   `false` (default) = skip benigno/não-aplicável (ex.: agente repo-only sem
+   *   `repoPath`) → não rebaixa a headline.
+   */
+  constructor(motivo, degraded = false) {
     super(motivo);
     this.motivo = motivo;
+    this.degraded = degraded;
     this.name = "SkippedCheck";
   }
   motivo;
+  degraded;
 };
 var FP_PRONE = /(\.(test|spec|stories)\.[cm]?[jt]sx?|[\\/](tests?|__tests__|fixtures?|__fixtures__|mocks?|__mocks__|examples?|samples?|stories|e2e|cypress|playwright)[\\/]|\.(example|sample|mock|fixture)\.|[\\/](demo|seed)s?[\\/]|\.d\.ts$)/i;
 function locationOf(f) {
@@ -324,7 +333,8 @@ var FractaOrchestrator = class {
         },
         regressoes: findings.filter((f) => f.status === "regression").length,
         checksComErro: checks.filter((c) => c.status === "error").map((c) => c.agent),
-        checksPulados: checks.filter((c) => c.status === "skipped").map((c) => c.agent)
+        checksPulados: checks.filter((c) => c.status === "skipped").map((c) => c.agent),
+        checksDegradados: checks.filter((c) => c.status === "skipped" && c.degraded).map((c) => c.agent)
       }
     };
     if (this.enricher) {
@@ -370,7 +380,7 @@ var FractaOrchestrator = class {
     } catch (err) {
       const durationMs = Date.now() - start;
       if (err instanceof SkippedCheck) {
-        return { agent: agent.name, camada, status: "skipped", motivo: err.motivo, durationMs, findings: [] };
+        return { agent: agent.name, camada, status: "skipped", motivo: err.motivo, degraded: err.degraded, durationMs, findings: [] };
       }
       const motivo = err instanceof Error ? err.message : String(err);
       if (this.options.verbose) console.error(`[Fracta] Check error (${agent.name}): ${motivo}`);
@@ -410,7 +420,8 @@ var FractaOrchestrator = class {
     };
   }
   printSummary(report) {
-    const status = report.verdict === "inconclusive" ? "\u26A0\uFE0F INCONCLUSIVE (alvo n\xE3o exercido)" : report.passed ? "\u2705 PASSED" : "\u274C FAILED";
+    const degradados = report.resumo.checksDegradados ?? [];
+    const status = report.verdict === "inconclusive" ? "\u26A0\uFE0F INCONCLUSIVE (alvo n\xE3o exercido)" : report.passed ? degradados.length > 0 ? `\u2705 PASSED \u26A0\uFE0F COM RESSALVAS (${degradados.length} check(s) cr\xEDtico(s) n\xE3o rodaram: ${degradados.join(", ")})` : "\u2705 PASSED" : "\u274C FAILED";
     console.log(`
 [Fracta] ${report.target} \u2014 ${status}`);
     console.log(`  Critical: ${report.summary.critical}  High: ${report.summary.high}  Medium: ${report.summary.medium}  Low: ${report.summary.low}  Info: ${report.summary.info}`);
@@ -2809,7 +2820,7 @@ var SecretsAgent = class {
     }
     findings.push(...await this.hygieneFindings(scope, repoPath));
     if (gitleaksSkip) {
-      if (findings.length === 0) throw gitleaksSkip;
+      if (findings.length === 0) throw new SkippedCheck(gitleaksSkip.motivo, true);
       findings.unshift(this.gitleaksSkipFinding(scope, gitleaksSkip.motivo));
     }
     return findings;
@@ -4439,7 +4450,9 @@ var FractaReporter = class {
     const dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR");
     const durationSec = (report.durationMs / 1e3).toFixed(1);
     const inconclusive = isAuditReport(report) && report.verdict === "inconclusive";
-    const status = inconclusive ? "\u26A0\uFE0F INCONCLUSIVO" : report.passed ? "\u2705 PASSOU" : "\u274C FALHOU";
+    const degradados = isAuditReport(report) ? report.resumo?.checksDegradados ?? [] : [];
+    const comRessalvas = report.passed && degradados.length > 0;
+    const status = inconclusive ? "\u26A0\uFE0F INCONCLUSIVO" : report.passed ? comRessalvas ? "\u2705 PASSOU \u26A0\uFE0F COM RESSALVAS" : "\u2705 PASSOU" : "\u274C FALHOU";
     const severities = ["critical", "high", "medium", "low", "info"];
     const grouped = /* @__PURE__ */ new Map();
     for (const s of severities) grouped.set(s, []);
@@ -4463,6 +4476,14 @@ var FractaReporter = class {
 `;
     if (inconclusive) {
       md += this.buildInconclusiveCallout(report);
+    } else if (comRessalvas) {
+      md += `> \u2705 **PASSOU \u2014 COM RESSALVAS.** ${degradados.length} verifica\xE7\xE3o(\xF5es) cr\xEDtica(s) N\xC3O rodou(aram): `;
+      md += `**${degradados.join(", ")}**.
+`;
+      md += `> A **aus\xEAncia de achado nesses checks N\xC3O significa "seguro"** \u2014 apenas que n\xE3o foram executados `;
+      md += `(ex.: depend\xEAncia faltando, como o gitleaks). Instale/habilite a capacidade e rode de novo.
+
+`;
     }
     md += `## \u{1F4CA} Resumo
 

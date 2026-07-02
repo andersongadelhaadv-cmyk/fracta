@@ -258,6 +258,29 @@ describe('FractaOrchestrator', () => {
     expect(report.passed).toBe(false)
   })
 
+  it('separa skip DEGRADADO (capacidade faltando) de skip benigno (não aplicável) (🧭-A)', async () => {
+    // Degradado: a checagem DEVERIA rodar mas uma dependência faltou (ex.: gitleaks).
+    const degraded: SecurityAgent = {
+      name: 'SECRETS Agent', category: 'secrets', concurrency: 1, timeoutMs: 1_000,
+      run: async () => { throw new SkippedCheck('gitleaks ausente', true) },
+    }
+    // Benigno: não aplicável a este alvo (ex.: agente repo-only sem repoPath).
+    const benign: SecurityAgent = {
+      name: 'STRIPE Agent', category: 'security', concurrency: 1, timeoutMs: 1_000,
+      run: async () => { throw new SkippedCheck('sem stack stripe') },
+    }
+    const orch = makeOrch({ concurrency: 2, failOn: ['critical', 'high'] })
+    orch.registerAgents([degraded, benign, makeAgent('B', [makeFinding('B', 'low')])])
+
+    const report = await orch.scan(target)
+
+    expect(report.resumo.checksDegradados).toContain('SECRETS Agent')
+    expect(report.resumo.checksDegradados).not.toContain('STRIPE Agent') // benigno não conta
+    expect(report.resumo.checksPulados).toContain('STRIPE Agent') // mas segue listado como pulado
+    // Ainda "passed" (skip não flipa exit code — só a marca no topo muda no reporter).
+    expect(report.verdict).toBe('passed')
+  })
+
   it('verdict is passed when healthy and no failOn severity is hit', async () => {
     const orch = makeOrch({ failOn: ['critical', 'high'] })
     orch.registerAgent(makeAgent('A', [makeFinding('A', 'low')]))

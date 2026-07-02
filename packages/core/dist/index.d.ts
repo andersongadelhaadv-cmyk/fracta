@@ -164,7 +164,15 @@ declare function stableFindingId(parts: {
  */
 declare class SkippedCheck extends Error {
     readonly motivo: string;
-    constructor(motivo: string);
+    readonly degraded: boolean;
+    /**
+     * @param motivo   por que o check não rodou.
+     * @param degraded `true` quando a checagem DEVERIA ter rodado mas uma capacidade
+     *   faltou (ex.: gitleaks ausente) → vira ressalva no topo do relatório (🧭-A).
+     *   `false` (default) = skip benigno/não-aplicável (ex.: agente repo-only sem
+     *   `repoPath`) → não rebaixa a headline.
+     */
+    constructor(motivo: string, degraded?: boolean);
 }
 type CheckStatus = 'ok' | 'error' | 'skipped';
 /** Resultado isolado de UM agente. Um check nunca derruba os outros (regra 4). */
@@ -174,6 +182,8 @@ interface CheckResult {
     status: CheckStatus;
     /** Motivo quando status é `error` ou `skipped`. */
     motivo?: string;
+    /** `true` num skip DEGRADADO (capacidade faltando, não "não-aplicável"). Ver SkippedCheck. */
+    degraded?: boolean;
     durationMs: number;
     findings: Finding[];
 }
@@ -237,6 +247,8 @@ interface AuditReport extends ScanReport {
         regressoes: number;
         checksComErro: string[];
         checksPulados: string[];
+        /** Subconjunto de `checksPulados` que degradou (capacidade faltando) → ressalva no topo (🧭-A). */
+        checksDegradados?: string[];
     };
     /** Preenchido pela borda LLM, se habilitada (opcional). */
     prioritization?: Prioritization;

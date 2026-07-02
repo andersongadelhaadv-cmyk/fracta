@@ -32,7 +32,9 @@ var FractaReporter = class {
     const dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR");
     const durationSec = (report.durationMs / 1e3).toFixed(1);
     const inconclusive = isAuditReport(report) && report.verdict === "inconclusive";
-    const status = inconclusive ? "\u26A0\uFE0F INCONCLUSIVO" : report.passed ? "\u2705 PASSOU" : "\u274C FALHOU";
+    const degradados = isAuditReport(report) ? report.resumo?.checksDegradados ?? [] : [];
+    const comRessalvas = report.passed && degradados.length > 0;
+    const status = inconclusive ? "\u26A0\uFE0F INCONCLUSIVO" : report.passed ? comRessalvas ? "\u2705 PASSOU \u26A0\uFE0F COM RESSALVAS" : "\u2705 PASSOU" : "\u274C FALHOU";
     const severities = ["critical", "high", "medium", "low", "info"];
     const grouped = /* @__PURE__ */ new Map();
     for (const s of severities) grouped.set(s, []);
@@ -56,6 +58,14 @@ var FractaReporter = class {
 `;
     if (inconclusive) {
       md += this.buildInconclusiveCallout(report);
+    } else if (comRessalvas) {
+      md += `> \u2705 **PASSOU \u2014 COM RESSALVAS.** ${degradados.length} verifica\xE7\xE3o(\xF5es) cr\xEDtica(s) N\xC3O rodou(aram): `;
+      md += `**${degradados.join(", ")}**.
+`;
+      md += `> A **aus\xEAncia de achado nesses checks N\xC3O significa "seguro"** \u2014 apenas que n\xE3o foram executados `;
+      md += `(ex.: depend\xEAncia faltando, como o gitleaks). Instale/habilite a capacidade e rode de novo.
+
+`;
     }
     md += `## \u{1F4CA} Resumo
 
