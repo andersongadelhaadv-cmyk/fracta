@@ -89,4 +89,24 @@ describe('SqliteScanStore', () => {
     s.bump('scan', { now: () => Date.parse('2026-07-02T00:00:00Z') })
     expect(s.metricsSummary().events.scan).toBe(2)
   })
+
+  // listSubscriptions: o input do resumo semanal (#4). Junta e-mails capturados no
+  // relatório (context = 'result:<shareId>') à URL do scan — só quem tem alvo p/ monitorar.
+  it('listSubscriptions junta e-mail→shareId→url e ignora contextos sem alvo', () => {
+    const s = new SqliteScanStore(':memory:')
+    s.save(result('https://a.example'), { genId: () => 's1' })
+    s.saveEmail('u@x.com', 'result:s1')
+    s.saveEmail('h@x.com', 'home')          // sem URL → excluído
+    s.saveEmail('w@x.com', 'result:none')   // shareId inexistente → excluído
+    const subs = s.listSubscriptions()
+    expect(subs).toEqual([{ email: 'u@x.com', shareId: 's1', url: 'https://a.example' }])
+  })
+
+  it('listSubscriptions deduplica o mesmo (email, alvo) repetido', () => {
+    const s = new SqliteScanStore(':memory:')
+    s.save(result('https://a.example'), { genId: () => 's1' })
+    s.saveEmail('u@x.com', 'result:s1')
+    s.saveEmail('u@x.com', 'result:s1')
+    expect(s.listSubscriptions()).toHaveLength(1)
+  })
 })
