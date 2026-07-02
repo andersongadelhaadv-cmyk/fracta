@@ -8,7 +8,8 @@ import { parsePrismaModels, buildInventory, detectOperators, type InventoryEntry
 
 // __tests__ = fixtures deliberadamente vulneráveis (não é superfície de produção);
 // fracta-reports = saída do próprio scanner (escanear o próprio relatório é ruído).
-const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports'])
+// .worktrees/.claude = git worktrees (Claude Code): re-escanear duplica achados (#40).
+const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports', '.worktrees', '.claude'])
 
 // Extensões de texto que vale a pena escanear (código + config). Binários são ignorados.
 const TEXT_EXT = new Set([
