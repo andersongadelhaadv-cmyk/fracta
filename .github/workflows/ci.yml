@@ -78,3 +78,37 @@ jobs:
           name: fracta-dogfood-report
           path: fracta-reports/
           if-no-files-found: ignore
+
+  # Node 20 smoke (NÃO é matriz de teste: `@fracta/store` usa node:sqlite,
+  # builtin só em Node >= 22.5 — em Node 20 os testes do store falham POR DESIGN).
+  # Aqui provamos, por EXECUÇÃO, a DEGRADAÇÃO GRACIOSA: o CLI funciona em Node 20
+  # sem estado. `--help` sai 0; o scan (sem --no-state) tenta abrir o store, cai no
+  # caminho "Estado indisponível" e SEGUE (detecção intacta), saindo 0.
+  node20-smoke:
+    name: Node 20 smoke (graceful degradation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run build --filter=fractascan
+      - name: Smoke — fracta --help sai 0
+        run: node packages/cli/dist/index.js --help
+      - name: Smoke — scan degrada estado (node:sqlite ausente) e segue exit 0
+        run: |
+          set -o pipefail
+          node packages/cli/dist/index.js scan \
+            --target fracta-self \
+            --config configs/self.yaml \
+            --fail-on critical,high \
+            --output ./fracta-reports 2>&1 | tee scan.log
+          grep -q "Estado entre runs indisponível" scan.log || {
+            echo "::error::Esperava a degradação graciosa de estado em Node 20 (node:sqlite ausente), mas o aviso não apareceu — o store rodou onde não deveria."
+            exit 1
+          }
