@@ -286,13 +286,31 @@ declare class FractaHttpClient {
 }
 
 /**
- * Veredito honesto a partir do resumo + saúde do alvo (lógica pura, testável).
+ * Valida que um Target é utilizável ANTES de rodar qualquer agente. Erra cedo
+ * com mensagem clara — nunca deixa um campo trocado virar crash cru + veredito
+ * verde enganoso (#26). Um target é utilizável se tiver:
+ *  - uma `url` http(s) válida (para os agentes DAST/vivos), OU
+ *  - um `repoPath` (para os agentes SAST/repo-only).
+ *
+ * O caso clássico: `targets.yaml` com `baseUrl:` em vez de `url:` — `url` vem
+ * `undefined` e os 4 agentes que instanciam o HTTP client crashavam com
+ * "Cannot read properties of undefined (reading 'replace')" sob um "✅ PASSOU".
+ */
+declare function assertUsableTarget(target: Target): void;
+
+/**
+ * Veredito honesto a partir do resumo + saúde do alvo + estado dos checks
+ * (lógica pura, testável).
  * - Achado de severidade `failOn` presente → `failed` (problema concreto vence).
  * - Senão, alvo `unreachable` → `inconclusive`: a camada testável (DAST) nunca
  *   exerceu o alvo, então "0 achados" NÃO é "seguro" (regra de honestidade).
+ * - Senão, algum check CRASHOU (status `error`) → `inconclusive`: aquela dimensão
+ *   não foi medida, então não pode conviver com "✅ PASSOU" no topo (#26 / 🧭-A).
+ *   Um check `skipped` (pulado por design, ex.: agente repo-only sem repoPath) NÃO
+ *   rebaixa — só o `error` (anomalia: tentou medir e quebrou).
  * - Senão → `passed`.
  */
-declare function deriveVerdict(summary: Record<Severity, number>, failOn: Severity[], health: TargetHealth): Verdict;
+declare function deriveVerdict(summary: Record<Severity, number>, failOn: Severity[], health: TargetHealth, checks?: CheckResult[]): Verdict;
 interface OrchestratorOptions {
     concurrency?: number;
     failOn?: Severity[];
@@ -373,4 +391,4 @@ type CommandRunner = (command: string, args: string[], opts?: RunCommandOptions)
  */
 declare const runCommand: CommandRunner;
 
-export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Confidence, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpClientOptions, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, applyConfidence, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };
+export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Confidence, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpClientOptions, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, applyConfidence, assertUsableTarget, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };

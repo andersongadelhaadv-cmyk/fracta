@@ -4,7 +4,7 @@ import { parse as parseYaml } from 'yaml'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
-import { FractaOrchestrator } from '@fracta/core'
+import { FractaOrchestrator, assertUsableTarget } from '@fracta/core'
 import type { Target, ScanReport, ScanDepth, TargetHealth } from '@fracta/core'
 import { PassiveScanner } from '@fracta/web-scan'
 import { AuthAgent } from '@fracta/agent-auth'
@@ -80,7 +80,11 @@ async function loadTargets(): Promise<Target[]> {
   const raw = await readFile(TARGETS_CONFIG, 'utf-8')
   const resolved = raw.replace(/\$\{([^}]+)\}/g, (_, key) => process.env[key] ?? '')
   const parsed = parseYaml(resolved) as { targets: Record<string, Omit<Target, 'name'>> }
-  return Object.entries(parsed.targets).map(([name, t]) => ({ name, ...t }))
+  const targets = Object.entries(parsed.targets).map(([name, t]) => ({ name, ...t }))
+  // Valida cedo (mesma regra do CLI): um target sem `url`/`repoPath` utilizável
+  // erra com mensagem clara em vez de crashar os agentes com veredito verde (#26).
+  for (const t of targets) assertUsableTarget(t)
+  return targets
 }
 
 function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {

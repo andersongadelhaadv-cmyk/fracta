@@ -1,4 +1,5 @@
 import type { HttpResponse, RequestOptions } from './types.js'
+import { SkippedCheck } from './types.js'
 
 /**
  * Opções de transporte do cliente. `dispatcher` é um undici Dispatcher/Agent
@@ -18,6 +19,12 @@ export class FractaHttpClient {
   private readonly clientOptions: HttpClientOptions
 
   constructor(baseUrl: string, baseHeaders: Record<string, string> = {}, options: HttpClientOptions = {}) {
+    // url ausente/vazia (ex.: target com `baseUrl:` no lugar de `url:`) NÃO pode
+    // virar "Cannot read properties of undefined (reading 'replace')": vira um
+    // SkippedCheck honesto → o orquestrador marca o check como "não rodou" (#26).
+    if (typeof baseUrl !== 'string' || baseUrl.trim() === '') {
+      throw new SkippedCheck('sem url válida para este alvo — o check não pôde exercer a superfície (defina `url:` no target)')
+    }
     this.baseUrl = baseUrl.replace(/\/$/, '')
     this.baseHeaders = {
       'Content-Type': 'application/json',
