@@ -170,14 +170,54 @@ export class SecretsAgent implements SecurityAgent {
 
     const findings: Finding[] = []
 
-    const leaks = await this.scan(repoPath, this.timeoutMs)
-    for (const leak of leaks) {
-      findings.push(this.toLeakFinding(scope, leak))
+    // O scan gitleaks (segredos versionados) é apenas UMA parte deste agente. As
+    // checagens de higiene (.env sem .gitignore etc.) NÃO dependem do gitleaks e
+    // precisam rodar mesmo quando o binário está ausente — o cenário default no
+    // Windows/npx (#25). Capturamos o SkippedCheck do gitleaks, seguimos com a
+    // higiene, e só re-propagamos o skip se não houver NADA a reportar (preserva
+    // o sinal honesto de "SECRETS não rodou" do #8).
+    let gitleaksSkip: SkippedCheck | undefined
+    try {
+      const leaks = await this.scan(repoPath, this.timeoutMs)
+      for (const leak of leaks) {
+        findings.push(this.toLeakFinding(scope, leak))
+      }
+    } catch (err) {
+      if (err instanceof SkippedCheck) {
+        gitleaksSkip = err
+      } else {
+        throw err // erro real de execução → status: error (visível, não falso "seguro")
+      }
     }
 
     findings.push(...await this.hygieneFindings(scope, repoPath))
 
+    if (gitleaksSkip) {
+      // Nada de higiene E gitleaks pulado → honestamente "não rodou" (não inventa verde).
+      if (findings.length === 0) throw gitleaksSkip
+      // Há achados de higiene: entrega a rede de segurança, mas registra em INFO que
+      // os segredos VERSIONADOS não foram escaneados — ausência de achado ≠ seguro.
+      findings.unshift(this.gitleaksSkipFinding(scope, gitleaksSkip.motivo))
+    }
+
     return findings
+  }
+
+  /** Finding informativo (nunca reprova) de que o scan de segredos versionados não rodou. */
+  private gitleaksSkipFinding(scope: ScanScope, motivo: string): Finding {
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: 'gitleaks-not-run', location: 'gitleaks' }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'info',
+      title: 'gitleaks ausente: segredos versionados NÃO foram escaneados',
+      description: `Não foi possível escanear segredos versionados (${motivo}). As checagens de higiene abaixo rodaram normalmente, mas a AUSÊNCIA de achado de segredo NÃO significa que o repositório está livre de segredos — instale o gitleaks para a varredura completa.`,
+      evidence: motivo,
+      recommendation: 'Instale o gitleaks (https://github.com/gitleaks/gitleaks) e rode o scan novamente para cobrir segredos versionados no histórico Git.',
+      createdAt: new Date(),
+    }
   }
 
   /** Mapeia um achado do gitleaks → Finding, SEM jamais incluir o valor do segredo. */
