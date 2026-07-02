@@ -1,0 +1,11 @@
+# Fracta — dogfood target (auto-varredura).
+# O Fracta escaneia o PRÓPRIO repositório: os agentes baseados em repo
+# (STACK/SECRETS/DEPENDENCIES/COMPLIANCE/DOCS) rodam sobre este código.
+# Sem `url:` → os agentes de rede (HEADERS/AUTH/IDOR/...) ficam `skipped`
+# (por design de um alvo repo-only), nunca falso "seguro".
+#
+# Usado pelo job `dogfood-self` do CI (.github/workflows/ci.yml) e para
+# dogfood local: `fracta scan --target fracta-self --config configs/self.yaml`.
+targets:
+  fracta-self:
+    repoPath: "."

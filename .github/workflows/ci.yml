@@ -42,3 +42,39 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Dogfood: o Fracta roda o scan COMPLETO no próprio repo (alvo repo-only em
+  # configs/self.yaml). Falha o CI se a ferramenta reportar critical/high de
+  # confiança alta na própria base — a régua vale para nós primeiro. Build só do
+  # CLI (turbo --filter) p/ não depender do build do @fracta/web. --no-state:
+  # determinístico, sem regressão/db entre runs. Invoca o dist via `node` (robusto,
+  # sem depender de shim de bin).
+  dogfood-self:
+    name: Dogfood (fracta scan self)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run build --filter=fractascan
+      - name: Run Fracta scan on itself
+        run: |
+          node packages/cli/dist/index.js scan \
+            --target fracta-self \
+            --config configs/self.yaml \
+            --no-state \
+            --fail-on critical,high \
+            --output ./fracta-reports
+      - name: Upload dogfood report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fracta-dogfood-report
+          path: fracta-reports/
+          if-no-files-found: ignore
