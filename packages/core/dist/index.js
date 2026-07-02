@@ -27,12 +27,21 @@ function stableFindingId(parts) {
   return createHash("sha256").update(key).digest("hex").slice(0, 16);
 }
 var SkippedCheck = class extends Error {
-  constructor(motivo) {
+  /**
+   * @param motivo   por que o check não rodou.
+   * @param degraded `true` quando a checagem DEVERIA ter rodado mas uma capacidade
+   *   faltou (ex.: gitleaks ausente) → vira ressalva no topo do relatório (🧭-A).
+   *   `false` (default) = skip benigno/não-aplicável (ex.: agente repo-only sem
+   *   `repoPath`) → não rebaixa a headline.
+   */
+  constructor(motivo, degraded = false) {
     super(motivo);
     this.motivo = motivo;
+    this.degraded = degraded;
     this.name = "SkippedCheck";
   }
   motivo;
+  degraded;
 };
 
 // src/confidence.ts
@@ -342,7 +351,8 @@ var FractaOrchestrator = class {
         },
         regressoes: findings.filter((f) => f.status === "regression").length,
         checksComErro: checks.filter((c) => c.status === "error").map((c) => c.agent),
-        checksPulados: checks.filter((c) => c.status === "skipped").map((c) => c.agent)
+        checksPulados: checks.filter((c) => c.status === "skipped").map((c) => c.agent),
+        checksDegradados: checks.filter((c) => c.status === "skipped" && c.degraded).map((c) => c.agent)
       }
     };
     if (this.enricher) {
@@ -388,7 +398,7 @@ var FractaOrchestrator = class {
     } catch (err) {
       const durationMs = Date.now() - start;
       if (err instanceof SkippedCheck) {
-        return { agent: agent.name, camada, status: "skipped", motivo: err.motivo, durationMs, findings: [] };
+        return { agent: agent.name, camada, status: "skipped", motivo: err.motivo, degraded: err.degraded, durationMs, findings: [] };
       }
       const motivo = err instanceof Error ? err.message : String(err);
       if (this.options.verbose) console.error(`[Fracta] Check error (${agent.name}): ${motivo}`);
@@ -428,7 +438,8 @@ var FractaOrchestrator = class {
     };
   }
   printSummary(report) {
-    const status = report.verdict === "inconclusive" ? "\u26A0\uFE0F INCONCLUSIVE (alvo n\xE3o exercido)" : report.passed ? "\u2705 PASSED" : "\u274C FAILED";
+    const degradados = report.resumo.checksDegradados ?? [];
+    const status = report.verdict === "inconclusive" ? "\u26A0\uFE0F INCONCLUSIVE (alvo n\xE3o exercido)" : report.passed ? degradados.length > 0 ? `\u2705 PASSED \u26A0\uFE0F COM RESSALVAS (${degradados.length} check(s) cr\xEDtico(s) n\xE3o rodaram: ${degradados.join(", ")})` : "\u2705 PASSED" : "\u274C FAILED";
     console.log(`
 [Fracta] ${report.target} \u2014 ${status}`);
     console.log(`  Critical: ${report.summary.critical}  High: ${report.summary.high}  Medium: ${report.summary.medium}  Low: ${report.summary.low}  Info: ${report.summary.info}`);

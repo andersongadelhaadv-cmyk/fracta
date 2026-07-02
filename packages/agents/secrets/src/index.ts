@@ -194,7 +194,9 @@ export class SecretsAgent implements SecurityAgent {
 
     if (gitleaksSkip) {
       // Nada de higiene E gitleaks pulado → honestamente "não rodou" (não inventa verde).
-      if (findings.length === 0) throw gitleaksSkip
+      // Marca como DEGRADADO (capacidade faltando, não "não-aplicável") para o topo do
+      // relatório virar "COM RESSALVAS", nunca um verde limpo (🧭-A).
+      if (findings.length === 0) throw new SkippedCheck(gitleaksSkip.motivo, true)
       // Há achados de higiene: entrega a rede de segurança, mas registra em INFO que
       // os segredos VERSIONADOS não foram escaneados — ausência de achado ≠ seguro.
       findings.unshift(this.gitleaksSkipFinding(scope, gitleaksSkip.motivo))

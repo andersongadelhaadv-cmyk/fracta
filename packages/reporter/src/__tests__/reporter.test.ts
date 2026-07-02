@@ -141,6 +141,42 @@ describe('FractaReporter — Fase 7 (relatório consolidado)', () => {
     expect(md).toMatch(/inacess|inconclus|não respond|fora do ar/i)
   })
 
+  it('marca "PASSOU COM RESSALVAS" quando passou mas um check crítico não rodou (🧭-A)', async () => {
+    const report = baseReport(
+      [finding({ id: 'a', title: 'nota info', severity: 'info' })],
+      {
+        passed: true,
+        verdict: 'passed',
+        resumo: {
+          porSeveridade: { critical: 0, high: 0, medium: 0, low: 0, info: 1 },
+          regressoes: 0,
+          checksComErro: [],
+          checksPulados: ['SECRETS Agent'],
+          checksDegradados: ['SECRETS Agent'],
+        },
+        checks: [
+          { agent: 'SECRETS Agent', camada: 'secrets', status: 'skipped', motivo: 'gitleaks ausente', degraded: true, durationMs: 1, findings: [] },
+        ],
+      },
+    )
+    const { md } = await render(report)
+    expect(md).toMatch(/RESSALVAS/i)
+    // Nunca um "✅ PASSOU" limpo quando um check crítico não rodou.
+    expect(md).not.toMatch(/Status \| ✅ PASSOU \|/)
+    // Explica qual check não rodou.
+    expect(md).toContain('SECRETS Agent')
+  })
+
+  it('mantém "✅ PASSOU" limpo quando passou e nenhum check degradou', async () => {
+    const report = baseReport(
+      [finding({ id: 'a', title: 'nota info', severity: 'info' })],
+      { passed: true, verdict: 'passed' },
+    )
+    const { md } = await render(report)
+    expect(md).toMatch(/✅ PASSOU/)
+    expect(md).not.toMatch(/RESSALVAS/i)
+  })
+
   it('JSON ≡ MD: tudo que o JSON carrega aparece no Markdown', async () => {
     const report = baseReport(
       [

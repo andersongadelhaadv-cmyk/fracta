@@ -51,9 +51,13 @@ export class FractaReporter {
     const dateStr = date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR')
     const durationSec = (report.durationMs / 1000).toFixed(1)
     const inconclusive = isAuditReport(report) && report.verdict === 'inconclusive'
+    const degradados = isAuditReport(report) ? (report.resumo?.checksDegradados ?? []) : []
+    const comRessalvas = report.passed && degradados.length > 0
     const status = inconclusive
       ? '⚠️ INCONCLUSIVO'
-      : report.passed ? '✅ PASSOU' : '❌ FALHOU'
+      : report.passed
+        ? (comRessalvas ? '✅ PASSOU ⚠️ COM RESSALVAS' : '✅ PASSOU')
+        : '❌ FALHOU'
 
     const severities: Severity[] = ['critical', 'high', 'medium', 'low', 'info']
     const grouped = new Map<Severity, Finding[]>()
@@ -71,6 +75,11 @@ export class FractaReporter {
 
     if (inconclusive) {
       md += this.buildInconclusiveCallout(report as AuditReport)
+    } else if (comRessalvas) {
+      md += `> ✅ **PASSOU — COM RESSALVAS.** ${degradados.length} verificação(ões) crítica(s) NÃO rodou(aram): `
+      md += `**${degradados.join(', ')}**.\n`
+      md += `> A **ausência de achado nesses checks NÃO significa "seguro"** — apenas que não foram executados `
+      md += `(ex.: dependência faltando, como o gitleaks). Instale/habilite a capacidade e rode de novo.\n\n`
     }
 
     md += `## 📊 Resumo\n\n`
