@@ -1,98 +1,98 @@
 {
   "fracta.pro": {
     "grade": "A",
-    "score": 100,
-    "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:49.691Z"
-  },
-  "advocus.com.br": {
-    "grade": "A",
     "score": 97,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:53.055Z"
+    "scannedAt": "2026-07-02T09:50:58.240Z"
+  },
+  "advocus.com.br": {
+    "grade": "C",
+    "score": 61,
+    "verdict": "ok",
+    "scannedAt": "2026-07-02T09:51:01.183Z"
   },
   "veredicto.tech": {
     "grade": "A",
-    "score": 100,
+    "score": 94,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:50.191Z"
+    "scannedAt": "2026-07-02T09:50:58.962Z"
   },
   "doutorinss.com": {
-    "grade": "A",
-    "score": 97,
+    "grade": "C",
+    "score": 74,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:52.276Z"
+    "scannedAt": "2026-07-02T09:51:01.158Z"
   },
   "pleita.pro": {
     "grade": "A",
-    "score": 100,
+    "score": 97,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:52.064Z"
+    "scannedAt": "2026-07-02T09:51:00.468Z"
   },
   "praetori.com.br": {
-    "grade": "A",
-    "score": 100,
+    "grade": "B",
+    "score": 84,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:53.254Z"
+    "scannedAt": "2026-07-02T09:51:02.446Z"
   },
   "verijus.com.br": {
     "grade": "A",
-    "score": 100,
-    "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:54.897Z"
-  },
-  "tribux.pro": {
-    "grade": "A",
     "score": 94,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:54.528Z"
+    "scannedAt": "2026-07-02T09:51:03.961Z"
+  },
+  "tribux.pro": {
+    "grade": "B",
+    "score": 88,
+    "verdict": "ok",
+    "scannedAt": "2026-07-02T09:51:03.532Z"
   },
   "mftd.com.br": {
     "grade": "D",
-    "score": 51,
+    "score": 48,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:54.866Z"
+    "scannedAt": "2026-07-02T09:51:03.493Z"
   },
   "zappbot.pro": {
     "grade": "D",
-    "score": 51,
+    "score": 48,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:55.635Z"
+    "scannedAt": "2026-07-02T09:51:04.662Z"
   },
   "zap-api.tech": {
     "grade": "A",
-    "score": 100,
+    "score": 94,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:56.167Z"
+    "scannedAt": "2026-07-02T09:51:05.965Z"
   },
   "juribase.com.br": {
     "grade": "A",
-    "score": 100,
+    "score": 97,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:56.835Z"
+    "scannedAt": "2026-07-02T09:51:07.321Z"
   },
   "iatech.tech": {
-    "grade": "A",
-    "score": 100,
+    "grade": "B",
+    "score": 84,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:57.127Z"
+    "scannedAt": "2026-07-02T09:51:05.272Z"
   },
   "previusia.com.br": {
     "grade": "A",
-    "score": 100,
-    "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:58.284Z"
-  },
-  "meajudadoutores.com.br": {
-    "grade": "A",
     "score": 94,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:12:00.393Z"
+    "scannedAt": "2026-07-02T09:51:07.562Z"
+  },
+  "meajudadoutores.com.br": {
+    "grade": "C",
+    "score": 74,
+    "verdict": "ok",
+    "scannedAt": "2026-07-02T09:51:07.682Z"
   },
   "andersongadelha.adv.br": {
     "grade": "A",
-    "score": 97,
+    "score": 91,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:59.056Z"
+    "scannedAt": "2026-07-02T09:51:08.508Z"
   }
 }
