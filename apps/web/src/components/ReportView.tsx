@@ -3,6 +3,7 @@ import { GradeRing } from './GradeRing'
 import { FindingRow } from './FindingRow'
 import { Honesty } from './Honesty'
 import { EmailCapture } from './EmailCapture'
+import { BadgeEmbed } from './BadgeEmbed'
 import { ZapApiSupporter } from './ZapApiSupporter'
 import { sevColor, sevLabel, sortBySeverity, severityCounts } from '@/lib/grade-ui'
 
@@ -57,6 +58,12 @@ export function ReportView({ result, shareId }: { result: PassiveScanResult; sha
               <FindingRow key={f.id} finding={f} />
             ))}
           </ul>
+        </section>
+      )}
+
+      {shareId && result.grade && (
+        <section className="mt-4">
+          <BadgeEmbed shareId={shareId} grade={result.grade} />
         </section>
       )}
 
