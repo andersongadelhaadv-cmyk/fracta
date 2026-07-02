@@ -59,4 +59,34 @@ describe('SqliteScanStore', () => {
     expect(removed).toBe(1)
     expect(s.countEmails()).toBe(1)
   })
+
+  // Medição first-party: contadores AGREGADOS de evento de produto (sem PII, sem IP,
+  // sem cookie) — coerente com a promessa "sem perfilamento" da /privacidade.
+  it('bump incrementa um contador de evento nomeado; metricsSummary soma por evento', () => {
+    const s = new SqliteScanStore(':memory:')
+    const now = () => Date.parse('2026-07-02T12:00:00Z')
+    s.bump('scan', { now })
+    s.bump('scan', { now })
+    s.bump('report_view', { now })
+    const m = s.metricsSummary()
+    expect(m.events.scan).toBe(2)
+    expect(m.events.report_view).toBe(1)
+    expect(m.events.badge_served ?? 0).toBe(0)
+  })
+
+  it('metricsSummary deriva emails e scans persistidos das tabelas existentes', () => {
+    const s = new SqliteScanStore(':memory:')
+    s.save(result('https://a.example'), { genId: () => 'a' })
+    s.saveEmail('x@y.com', 'scan')
+    const m = s.metricsSummary()
+    expect(m.emails).toBe(1)
+    expect(m.scansPersisted).toBe(1)
+  })
+
+  it('bump agrega o mesmo evento através de dias diferentes', () => {
+    const s = new SqliteScanStore(':memory:')
+    s.bump('scan', { now: () => Date.parse('2026-07-01T00:00:00Z') })
+    s.bump('scan', { now: () => Date.parse('2026-07-02T00:00:00Z') })
+    expect(s.metricsSummary().events.scan).toBe(2)
+  })
 })

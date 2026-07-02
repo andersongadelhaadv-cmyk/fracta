@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
   // Cache por URL — reusa o resultado E o shareId existente (sem mintar nova linha).
   const cached = store?.getCachedEntry(normalized, CACHE_TTL_MS) ?? null
   if (cached) {
+    // Medição agregada: um scan foi servido (mesmo via cache) — evento, não pessoa.
+    store?.bump('scan')
+    store?.bump(`grade_${cached.result.grade ?? 'NA'}`)
     return NextResponse.json(
       { shareId: cached.shareId, grade: cached.result.grade, verdict: cached.result.verdict },
       { status: 200 },
@@ -75,6 +78,8 @@ export async function POST(req: NextRequest) {
   // Persiste (gera shareId). Se o store estiver indisponível, retorna inline.
   if (store) {
     const shareId = store.save(result)
+    store.bump('scan')
+    store.bump(`grade_${result.grade ?? 'NA'}`)
     return NextResponse.json({ shareId, grade: result.grade, verdict: result.verdict }, { status: 200 })
   }
   return NextResponse.json({ result }, { status: 200 })

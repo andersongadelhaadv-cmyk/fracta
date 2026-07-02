@@ -35,6 +35,7 @@ export class SqliteScanStore {
       );
       CREATE INDEX IF NOT EXISTS idx_scan_url_ts ON scan (url, scanned_at_ms);
       CREATE TABLE IF NOT EXISTS email (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, context TEXT, at_ms INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS metric (name TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (name, day));
     `)
     // Retenção: limpa scans antigos no boot (limita crescimento de disco num endpoint público).
     const days = opts.retentionDays ?? 90
@@ -86,5 +87,48 @@ export class SqliteScanStore {
   countEmails(): number {
     return (this.db.prepare('SELECT COUNT(*) AS c FROM email').get() as { c: number }).c
   }
+
+  /**
+   * Medição first-party: incrementa um contador AGREGADO de evento de produto por dia
+   * (UTC). Só conta EVENTOS (scan, view de relatório, badge servido, e-mail) — nunca
+   * identidade: zero IP, cookie ou fingerprint. Honra a promessa "sem perfilamento".
+   */
+  bump(name: string, opts: { now?: () => number } = {}): void {
+    const at = (opts.now ?? Date.now)()
+    const day = new Date(at).toISOString().slice(0, 10) // YYYY-MM-DD (UTC)
+    this.db.prepare(
+      'INSERT INTO metric (name, day, count) VALUES (?, ?, 1) ON CONFLICT(name, day) DO UPDATE SET count = count + 1',
+    ).run(name, day)
+  }
+
+  /**
+   * Funil agregado: totais por evento (somados sobre todos os dias), a janela dos
+   * últimos `windowDays` dias, e os totais de escala derivados das tabelas de dados
+   * (scans persistidos, e-mails). Nenhum dado pessoal — só números.
+   */
+  metricsSummary(opts: { now?: () => number; windowDays?: number } = {}): {
+    events: Record<string, number>
+    recent: Record<string, number>
+    emails: number
+    scansPersisted: number
+    windowDays: number
+  } {
+    const now = (opts.now ?? Date.now)()
+    const windowDays = opts.windowDays ?? 7
+    const sumRows = this.db.prepare('SELECT name, SUM(count) AS c FROM metric GROUP BY name')
+      .all() as Array<{ name: string; c: number }>
+    const events: Record<string, number> = {}
+    for (const r of sumRows) events[r.name] = Number(r.c)
+
+    const since = new Date(now - windowDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const recentRows = this.db.prepare('SELECT name, SUM(count) AS c FROM metric WHERE day >= ? GROUP BY name')
+      .all(since) as Array<{ name: string; c: number }>
+    const recent: Record<string, number> = {}
+    for (const r of recentRows) recent[r.name] = Number(r.c)
+
+    const scansPersisted = (this.db.prepare('SELECT COUNT(*) AS c FROM scan').get() as { c: number }).c
+    return { events, recent, emails: this.countEmails(), scansPersisted, windowDays }
+  }
+
   close(): void { this.db.close() }
 }

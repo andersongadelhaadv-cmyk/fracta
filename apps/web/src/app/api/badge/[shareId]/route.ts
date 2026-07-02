@@ -35,6 +35,8 @@ export function GET(_req: NextRequest, { params }: { params: { shareId: string }
   const store = getStore()
   const result = store?.getByShareId(params.shareId) ?? null
   const grade = result ? result.grade : null
+  // Medição agregada: um badge embutido foi servido (sinal de distribuição/backlink).
+  if (result) store?.bump('badge_served')
   return new Response(badgeSvg(grade), {
     status: result ? 200 : 404,
     headers: {

@@ -35,6 +35,10 @@ export default function ResultPage({ params }: { params: { shareId: string } }) 
   const result = getResult(params.shareId)
   if (!result) notFound()
 
+  // Medição agregada (1x por render de página; generateMetadata não conta):
+  // um relatório compartilhado foi aberto — sinal de alcance viral. Sem PII.
+  getStore()?.bump('report_view')
+
   return (
     <main className="min-h-screen">
       <header className="mx-auto flex max-w-content items-center justify-between px-5 py-5">

@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
   if (store) {
     try {
       store.saveEmail(email, context)
+      store.bump('email_capture') // medição agregada: demanda por monitoramento contínuo
     } catch (e) {
       console.warn('[fracta-web] falha ao salvar email:', (e as Error).message)
     }
