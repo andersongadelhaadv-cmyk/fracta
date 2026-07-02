@@ -35,6 +35,15 @@ describe('StripeAgent', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled()
   })
 
+  it('não crasha em target sem stack (repo-only) — #34', async () => {
+    const findings = await new StripeAgent().run({
+      ...stripeScope,
+      target: { name: 'repo-only', repoPath: '.' } as typeof stripeScope.target,
+    })
+    expect(findings).toHaveLength(0)
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
   it('emits info when stack has stripe but no webhook endpoint responds', async () => {
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
       Promise.resolve(new Response('{}', { status: 404 }))

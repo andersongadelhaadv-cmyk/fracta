@@ -46,7 +46,7 @@ var StripeAgent = class {
   async run(scope) {
     const findings = [];
     const { target } = scope;
-    if (!target.stack.includes("stripe")) {
+    if (!target.stack?.includes("stripe")) {
       return findings;
     }
     const client = new FractaHttpClient(target.url);

@@ -2479,7 +2479,7 @@ var StripeAgent = class {
   async run(scope) {
     const findings = [];
     const { target } = scope;
-    if (!target.stack.includes("stripe")) {
+    if (!target.stack?.includes("stripe")) {
       return findings;
     }
     const client = new FractaHttpClient(target.url);
@@ -4096,7 +4096,7 @@ var NestJSSkill = class {
   async run(scope) {
     const findings = [];
     const { target } = scope;
-    if (!target.stack.includes("nestjs")) return findings;
+    if (!target.stack?.includes("nestjs")) return findings;
     const client = new FractaHttpClient(target.url);
     const ignore = target.ignore ?? [];
     await this.probeSwagger(scope, client, findings, ignore);
@@ -4197,7 +4197,7 @@ var PrismaSkill = class {
   async run(scope) {
     const findings = [];
     const { target } = scope;
-    if (!target.stack.includes("prisma")) return findings;
+    if (!target.stack?.includes("prisma")) return findings;
     const client = new FractaHttpClient(target.url);
     const ignore = target.ignore ?? [];
     await this.probeStudio(scope, client, findings, ignore);
@@ -4304,7 +4304,7 @@ var SupabaseSkill = class {
   async run(scope) {
     const findings = [];
     const { target } = scope;
-    if (!target.stack.includes("supabase")) return findings;
+    if (!target.stack?.includes("supabase")) return findings;
     const client = new FractaHttpClient(target.url);
     const ignore = target.ignore ?? [];
     await this.probeRestRoot(scope, client, findings, ignore);

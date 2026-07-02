@@ -35,7 +35,8 @@ export class NestJSSkill implements SecurityAgent {
     const findings: Finding[] = []
     const { target } = scope
 
-    if (!target.stack.includes('nestjs')) return findings
+    // stack ausente (target repo-only) = tech não declarada → no-op, nunca crash (#34)
+    if (!target.stack?.includes('nestjs')) return findings
 
     const client = new FractaHttpClient(target.url)
     const ignore = target.ignore ?? []

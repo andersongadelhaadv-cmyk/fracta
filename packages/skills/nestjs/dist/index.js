@@ -31,7 +31,7 @@ var NestJSSkill = class {
   async run(scope) {
     const findings = [];
     const { target } = scope;
-    if (!target.stack.includes("nestjs")) return findings;
+    if (!target.stack?.includes("nestjs")) return findings;
     const client = new FractaHttpClient(target.url);
     const ignore = target.ignore ?? [];
     await this.probeSwagger(scope, client, findings, ignore);
