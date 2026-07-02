@@ -32,6 +32,20 @@ describe('applyConfidence', () => {
     expect(applyConfidence([f({ evidence: 'packages/api/src/auth.ts:42' })])[0].confidence).toBe('high')
   })
 
+  it('rebaixa p/ low achado no código dos próprios detectores do Fracta (self-detection FP, #28)', () => {
+    // O STACK agent contém strings/exemplos de padrões que ele mesmo caça
+    // ($queryRawUnsafe, origin: '*') no seu source — não é superfície de produção.
+    expect(applyConfidence([f({ evidence: 'packages/agents/stack/src/index.ts:224 — $queryRawUnsafe' })])[0].confidence).toBe('low')
+    expect(applyConfidence([f({ title: 'CORS permissivo: packages/agents/stack/src/index.ts:410' })])[0].confidence).toBe('low')
+    expect(applyConfidence([f({ evidence: 'packages/agents/secrets/src/patterns.ts:9' })])[0].confidence).toBe('low')
+  })
+
+  it('não rebaixa código de produto que só contém "agents" no caminho', () => {
+    // Um SaaS-alvo com um arquivo `agents.ts` legítimo NÃO é o detector do Fracta.
+    expect(applyConfidence([f({ evidence: 'packages/api/src/agents.ts:42' })])[0].confidence).toBe('high')
+    expect(applyConfidence([f({ evidence: 'src/agents/handler.ts:7' })])[0].confidence).toBe('high')
+  })
+
   it('é puro — não muta o finding original', () => {
     const orig = f({ evidence: 'a.test.ts' })
     const [r] = applyConfidence([orig])

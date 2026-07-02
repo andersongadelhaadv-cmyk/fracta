@@ -42,13 +42,15 @@ var SkippedCheck = class extends Error {
   degraded;
 };
 var FP_PRONE = /(\.(test|spec|stories)\.[cm]?[jt]sx?|[\\/](tests?|__tests__|fixtures?|__fixtures__|mocks?|__mocks__|examples?|samples?|stories|e2e|cypress|playwright)[\\/]|\.(example|sample|mock|fixture)\.|[\\/](demo|seed)s?[\\/]|\.d\.ts$)/i;
+var SELF_DETECTOR = /[\\/]?packages[\\/]agents[\\/][^\\/]+[\\/]src[\\/]/i;
 function locationOf(f) {
   return [f.title, f.evidence, f.endpoint].filter(Boolean).join(" ");
 }
 function applyConfidence(findings) {
   return findings.map((f) => {
     let confidence = f.confidence ?? "high";
-    if (confidence !== "low" && FP_PRONE.test(locationOf(f))) confidence = "low";
+    const loc = locationOf(f);
+    if (confidence !== "low" && (FP_PRONE.test(loc) || SELF_DETECTOR.test(loc))) confidence = "low";
     return confidence === f.confidence ? f : { ...f, confidence };
   });
 }
