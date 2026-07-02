@@ -1375,7 +1375,7 @@ if (!record) throw new NotFoundException(\`Recurso ${id} n\xE3o encontrado\`);
 // ../agents/docs/dist/index.js
 import { readdir, readFile, stat as stat2 } from "fs/promises";
 import { join as join2, relative } from "path";
-var IGNORE_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports"]);
+var IGNORE_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
 var LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i;
 var MS_IN_DAY = 864e5;
 var DocsAgent = class {
@@ -2545,7 +2545,7 @@ var SecretsAgent = class {
 // ../agents/stack/dist/index.js
 import { readdir as readdir3, readFile as readFile3, stat as stat4 } from "fs/promises";
 import { join as join5, relative as relative2, basename } from "path";
-var IGNORE_DIRS2 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports"]);
+var IGNORE_DIRS2 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
 var TEXT_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|json)$/i;
 var ENV_FILE = /(^|[\\/])\.env($|\.[^\\/]+$)/i;
 var NEXT_CONFIG = /(^|[\\/])next\.config\.(js|ts|mjs|cjs)$/i;
@@ -3246,7 +3246,7 @@ function detectOperators(packageJsonText) {
   }
   return Array.from(seen.values());
 }
-var IGNORE_DIRS3 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports"]);
+var IGNORE_DIRS3 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
 var TEXT_EXT = /* @__PURE__ */ new Set([
   ".ts",
   ".tsx",

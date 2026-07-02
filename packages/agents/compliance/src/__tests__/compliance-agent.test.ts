@@ -120,6 +120,21 @@ describe('ComplianceAgent', () => {
     expect(logs[0].evidence).toContain('token')
   })
 
+  it('ignora .worktrees/.claude (worktrees) — não duplica achados (#40)', async () => {
+    await mkdir(join(repoDir, 'src'), { recursive: true })
+    await mkdir(join(repoDir, '.worktrees', 'wt-a', 'src'), { recursive: true })
+    await mkdir(join(repoDir, '.claude', 'worktrees', 'wt-b', 'src'), { recursive: true })
+    await writeFile(join(repoDir, 'src', 'deep.ts'), 'logger.info(`token=${t}`)\n')
+    await writeFile(join(repoDir, '.worktrees', 'wt-a', 'src', 'deep.ts'), 'logger.info(`token=${t}`)\n')
+    await writeFile(join(repoDir, '.claude', 'worktrees', 'wt-b', 'src', 'deep.ts'), 'logger.info(`token=${t}`)\n')
+
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    const logs = findings.filter(f => f.title.startsWith('Possível dado sensível em log'))
+    expect(logs).toHaveLength(1) // só a árvore principal
+    expect(logs[0].evidence).toContain('src/deep.ts')
+    expect(logs.some(f => /worktrees/.test(f.evidence ?? ''))).toBe(false)
+  })
+
   it('returns no findings on a clean, non-sensitive repo', async () => {
     await writeFile(join(repoDir, 'index.ts'), 'console.log("hello world")\n')
     const findings = await new ComplianceAgent().run(scopeFor(repoDir))

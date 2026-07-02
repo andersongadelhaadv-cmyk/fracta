@@ -3,7 +3,8 @@ import { join, relative } from 'path'
 import type { SecurityAgent, ScanScope, Finding, AgentCategory } from '@fracta/core'
 import { stableFindingId, SkippedCheck } from '@fracta/core'
 
-const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports'])
+// .worktrees/.claude = git worktrees (Claude Code): re-escanear duplica achados (#40).
+const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports', '.worktrees', '.claude'])
 const LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i
 const MS_IN_DAY = 86_400_000
 

@@ -40,6 +40,20 @@ describe('StackAgent', () => {
     await expect(new StackAgent().run(makeScope(undefined))).rejects.toBeInstanceOf(SkippedCheck)
   })
 
+  it('ignora .worktrees/.claude (worktrees) — não duplica achados (#40)', async () => {
+    // MESMA chave hardcoded na árvore principal E dentro de worktrees.
+    await write('src/pay.ts', 'const k = "sk_live_ABCDEF123456"\n')
+    await write('.worktrees/wt-a/src/pay.ts', 'const k = "sk_live_ABCDEF123456"\n')
+    await write('.claude/worktrees/wt-b/src/pay.ts', 'const k = "sk_live_ABCDEF123456"\n')
+
+    const findings = await new StackAgent().run(makeScope(tmp))
+    const keys = findings.filter(f => /Chave de provider hardcoded/.test(f.title))
+    // Só a ocorrência da árvore principal — worktrees ignorados.
+    expect(keys).toHaveLength(1)
+    expect(keys[0].evidence).toContain('src/pay.ts:1')
+    expect(keys.some(f => /worktrees/.test(f.evidence ?? ''))).toBe(false)
+  })
+
   it('flags helmet missing, validationpipe missing and throttler missing for a NestJS app', async () => {
     await write('package.json', JSON.stringify({ dependencies: { '@nestjs/core': '^10.0.0' } }))
     await write('src/main.ts', [
