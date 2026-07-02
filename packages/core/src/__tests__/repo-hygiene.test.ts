@@ -33,29 +33,30 @@ function trackedFiles(root: string): string[] {
     .filter(Boolean)
 }
 
+/**
+ * Denylist de valores de INFRA da frota que jamais podem aparecer num repo público
+ * (recon pronto para atacante). Detecção por partes para não re-vazar o literal aqui.
+ * Adicionar um novo segredo de infra = uma linha nova nesta lista.
+ */
+const FORBIDDEN_INFRA: Array<{ label: string; value: string }> = [
+  { label: 'IP da VPS compartilhada da frota', value: ['76', '13', '170', '79'].join('.') },
+]
+
 describe('higiene do repositório público (#27)', () => {
   const root = repoRoot()
   const files = trackedFiles(root)
 
-  it('nenhum IP da VPS da frota está hardcoded em arquivo versionado', () => {
-    // IP público da VPS compartilhada da frota (recon pronto). Detecção por octetos
-    // para não re-vazar o valor literal fora de um único ponto de teste.
-    const vpsIp = ['76', '13', '170', '79'].join('.')
-    const offenders: string[] = []
+  // Lê cada arquivo rastreado uma vez (o guard é público = só o que o Git versiona).
+  const contents = files
+    .filter(rel => !rel.endsWith('repo-hygiene.test.ts')) // não se auto-detectar
+    .map(rel => {
+      try { return { rel, text: readFileSync(resolve(root, rel), 'utf8') } }
+      catch { return null } // binário/ilegível
+    })
+    .filter((x): x is { rel: string; text: string } => x !== null)
 
-    for (const rel of files) {
-      // Não se auto-detectar (este arquivo cita o IP de propósito, por octetos).
-      if (rel.endsWith('repo-hygiene.test.ts')) continue
-      const abs = resolve(root, rel)
-      let content: string
-      try {
-        content = readFileSync(abs, 'utf8')
-      } catch {
-        continue // binário/ilegível
-      }
-      if (content.includes(vpsIp)) offenders.push(rel)
-    }
-
-    expect(offenders, `IP da VPS vazado em: ${offenders.join(', ')}`).toEqual([])
+  it.each(FORBIDDEN_INFRA)('não vaza $label em nenhum arquivo versionado', ({ value }) => {
+    const offenders = contents.filter(f => f.text.includes(value)).map(f => f.rel)
+    expect(offenders, `vazado em: ${offenders.join(', ')}`).toEqual([])
   })
 })
