@@ -1,0 +1,35 @@
+{
+  "name": "@fracta/verify",
+  "version": "0.1.0",
+  "description": "Runtime verification tier (headless browser) for Fracta findings",
+  "license": "MIT",
+  "author": "Anderson Gadelha",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@fracta/core": "workspace:*"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.48.0"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "playwright": "^1.48.0",
+    "tsup": "*",
+    "typescript": "*",
+    "vitest": "*"
+  }
+}
