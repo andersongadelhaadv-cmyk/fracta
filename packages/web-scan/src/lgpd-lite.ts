@@ -3,8 +3,14 @@ import { stableFindingId } from '@fracta/core'
 
 const PRIVACY_HINT = /privacidade|privacy|pol[ií]tica de privacidade/i
 
-/** Sinais de banner/CMP de consentimento de cookies (best-effort, passivo). */
-const CONSENT_HINT = /consentimento|aceitar cookies|gerenciar cookies|cookie[- ]?consent|onetrust|cookiebot|didomi|osano|usercentrics|\bcookie banner\b|lgpd|gdpr/i
+/**
+ * Sinais FORTES de banner/CMP de consentimento de cookies (best-effort, passivo).
+ * Só marcadores inequívocos de um CMP: nomes de CMP conhecidos, rótulos de botão de
+ * cookies, ou Google Consent Mode. NÃO inclui menções soltas a "lgpd"/"gdpr"/
+ * "consentimento" — elas aparecem em qualquer rodapé/link de política de privacidade
+ * e davam falso positivo ("vi sinais de banner" onde não há banner nenhum).
+ */
+const CONSENT_HINT = /aceitar cookies|gerenciar cookies|cookie[- ]?consent|consentimento de cookies|banner de cookies|onetrust|cookiebot|didomi|osano|usercentrics|\bcookie banner\b|consent mode|gtag\([^)]*consent/i
 
 /** Rastreadores de terceiros detectáveis no HTML (client-side). */
 const TRACKERS: Array<{ name: string; re: RegExp }> = [
@@ -130,7 +136,7 @@ export function checkLgpdLite(
     out.push(lgpdFinding(
       saas, runId, 'lgpd-third-party-trackers', 'info',
       'Rastreadores de terceiros detectados (LGPD-lite, beta)',
-      `Detectei rastreadores: ${trackers.join(', ')}. Sob a LGPD, rastreamento exige base legal e cookies não-essenciais exigem consentimento PRÉVIO (Art. 7º/8º). ${hasConsent ? 'Vi sinais de banner de consentimento — confirme que ele bloqueia os trackers ANTES do aceite.' : 'NÃO vi sinais de banner de consentimento na página.'} Heurística beta (não executa JS); informativo, não penaliza a nota.`,
+      `Detectei rastreadores: ${trackers.join(', ')}. Sob a LGPD, rastreamento exige base legal e cookies não-essenciais exigem consentimento PRÉVIO (Art. 7º/8º). ${hasConsent ? 'Detectei sinais de banner de consentimento (CMP) — confirme que ele bloqueia os trackers ANTES do aceite.' : 'NÃO detectei banner/CMP de consentimento no HTML — se os trackers acima carregam sem gate, provavelmente disparam ANTES de qualquer consentimento (Art. 7º/8º). Rode a análise com browser p/ confirmar.'} Heurística beta (não executa JS); informativo, não penaliza a nota.`,
       'Garanta um banner de consentimento que bloqueie cookies/trackers não-essenciais até o aceite, base legal documentada, e uma Política de Privacidade clara.',
       `trackers: ${trackers.join(', ')}`,
     ))
