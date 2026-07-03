@@ -1,0 +1,40 @@
+name: Publish to npm
+
+# Publica os pacotes PÚBLICOS (fractascan, fractascan-mcp) no npm.
+# Disparo manual (workflow_dispatch). Idempotente: só publica a versão do
+# package.json que AINDA não está no npm — então re-rodar é seguro e um pacote
+# inalterado é pulado. O build roda via turbo (ordem de dependência), evitando
+# embutir dist stale do @fracta/web-scan nos bundles.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Publish public packages (skip se a versão já está no npm)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          for dir in packages/cli packages/mcp-server; do
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "✓ $name@$version já publicado — pulando"
+            else
+              echo "→ publicando $name@$version"
+              pnpm --filter "$name" publish --no-git-checks --access public
+            fi
+          done
