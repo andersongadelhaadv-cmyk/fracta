@@ -167,4 +167,69 @@ describe('ComplianceAgent', () => {
     expect(ops!.description).toContain('transferência internacional')
     expect(ops!.evidence).toContain('Stripe')
   })
+
+  // ---- Check 7: divergência POLÍTICA×CÓDIGO (o diferencial LGPD-nativo) ----
+  const COMPLIANT_POLICY_TSX = `export default function P() {
+    return (
+      <main>
+        <h1>Política de Privacidade</h1>
+        <h2>Operadores</h2>
+        <p>Stripe (pagamento), Resend (e-mail), Sentry (erros).</p>
+        <h2>Transferência internacional</h2>
+        <p>Alguns operadores processam dados fora do Brasil, com base no Art. 33.</p>
+        <p>O titular pode revogar o consentimento. Retenção conforme a lei. Cookies usados.</p>
+      </main>
+    )
+  }`
+
+  it('Check 7: política declara internacional mas OMITE operador do código → divergência (sem FP no que está declarado)', async () => {
+    await mkdir(join(repoDir, 'app', 'privacidade'), { recursive: true })
+    await writeFile(join(repoDir, 'app', 'privacidade', 'page.tsx'), COMPLIANT_POLICY_TSX)
+    await writeFile(
+      join(repoDir, 'package.json'),
+      JSON.stringify({ name: 'demo', dependencies: { stripe: '^1', resend: '^6', '@sentry/nextjs': '^8', openai: '^4' } }),
+    )
+
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+
+    // internacional está declarada (§Art.33) → NÃO deve haver finding de transferência não declarada
+    expect(findings.find(f => f.title.startsWith('Transferência internacional não declarada'))).toBeUndefined()
+
+    // OpenAI está no código mas não na política → divergência real
+    const div = findings.find(f => f.title.startsWith('Operadores no código ausentes da política'))
+    expect(div).toBeDefined()
+    expect(div!.severity).toBe('low')
+    expect(div!.evidence).toContain('OpenAI')
+    expect(div!.evidence).not.toContain('Stripe') // declarado → não acusa
+    expect(div!.evidence).toContain('app/privacidade/page.tsx') // aponta a política conferida
+  })
+
+  it('Check 7: código faz transferência internacional mas a política é silenciosa (Art. 33 não declarado)', async () => {
+    await writeFile(
+      join(repoDir, 'PRIVACIDADE.md'),
+      '# Política de Privacidade\n\n## Operadores\nUsamos terceiros sob contrato.\n\n## Direitos\nO titular exerce direitos. Base legal: consentimento. Retenção legal. Cookies. Encarregado.\n',
+    )
+    await writeFile(
+      join(repoDir, 'package.json'),
+      JSON.stringify({ name: 'demo', dependencies: { stripe: '^1' } }),
+    )
+
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    const intl = findings.find(f => f.title.startsWith('Transferência internacional não declarada'))
+    expect(intl).toBeDefined()
+    expect(intl!.severity).toBe('low')
+    expect(intl!.evidence).toContain('Stripe')
+    expect(intl!.evidence).toContain('PRIVACIDADE.md')
+  })
+
+  it('Check 7: operadores no código mas nenhuma política no repo → nota honesta (não verificável)', async () => {
+    await writeFile(
+      join(repoDir, 'package.json'),
+      JSON.stringify({ name: 'demo', dependencies: { stripe: '^1' } }),
+    )
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    const note = findings.find(f => f.title.startsWith('Divergência política×código não verificável'))
+    expect(note).toBeDefined()
+    expect(note!.severity).toBe('info')
+  })
 })

@@ -5,6 +5,7 @@ import type {
 } from '@fracta/core'
 import { SkippedCheck, stableFindingId } from '@fracta/core'
 import { parsePrismaModels, buildInventory, detectOperators, type InventoryEntry, type OperatorMatch } from './lgpd-inventory.js'
+import { findPolicyDoc, diffPolicyVsCode } from './lgpd-policy.js'
 
 // __tests__ = fixtures deliberadamente vulneráveis (não é superfície de produção);
 // fracta-reports = saída do próprio scanner (escanear o próprio relatório é ruído).
@@ -16,6 +17,15 @@ const TEXT_EXT = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts',
   '.json', '.prisma', '.env', '.yaml', '.yml', '.vue', '.svelte',
 ])
+
+// Docs coletados APENAS para a conferência política×código (Check 7). Não alimentam os
+// checks de código (um README com `console.log(cpf)` num code-fence não é vazamento real).
+const DOC_EXT = new Set(['.md', '.mdx', '.html', '.htm'])
+
+function extOf(relPath: string): string {
+  const dot = relPath.lastIndexOf('.')
+  return dot < 0 ? '' : relPath.slice(dot).toLowerCase()
+}
 
 const MAX_FILE_BYTES = 2_000_000 // não tenta ler arquivos enormes (ex.: bundles, lockfiles gigantes)
 
@@ -81,6 +91,9 @@ export class ComplianceAgent implements SecurityAgent {
     let hasPasswordWrite = false
 
     for (const file of files) {
+      // Docs (.md/.html) só servem ao Check 7 (política×código); não passam pelos checks de código.
+      if (DOC_EXT.has(extOf(file.relPath))) continue
+
       const lines = file.content.split(/\r?\n/)
 
       if (SENSITIVE_TERM.test(file.content)) mentionsSensitiveAnywhere = true
@@ -141,9 +154,108 @@ export class ComplianceAgent implements SecurityAgent {
         for (const op of detectOperators(f.content)) if (!opMap.has(op.name)) opMap.set(op.name, op)
       }
     }
-    if (opMap.size) findings.push(this.operatorsMapping(scope, Array.from(opMap.values())))
+    if (opMap.size) {
+      const operators = Array.from(opMap.values())
+      findings.push(this.operatorsMapping(scope, operators))
+
+      // ---- Check 7: divergência POLÍTICA×CÓDIGO — confere a política publicada ----
+      const policy = findPolicyDoc(files)
+      if (policy) {
+        const div = diffPolicyVsCode(policy, operators)
+        if (div.hasInternationalOps && !div.internationalDisclosed) {
+          findings.push(this.intlTransferUndisclosed(scope, policy.relPath, operators.filter(o => o.international)))
+        }
+        if (div.undeclaredOperators.length) {
+          findings.push(this.operatorsUndeclared(scope, policy.relPath, div.undeclaredOperators))
+        }
+      } else {
+        findings.push(this.policyNotFound(scope, operators))
+      }
+    }
 
     return findings
+  }
+
+  // -------------------------------------------------------------------------
+  // Check 7 — divergência política×código (materializa o diferencial LGPD-nativo)
+  // -------------------------------------------------------------------------
+  private intlTransferUndisclosed(scope: ScanScope, policyPath: string, intlOps: OperatorMatch[]): Finding {
+    const rule = 'lgpd-policy-intl-undisclosed'
+    const names = intlOps.map(o => o.name).join(', ')
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'low' as Severity,
+      confidence: 'low', // heurística: a política pode declarar em outra página/genericamente
+      title: `Transferência internacional não declarada na política (Art. 33)`,
+      description:
+        'CONFERI A POLÍTICA PUBLICADA CONTRA O CÓDIGO. O projeto usa operadores que processam ' +
+        `dados fora do Brasil (${names}), o que configura TRANSFERÊNCIA INTERNACIONAL (Art. 33 da ` +
+        `LGPD), mas a política de privacidade encontrada (${policyPath}) não contém nenhuma menção ` +
+        'a transferência internacional / dados fora do Brasil. HEURÍSTICA — a declaração pode estar ' +
+        'em outra página; confirme antes de agir.',
+      evidence: `Política conferida: ${policyPath}. Operadores internacionais no código: ${names}. Nenhuma menção a "transferência internacional"/"fora do Brasil" na política.`,
+      recommendation:
+        'Declare a transferência internacional na Política de Privacidade, ancorada numa hipótese ' +
+        'do Art. 33 (cláusulas-padrão da ANPD, país com nível adequado, etc.) e liste os operadores ' +
+        'no exterior. Este é um requisito de transparência, não opcional.',
+      createdAt: new Date(),
+    }
+  }
+
+  private operatorsUndeclared(scope: ScanScope, policyPath: string, ops: OperatorMatch[]): Finding {
+    const rule = 'lgpd-policy-operators-undeclared'
+    const names = ops.map(o => o.name).join(', ')
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'low' as Severity,
+      confidence: 'low', // conservador: só acusa quando NEM o nome NEM sinônimos aparecem na política
+      title: `Operadores no código ausentes da política de privacidade`,
+      description:
+        'CONFERI A POLÍTICA PUBLICADA CONTRA O CÓDIGO. Estes operadores/sub-processadores são usados ' +
+        `pelo projeto (deps) mas o nome deles não aparece na política encontrada (${policyPath}):\n` +
+        ops.map(o => `• ${o.name} (${o.purpose})${o.international ? ' — transferência internacional' : ''}`).join('\n') +
+        '\n\nHEURÍSTICA CONSERVADORA — a política pode descrevê-los genericamente (ex.: "provedores de ' +
+        'nuvem"). Reveja se cada tratamento está transparente ao titular (Art. 9º).',
+      evidence: `Política conferida: ${policyPath}. Operadores não citados nominalmente: ${names}.`,
+      recommendation:
+        'Liste nominalmente os operadores/sub-processadores na Política de Privacidade (Art. 9º/Art. 39), ' +
+        'com finalidade e, quando no exterior, a base de transferência internacional. Isso torna o ' +
+        'tratamento transparente e verificável pelo titular.',
+      createdAt: new Date(),
+    }
+  }
+
+  private policyNotFound(scope: ScanScope, operators: OperatorMatch[]): Finding {
+    const rule = 'lgpd-policy-not-found'
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'info' as Severity,
+      title: `Divergência política×código não verificável — política não localizada no repositório`,
+      description:
+        `Detectei ${operators.length} operador(es)/sub-processador(es) no código, mas não localizei ` +
+        'uma Política de Privacidade dentro do repositório para conferir automaticamente o que o ' +
+        'código faz contra o que a política declara. HONESTIDADE: não afirmo que a política inexiste ' +
+        '— ela pode estar hospedada fora do repo (CMS, site institucional). A conferência ' +
+        'política×código não pôde ser executada.',
+      evidence: `Operadores no código: ${operators.map(o => o.name).join(', ')}. Nenhum documento de política de privacidade encontrado no repositório.`,
+      recommendation:
+        'Para permitir a conferência automática, versione a Política de Privacidade no repositório ' +
+        '(página ou markdown). Independentemente disso, garanta que a política publicada declare os ' +
+        'operadores e a transferência internacional (Art. 9º/Art. 33).',
+      createdAt: new Date(),
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -465,6 +577,7 @@ export class ComplianceAgent implements SecurityAgent {
     if (name.startsWith('.env')) return true
     const dot = name.lastIndexOf('.')
     if (dot < 0) return false
-    return TEXT_EXT.has(name.slice(dot).toLowerCase())
+    const ext = name.slice(dot).toLowerCase()
+    return TEXT_EXT.has(ext) || DOC_EXT.has(ext) // DOC_EXT só p/ o Check 7 (política×código)
   }
 }
