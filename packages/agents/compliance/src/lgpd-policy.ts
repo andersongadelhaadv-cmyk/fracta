@@ -1,0 +1,116 @@
+/**
+ * Divergência POLÍTICA×CÓDIGO (determinístico, zero-token). O restante do agente já
+ * DERIVA do código o que deveria estar na política (operadores/sub-processadores e
+ * transferência internacional — Art. 33). Este módulo fecha o laço: localiza a POLÍTICA
+ * DE PRIVACIDADE publicada no repositório e confere se ela DECLARA o que o código faz.
+ *
+ * É a materialização do diferencial LGPD-nativo: não basta apontar "declare na política";
+ * aqui a gente confere. Heurístico e CONSERVADOR — na dúvida, considera declarado (evita
+ * acusar uma política conforme). Não substitui adequação jurídica.
+ */
+import type { OperatorMatch } from './lgpd-inventory.js'
+
+export interface PolicyDoc {
+  relPath: string
+  text: string
+}
+
+/** Remove markup JSX/HTML + expressões `{…}` + entidades, deixando só o texto visível. */
+export function stripMarkup(s: string): string {
+  return s
+    .replace(/<[^>]*>/g, ' ') // tags JSX/HTML (com atributos, className etc.)
+    .replace(/\{[^{}]{0,120}\}/g, ' ') // interpolações JSX curtas {name} — NÃO o corpo do componente
+    .replace(/&[a-z]+;/gi, ' ') // entidades html
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Assinatura de conteúdo: o documento se declara uma política de privacidade.
+const POLICY_TITLE = /pol[ií]tica de privacidade|privacy policy|aviso de privacidade/i
+// Path que sugere a página da política.
+const POLICY_PATH_HINT = /privac/i
+// Sinais de que é o DOCUMENTO (e não um mero link/menção): seções típicas de uma política.
+const POLICY_SIGNALS: RegExp[] = [
+  /transfer[êe]ncia internacional|internacional/i,
+  /base legal|leg[ií]timo interesse|consentimento|art\.?\s*(?:7|9|11|33)\b/i,
+  /titular(?:es)?\b/i,
+  /reten[çc][ãa]o|prazo/i,
+  /operador(?:es)?|sub-?processador|terceiros/i,
+  /cookies?/i,
+  /encarregad|dpo\b/i,
+]
+
+/**
+ * Localiza a política de privacidade publicada no repositório entre os arquivos coletados.
+ * Pontua candidatos e exige um mínimo de sinais para não confundir um LINK com o documento.
+ */
+export function findPolicyDoc(files: { relPath: string; content: string }[]): PolicyDoc | null {
+  let best: { relPath: string; text: string; score: number } | null = null
+  for (const f of files) {
+    if (!/\.(tsx|jsx|ts|js|md|mdx|html?)$/i.test(f.relPath)) continue
+    const pathHint = POLICY_PATH_HINT.test(f.relPath)
+    if (!POLICY_TITLE.test(f.content) && !pathHint) continue
+
+    const text = stripMarkup(f.content)
+    if (!POLICY_TITLE.test(text)) continue // o título tem de sobreviver ao strip (texto real, não atributo)
+
+    const signals = POLICY_SIGNALS.reduce((n, re) => n + (re.test(text) ? 1 : 0), 0)
+    if (signals < 3) continue // poucos sinais = link/menção, não o documento
+
+    const score = signals + (pathHint ? 2 : 0) + Math.min(3, Math.floor(text.length / 1000))
+    if (!best || score > best.score) best = { relPath: f.relPath, text, score }
+  }
+  return best ? { relPath: best.relPath, text: best.text } : null
+}
+
+// Declaração de transferência internacional (Art. 33) na política.
+const INTL_DISCLOSURE =
+  /transfer[êe]ncia internacional|fora do (?:pa[ií]s|brasil)|outside brazil|other countries|estados unidos|\beua\b|internacional/i
+
+// Sinônimos por operador (canônico = OperatorMatch.name), em minúsculas, para casar na política.
+// Conservador: qualquer sinônimo presente = considerado declarado (evita falso-positivo).
+const OPERATOR_SYNONYMS: Record<string, string[]> = {
+  AWS: ['aws', 'amazon web services', 'amazon'],
+  'Google Cloud/Firebase': ['google', 'firebase', 'gcp', 'google cloud'],
+  'Microsoft Azure': ['azure', 'microsoft'],
+  Stripe: ['stripe'],
+  OpenAI: ['openai', 'open ai', 'chatgpt', 'gpt-'],
+  Anthropic: ['anthropic', 'claude'],
+  Sentry: ['sentry'],
+  'Analytics (PostHog/Mixpanel/Segment/Amplitude)': ['posthog', 'mixpanel', 'segment', 'amplitude', 'analytics'],
+  Supabase: ['supabase'],
+  Vercel: ['vercel'],
+  'E-mail transacional (Resend/SendGrid/Mailgun/Postmark)': ['resend', 'sendgrid', 'mailgun', 'postmark', 'mail transacional', 'e-mail transacional'],
+  Twilio: ['twilio'],
+  Cloudinary: ['cloudinary'],
+  Datadog: ['datadog'],
+  Upstash: ['upstash'],
+  'Mercado Pago': ['mercado pago', 'mercadopago'],
+}
+
+// Operadores que NÃO são sub-processadores de terceiros a declarar (infra self-hosted/nacional).
+const NOT_A_SUBPROCESSOR = new Set(['Banco de dados (self-hosted)'])
+
+export interface PolicyDivergence {
+  policyPath: string
+  hasInternationalOps: boolean
+  internationalDisclosed: boolean
+  undeclaredOperators: OperatorMatch[]
+}
+
+/** Confere a política publicada contra os operadores/transferências que o código revela. */
+export function diffPolicyVsCode(policy: PolicyDoc, operators: OperatorMatch[]): PolicyDivergence {
+  const text = policy.text.toLowerCase()
+  const internationalDisclosed = INTL_DISCLOSURE.test(policy.text)
+  const hasInternationalOps = operators.some(o => o.international)
+
+  const undeclaredOperators: OperatorMatch[] = []
+  for (const op of operators) {
+    if (NOT_A_SUBPROCESSOR.has(op.name)) continue
+    const syns = OPERATOR_SYNONYMS[op.name] ?? [op.name.toLowerCase()]
+    const declared = syns.some(s => text.includes(s))
+    if (!declared) undeclaredOperators.push(op)
+  }
+
+  return { policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, undeclaredOperators }
+}

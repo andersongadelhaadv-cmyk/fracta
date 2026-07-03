@@ -3741,6 +3741,68 @@ function detectOperators(packageJsonText) {
   }
   return Array.from(seen.values());
 }
+function stripMarkup(s) {
+  return s.replace(/<[^>]*>/g, " ").replace(/\{[^{}]{0,120}\}/g, " ").replace(/&[a-z]+;/gi, " ").replace(/\s+/g, " ").trim();
+}
+var POLICY_TITLE = /pol[ií]tica de privacidade|privacy policy|aviso de privacidade/i;
+var POLICY_PATH_HINT = /privac/i;
+var POLICY_SIGNALS = [
+  /transfer[êe]ncia internacional|internacional/i,
+  /base legal|leg[ií]timo interesse|consentimento|art\.?\s*(?:7|9|11|33)\b/i,
+  /titular(?:es)?\b/i,
+  /reten[çc][ãa]o|prazo/i,
+  /operador(?:es)?|sub-?processador|terceiros/i,
+  /cookies?/i,
+  /encarregad|dpo\b/i
+];
+function findPolicyDoc(files) {
+  let best = null;
+  for (const f of files) {
+    if (!/\.(tsx|jsx|ts|js|md|mdx|html?)$/i.test(f.relPath)) continue;
+    const pathHint = POLICY_PATH_HINT.test(f.relPath);
+    if (!POLICY_TITLE.test(f.content) && !pathHint) continue;
+    const text = stripMarkup(f.content);
+    if (!POLICY_TITLE.test(text)) continue;
+    const signals = POLICY_SIGNALS.reduce((n, re) => n + (re.test(text) ? 1 : 0), 0);
+    if (signals < 3) continue;
+    const score = signals + (pathHint ? 2 : 0) + Math.min(3, Math.floor(text.length / 1e3));
+    if (!best || score > best.score) best = { relPath: f.relPath, text, score };
+  }
+  return best ? { relPath: best.relPath, text: best.text } : null;
+}
+var INTL_DISCLOSURE = /transfer[êe]ncia internacional|fora do (?:pa[ií]s|brasil)|outside brazil|other countries|estados unidos|\beua\b|internacional/i;
+var OPERATOR_SYNONYMS = {
+  AWS: ["aws", "amazon web services", "amazon"],
+  "Google Cloud/Firebase": ["google", "firebase", "gcp", "google cloud"],
+  "Microsoft Azure": ["azure", "microsoft"],
+  Stripe: ["stripe"],
+  OpenAI: ["openai", "open ai", "chatgpt", "gpt-"],
+  Anthropic: ["anthropic", "claude"],
+  Sentry: ["sentry"],
+  "Analytics (PostHog/Mixpanel/Segment/Amplitude)": ["posthog", "mixpanel", "segment", "amplitude", "analytics"],
+  Supabase: ["supabase"],
+  Vercel: ["vercel"],
+  "E-mail transacional (Resend/SendGrid/Mailgun/Postmark)": ["resend", "sendgrid", "mailgun", "postmark", "mail transacional", "e-mail transacional"],
+  Twilio: ["twilio"],
+  Cloudinary: ["cloudinary"],
+  Datadog: ["datadog"],
+  Upstash: ["upstash"],
+  "Mercado Pago": ["mercado pago", "mercadopago"]
+};
+var NOT_A_SUBPROCESSOR = /* @__PURE__ */ new Set(["Banco de dados (self-hosted)"]);
+function diffPolicyVsCode(policy, operators) {
+  const text = policy.text.toLowerCase();
+  const internationalDisclosed = INTL_DISCLOSURE.test(policy.text);
+  const hasInternationalOps = operators.some((o) => o.international);
+  const undeclaredOperators = [];
+  for (const op of operators) {
+    if (NOT_A_SUBPROCESSOR.has(op.name)) continue;
+    const syns = OPERATOR_SYNONYMS[op.name] ?? [op.name.toLowerCase()];
+    const declared = syns.some((s) => text.includes(s));
+    if (!declared) undeclaredOperators.push(op);
+  }
+  return { policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, undeclaredOperators };
+}
 var IGNORE_DIRS3 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
 var TEXT_EXT = /* @__PURE__ */ new Set([
   ".ts",
@@ -3759,6 +3821,11 @@ var TEXT_EXT = /* @__PURE__ */ new Set([
   ".vue",
   ".svelte"
 ]);
+var DOC_EXT = /* @__PURE__ */ new Set([".md", ".mdx", ".html", ".htm"]);
+function extOf(relPath) {
+  const dot = relPath.lastIndexOf(".");
+  return dot < 0 ? "" : relPath.slice(dot).toLowerCase();
+}
 var MAX_FILE_BYTES = 2e6;
 var SENSITIVE_TERM = /\b(cpf|cnpj|cnis|rg|senha|password|passwd|token|processo|prontuario|prontuário|nis|pis|cartao|cartão|beneficio|benefício)\b/i;
 var SENSITIVE_TERM_GLOBAL = /\b(cpf|cnpj|cnis|rg|senha|password|passwd|token|processo|prontuario|prontuário|nis|pis|cartao|cartão|beneficio|benefício)\b/gi;
@@ -3785,6 +3852,7 @@ var ComplianceAgent = class {
     let hasTlsSignal = false;
     let hasPasswordWrite = false;
     for (const file of files) {
+      if (DOC_EXT.has(extOf(file.relPath))) continue;
       const lines = file.content.split(/\r?\n/);
       if (SENSITIVE_TERM.test(file.content)) mentionsSensitiveAnywhere = true;
       if (TLS_SIGNAL.test(file.content)) hasTlsSignal = true;
@@ -3828,8 +3896,81 @@ var ComplianceAgent = class {
         for (const op of detectOperators(f.content)) if (!opMap.has(op.name)) opMap.set(op.name, op);
       }
     }
-    if (opMap.size) findings.push(this.operatorsMapping(scope, Array.from(opMap.values())));
+    if (opMap.size) {
+      const operators = Array.from(opMap.values());
+      findings.push(this.operatorsMapping(scope, operators));
+      const policy = findPolicyDoc(files);
+      if (policy) {
+        const div = diffPolicyVsCode(policy, operators);
+        if (div.hasInternationalOps && !div.internationalDisclosed) {
+          findings.push(this.intlTransferUndisclosed(scope, policy.relPath, operators.filter((o) => o.international)));
+        }
+        if (div.undeclaredOperators.length) {
+          findings.push(this.operatorsUndeclared(scope, policy.relPath, div.undeclaredOperators));
+        }
+      } else {
+        findings.push(this.policyNotFound(scope, operators));
+      }
+    }
     return findings;
+  }
+  // -------------------------------------------------------------------------
+  // Check 7 — divergência política×código (materializa o diferencial LGPD-nativo)
+  // -------------------------------------------------------------------------
+  intlTransferUndisclosed(scope, policyPath, intlOps) {
+    const rule = "lgpd-policy-intl-undisclosed";
+    const names = intlOps.map((o) => o.name).join(", ");
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "low",
+      confidence: "low",
+      // heurística: a política pode declarar em outra página/genericamente
+      title: `Transfer\xEAncia internacional n\xE3o declarada na pol\xEDtica (Art. 33)`,
+      description: `CONFERI A POL\xCDTICA PUBLICADA CONTRA O C\xD3DIGO. O projeto usa operadores que processam dados fora do Brasil (${names}), o que configura TRANSFER\xCANCIA INTERNACIONAL (Art. 33 da LGPD), mas a pol\xEDtica de privacidade encontrada (${policyPath}) n\xE3o cont\xE9m nenhuma men\xE7\xE3o a transfer\xEAncia internacional / dados fora do Brasil. HEUR\xCDSTICA \u2014 a declara\xE7\xE3o pode estar em outra p\xE1gina; confirme antes de agir.`,
+      evidence: `Pol\xEDtica conferida: ${policyPath}. Operadores internacionais no c\xF3digo: ${names}. Nenhuma men\xE7\xE3o a "transfer\xEAncia internacional"/"fora do Brasil" na pol\xEDtica.`,
+      recommendation: "Declare a transfer\xEAncia internacional na Pol\xEDtica de Privacidade, ancorada numa hip\xF3tese do Art. 33 (cl\xE1usulas-padr\xE3o da ANPD, pa\xEDs com n\xEDvel adequado, etc.) e liste os operadores no exterior. Este \xE9 um requisito de transpar\xEAncia, n\xE3o opcional.",
+      createdAt: /* @__PURE__ */ new Date()
+    };
+  }
+  operatorsUndeclared(scope, policyPath, ops) {
+    const rule = "lgpd-policy-operators-undeclared";
+    const names = ops.map((o) => o.name).join(", ");
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "low",
+      confidence: "low",
+      // conservador: só acusa quando NEM o nome NEM sinônimos aparecem na política
+      title: `Operadores no c\xF3digo ausentes da pol\xEDtica de privacidade`,
+      description: `CONFERI A POL\xCDTICA PUBLICADA CONTRA O C\xD3DIGO. Estes operadores/sub-processadores s\xE3o usados pelo projeto (deps) mas o nome deles n\xE3o aparece na pol\xEDtica encontrada (${policyPath}):
+` + ops.map((o) => `\u2022 ${o.name} (${o.purpose})${o.international ? " \u2014 transfer\xEAncia internacional" : ""}`).join("\n") + '\n\nHEUR\xCDSTICA CONSERVADORA \u2014 a pol\xEDtica pode descrev\xEA-los genericamente (ex.: "provedores de nuvem"). Reveja se cada tratamento est\xE1 transparente ao titular (Art. 9\xBA).',
+      evidence: `Pol\xEDtica conferida: ${policyPath}. Operadores n\xE3o citados nominalmente: ${names}.`,
+      recommendation: "Liste nominalmente os operadores/sub-processadores na Pol\xEDtica de Privacidade (Art. 9\xBA/Art. 39), com finalidade e, quando no exterior, a base de transfer\xEAncia internacional. Isso torna o tratamento transparente e verific\xE1vel pelo titular.",
+      createdAt: /* @__PURE__ */ new Date()
+    };
+  }
+  policyNotFound(scope, operators) {
+    const rule = "lgpd-policy-not-found";
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "info",
+      title: `Diverg\xEAncia pol\xEDtica\xD7c\xF3digo n\xE3o verific\xE1vel \u2014 pol\xEDtica n\xE3o localizada no reposit\xF3rio`,
+      description: `Detectei ${operators.length} operador(es)/sub-processador(es) no c\xF3digo, mas n\xE3o localizei uma Pol\xEDtica de Privacidade dentro do reposit\xF3rio para conferir automaticamente o que o c\xF3digo faz contra o que a pol\xEDtica declara. HONESTIDADE: n\xE3o afirmo que a pol\xEDtica inexiste \u2014 ela pode estar hospedada fora do repo (CMS, site institucional). A confer\xEAncia pol\xEDtica\xD7c\xF3digo n\xE3o p\xF4de ser executada.`,
+      evidence: `Operadores no c\xF3digo: ${operators.map((o) => o.name).join(", ")}. Nenhum documento de pol\xEDtica de privacidade encontrado no reposit\xF3rio.`,
+      recommendation: "Para permitir a confer\xEAncia autom\xE1tica, versione a Pol\xEDtica de Privacidade no reposit\xF3rio (p\xE1gina ou markdown). Independentemente disso, garanta que a pol\xEDtica publicada declare os operadores e a transfer\xEAncia internacional (Art. 9\xBA/Art. 33).",
+      createdAt: /* @__PURE__ */ new Date()
+    };
   }
   // -------------------------------------------------------------------------
   // Check 5 — inventário de dados pessoais ancorado no schema (rascunho de ROPA)
@@ -4060,7 +4201,8 @@ var ComplianceAgent = class {
     if (name.startsWith(".env")) return true;
     const dot = name.lastIndexOf(".");
     if (dot < 0) return false;
-    return TEXT_EXT.has(name.slice(dot).toLowerCase());
+    const ext = name.slice(dot).toLowerCase();
+    return TEXT_EXT.has(ext) || DOC_EXT.has(ext);
   }
 };
 
