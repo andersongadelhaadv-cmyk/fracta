@@ -1,6 +1,6 @@
 {
   "name": "fractascan-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Model Context Protocol server exposing Fracta scan tools (passive_scan, scan_repo, …)",
   "license": "MIT",
   "author": "Anderson Gadelha",
@@ -13,13 +13,22 @@
   "bugs": {
     "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
   },
-  "keywords": ["fracta", "mcp", "model-context-protocol", "security", "lgpd"],
+  "keywords": [
+    "fracta",
+    "mcp",
+    "model-context-protocol",
+    "security",
+    "lgpd"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "fracta-mcp": "./dist/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -37,29 +46,29 @@
     "yaml": "^2.4.0"
   },
   "devDependencies": {
-    "@fracta/core": "workspace:*",
-    "@fracta/web-scan": "workspace:*",
     "@fracta/agent-auth": "workspace:*",
-    "@fracta/agent-headers": "workspace:*",
-    "@fracta/agent-dns": "workspace:*",
-    "@fracta/agent-idor": "workspace:*",
-    "@fracta/agent-docs": "workspace:*",
-    "@fracta/agent-tenant": "workspace:*",
-    "@fracta/agent-race": "workspace:*",
-    "@fracta/agent-stripe": "workspace:*",
+    "@fracta/agent-compliance": "workspace:*",
     "@fracta/agent-dependencies": "workspace:*",
+    "@fracta/agent-dns": "workspace:*",
+    "@fracta/agent-docs": "workspace:*",
+    "@fracta/agent-headers": "workspace:*",
+    "@fracta/agent-idor": "workspace:*",
+    "@fracta/agent-infra": "workspace:*",
+    "@fracta/agent-race": "workspace:*",
     "@fracta/agent-secrets": "workspace:*",
     "@fracta/agent-stack": "workspace:*",
-    "@fracta/agent-infra": "workspace:*",
-    "@fracta/agent-compliance": "workspace:*",
+    "@fracta/agent-stripe": "workspace:*",
+    "@fracta/agent-tenant": "workspace:*",
+    "@fracta/core": "workspace:*",
+    "@fracta/llm": "workspace:*",
+    "@fracta/reporter": "workspace:*",
     "@fracta/skill-nestjs": "workspace:*",
     "@fracta/skill-prisma": "workspace:*",
     "@fracta/skill-supabase": "workspace:*",
-    "@fracta/reporter": "workspace:*",
     "@fracta/store": "workspace:*",
-    "@fracta/llm": "workspace:*",
+    "@fracta/web-scan": "workspace:*",
+    "@types/node": "*",
     "tsup": "*",
-    "typescript": "*",
-    "@types/node": "*"
+    "typescript": "*"
   }
 }

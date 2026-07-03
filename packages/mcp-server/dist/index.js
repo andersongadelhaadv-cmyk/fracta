@@ -1298,7 +1298,7 @@ function findCookieIssues(setCookies, saas, runId) {
   return out;
 }
 var PRIVACY_HINT = /privacidade|privacy|pol[ií]tica de privacidade/i;
-var CONSENT_HINT = /consentimento|aceitar cookies|gerenciar cookies|cookie[- ]?consent|onetrust|cookiebot|didomi|osano|usercentrics|\bcookie banner\b|lgpd|gdpr/i;
+var CONSENT_HINT = /aceitar cookies|gerenciar cookies|cookie[- ]?consent|consentimento de cookies|banner de cookies|onetrust|cookiebot|didomi|osano|usercentrics|\bcookie banner\b|consent mode|gtag\([^)]*consent/i;
 var TRACKERS = [
   { name: "Google Analytics / Tag Manager", re: /google-analytics\.com|googletagmanager\.com|\bgtag\s*\(/i },
   { name: "Meta Pixel (Facebook)", re: /connect\.facebook\.net|fbevents\.js|\bfbq\s*\(/i },
@@ -1379,7 +1379,7 @@ function checkLgpdLite(html, setCookies, saas, runId, policy, botChallenge) {
       "lgpd-third-party-trackers",
       "info",
       "Rastreadores de terceiros detectados (LGPD-lite, beta)",
-      `Detectei rastreadores: ${trackers.join(", ")}. Sob a LGPD, rastreamento exige base legal e cookies n\xE3o-essenciais exigem consentimento PR\xC9VIO (Art. 7\xBA/8\xBA). ${hasConsent ? "Vi sinais de banner de consentimento \u2014 confirme que ele bloqueia os trackers ANTES do aceite." : "N\xC3O vi sinais de banner de consentimento na p\xE1gina."} Heur\xEDstica beta (n\xE3o executa JS); informativo, n\xE3o penaliza a nota.`,
+      `Detectei rastreadores: ${trackers.join(", ")}. Sob a LGPD, rastreamento exige base legal e cookies n\xE3o-essenciais exigem consentimento PR\xC9VIO (Art. 7\xBA/8\xBA). ${hasConsent ? "Detectei sinais de banner de consentimento (CMP) \u2014 confirme que ele bloqueia os trackers ANTES do aceite." : "N\xC3O detectei banner/CMP de consentimento no HTML \u2014 se os trackers acima carregam sem gate, provavelmente disparam ANTES de qualquer consentimento (Art. 7\xBA/8\xBA). Rode a an\xE1lise com browser p/ confirmar."} Heur\xEDstica beta (n\xE3o executa JS); informativo, n\xE3o penaliza a nota.`,
       "Garanta um banner de consentimento que bloqueie cookies/trackers n\xE3o-essenciais at\xE9 o aceite, base legal documentada, e uma Pol\xEDtica de Privacidade clara.",
       `trackers: ${trackers.join(", ")}`
     ));
