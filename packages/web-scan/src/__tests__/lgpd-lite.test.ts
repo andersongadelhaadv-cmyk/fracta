@@ -29,13 +29,22 @@ describe('checkLgpdLite (v2)', () => {
   it('notes absence of consent banner when trackers present without consent signal', () => {
     const html = '<script src="https://connect.facebook.net/x/fbevents.js"></script> privacidade'
     const tr = find(checkLgpdLite(html, [], 'demo', 'run1'), 'rastreadores de terceiros')
-    expect(tr?.description).toMatch(/NÃO vi sinais de banner de consentimento/)
+    expect(tr?.description).toMatch(/NÃO detectei/)
   })
-  it('acknowledges a consent banner when present', () => {
+  it('acknowledges a consent banner only on a STRONG CMP signal', () => {
     const html = '<script src="https://www.google-analytics.com/ga.js"></script> aceitar cookies privacidade'
     const tr = find(checkLgpdLite(html, [], 'demo', 'run1'), 'rastreadores de terceiros')
     expect(tr?.description).toMatch(/banner de consentimento/i)
-    expect(tr?.description).not.toMatch(/NÃO vi sinais/)
+    expect(tr?.description).not.toMatch(/NÃO detectei/)
+  })
+  // Regressão: o falso positivo do zap-api.tech — a palavra "LGPD"/"consentimento" solta
+  // num rodapé/link de política NÃO é um banner de consentimento. Não pode virar "vi sinais".
+  it('does NOT infer a consent banner from a bare "LGPD"/"consentimento"/policy mention (regression: zap-api)', () => {
+    const html =
+      '<script src="https://www.googletagmanager.com/gtag/js"></script>' +
+      '<footer>LGPD · GDPR · Política de Privacidade · consentimento do titular</footer>'
+    const tr = find(checkLgpdLite(html, [], 'demo', 'run1'), 'rastreadores de terceiros')
+    expect(tr?.description).toMatch(/NÃO detectei/)
   })
   it('does not flag trackers when none present', () => {
     expect(find(checkLgpdLite('<html>privacidade</html>', [], 'demo', 'run1'), 'rastreadores')).toBeUndefined()
