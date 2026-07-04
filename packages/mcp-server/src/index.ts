@@ -145,6 +145,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'verify_consent',
+      description:
+        'Verificação em RUNTIME (browser headless) do comportamento de consentimento: carrega a página, captura trackers/cookies que disparam ANTES de qualquer consentimento e detecta CMP real. Confirma com evidência o que o passive_scan só supõe. Requer Chromium (npx playwright install chromium); use em sites que você autoriza.',
+      inputSchema: {
+        type: 'object',
+        properties: { url: { type: 'string', description: 'URL a verificar (ex.: https://exemplo.com.br)' } },
+        required: ['url'],
+      },
+    },
+    {
       name: 'scan_target',
       description: 'Executa scan completo de segurança em um target configurado no targets.yaml',
       inputSchema: {
@@ -239,6 +249,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const more = report.findings.length > 40 ? `\n… +${report.findings.length - 40} achados` : ''
       const txt = `Auditoria SAST de ${path}\n${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium, ${report.summary.low} low. Status: ${statusTxt}.\nRelatório: ${mdPath}\n\n${lines.join('\n')}${more}`
       return { content: [{ type: 'text', text: txt }] }
+    }
+
+    if (name === 'verify_consent') {
+      const url = a.url
+      if (!url) return { content: [{ type: 'text', text: 'Informe `url`.' }] }
+      try {
+        const { RuntimeVerifier } = await import('@fracta/verify')
+        const report = await new RuntimeVerifier().verifyConsent(url)
+        const { formatVerifyReport } = await import('./verify-format.js')
+        return { content: [{ type: 'text', text: formatVerifyReport(report) }] }
+      } catch (e) {
+        const msg = e instanceof Error && e.name === 'BrowserUnavailableError'
+          ? e.message
+          : `Falha na verificação em runtime: ${e instanceof Error ? e.message : String(e)}`
+        return { content: [{ type: 'text', text: msg }] }
+      }
     }
 
     if (name === 'scan_target' || name === 'test_auth' || name === 'test_idor' || name === 'check_headers') {

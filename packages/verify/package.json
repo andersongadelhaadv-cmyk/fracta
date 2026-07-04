@@ -15,8 +15,8 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts --format esm --dts --external playwright",
+    "dev": "tsup src/index.ts --format esm --dts --watch --external playwright",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {

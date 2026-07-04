@@ -556,6 +556,9 @@ importers:
       '@fracta/store':
         specifier: workspace:*
         version: link:../store
+      '@fracta/verify':
+        specifier: workspace:*
+        version: link:../verify
       '@fracta/web-scan':
         specifier: workspace:*
         version: link:../web-scan

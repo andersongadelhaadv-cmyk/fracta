@@ -66,6 +66,7 @@
     "@fracta/skill-prisma": "workspace:*",
     "@fracta/skill-supabase": "workspace:*",
     "@fracta/store": "workspace:*",
+    "@fracta/verify": "workspace:*",
     "@fracta/web-scan": "workspace:*",
     "@types/node": "*",
     "tsup": "*",
