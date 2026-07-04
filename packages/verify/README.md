@@ -11,7 +11,7 @@ Requer um Chromium: o Fracta usa o `playwright-core` (instalado como dependênci
 
 ## Honestidade / escopo
 
-- **SSRF (limitação honesta):** há um pré-check do host inicial + um interceptor que bloqueia requisições diretas a IPs privados/internos + um guard que recusa (inconclusive) se a navegação aterrissar num host privado. PORÉM, um headless segue redirects do servidor internamente antes da interceptação, então **redirect/subrecurso apontando para hosts internos não é totalmente prevenido**. Use `verify` apenas em alvos que você controla/autoriza. (Fechar isso por completo é um follow-up rastreado.)
+- **SSRF:** defesa em camadas — pré-check do host inicial + interceptor por-request que bloqueia IPs privados/internos + **validação por-hop de redirects** (cada `Location` de um 3xx é re-validado ANTES do browser emitir o próximo request, via `route.fetch({maxRedirects:0})` + `fulfill`) + guard pós-navegação que recusa (inconclusive) se ainda assim aterrissar num host privado. O vetor que a v1 documentava como aberto — um host público que faz `302 → 169.254.169.254` — está **fechado e provado server-side** por um teste de integração com Chromium real que confirma que o alvo interno **nunca recebe** o request (`verifier.redirect-ssrf.browser.test.ts`). Ainda assim, prefira `verify` em alvos que você controla/autoriza.
 - v1 verifica apenas consentimento/trackers. Não substitui revisão jurídica.
 
 ## Caso âncora (e2e vivo, fora do CI)
