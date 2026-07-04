@@ -11,7 +11,7 @@ Requer Chromium: `npx playwright install chromium`. Sem ele, degrada com uma men
 
 ## Honestidade / escopo
 
-- Não executa validação SSRF por-conexão como o passive (um browser não permite): há um pré-check de host, mas **use em alvos que você controla/autoriza**.
+- **SSRF (limitação honesta):** há um pré-check do host inicial + um interceptor que bloqueia requisições diretas a IPs privados/internos + um guard que recusa (inconclusive) se a navegação aterrissar num host privado. PORÉM, um headless segue redirects do servidor internamente antes da interceptação, então **redirect/subrecurso apontando para hosts internos não é totalmente prevenido**. Use `verify` apenas em alvos que você controla/autoriza. (Fechar isso por completo é um follow-up rastreado.)
 - v1 verifica apenas consentimento/trackers. Não substitui revisão jurídica.
 
 ## Caso âncora (e2e vivo, fora do CI)

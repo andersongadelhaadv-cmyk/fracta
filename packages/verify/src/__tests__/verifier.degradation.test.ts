@@ -14,6 +14,19 @@ function fakeLoaderGotoThrows() {
   return (async () => ({ chromium: { launch: async () => browser } })) as any
 }
 
+function fakeLoaderLandsOnPrivate() {
+  const page = {
+    on() {},
+    route: async () => {},
+    goto: async () => {},
+    url: () => 'http://169.254.169.254/latest/meta-data/',
+    evaluate: async () => ({ globals: [], selectorsMatched: [] }),
+  }
+  const context = { newPage: async () => page, cookies: async () => [] as { name: string }[] }
+  const browser = { newContext: async () => context, close: async () => {} }
+  return (async () => ({ chromium: { launch: async () => browser } })) as any
+}
+
 describe('RuntimeVerifier degradação', () => {
   it('lança BrowserUnavailableError quando o loader do browser falha', async () => {
     const v = new RuntimeVerifier({
@@ -35,6 +48,13 @@ describe('RuntimeVerifier degradação', () => {
   it('navegação falha → verdict inconclusive (não lança, nunca verde falso)', async () => {
     const v = new RuntimeVerifier({ allowPrivateForTest: true, loadBrowser: fakeLoaderGotoThrows() })
     const r = await v.verifyConsent('http://127.0.0.1:1')
+    expect(r.verdict).toBe('inconclusive')
+    expect(r.findings).toEqual([])
+  })
+
+  it('redirect que aterrissa em host privado → inconclusive (não extrai de alvo interno)', async () => {
+    const v = new RuntimeVerifier({ loadBrowser: fakeLoaderLandsOnPrivate() })
+    const r = await v.verifyConsent('http://8.8.8.8/')
     expect(r.verdict).toBe('inconclusive')
     expect(r.findings).toEqual([])
   })

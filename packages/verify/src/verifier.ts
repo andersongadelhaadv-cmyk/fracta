@@ -44,6 +44,7 @@ export interface PageLike {
   on(event: 'request', cb: (req: { url(): string }) => void): void
   route(pattern: string, handler: (route: RouteLike) => unknown): Promise<void>
   goto(url: string, opts: { waitUntil: 'networkidle'; timeout: number }): Promise<unknown>
+  url(): string
   evaluate<T>(fn: string): Promise<T>
 }
 
@@ -68,6 +69,14 @@ export class RuntimeVerifier {
     const saas = url.hostname
     const runId = randomUUID()
     const timeout = opts.timeoutMs ?? 15000
+
+    const inconclusive = (): VerifyReport => ({
+      url: url.toString(),
+      verdict: 'inconclusive',
+      findings: [],
+      evidence: { trackers: [], cookiesSetBeforeConsent: [], cmp: { detected: false }, firedBeforeInteraction: false },
+      verifiedAt: new Date().toISOString(),
+    })
 
     await assertPublicHost(saas, { allowPrivate: this.allowPrivate })
 
@@ -104,13 +113,14 @@ export class RuntimeVerifier {
         await page.goto(url.toString(), { waitUntil: 'networkidle', timeout })
       } catch {
         // Honestidade: alvo inacessível → inconclusive (NUNCA verde falso), como o PassiveScanner.
-        return {
-          url: url.toString(),
-          verdict: 'inconclusive',
-          findings: [],
-          evidence: { trackers: [], cookiesSetBeforeConsent: [], cmp: { detected: false }, firedBeforeInteraction: false },
-          verifiedAt: new Date().toISOString(),
-        }
+        return inconclusive()
+      }
+
+      // Guard pós-navegação: se um redirect aterrissou num host privado/interno,
+      // NÃO processamos o alvo (honestidade: inconclusive, nunca extrair de host interno).
+      // Cobre o vetor principal (metadata da cloud); o interceptor já bloqueia requests diretos.
+      if (!(await isRequestHostAllowed(page.url(), { allowPrivate: this.allowPrivate }))) {
+        return inconclusive()
       }
 
       const probe = await page.evaluate<CmpProbe>(
