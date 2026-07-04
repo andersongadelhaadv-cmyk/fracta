@@ -70,11 +70,18 @@ export class RuntimeVerifier {
       pw = await this.loadBrowser()
     } catch {
       throw new BrowserUnavailableError(
-        'Verificação em runtime requer Chromium. Rode: npx playwright install chromium',
+        'Verificação em runtime requer o Playwright + Chromium. Garanta o pacote (npm i playwright) e o navegador (npx playwright install chromium).',
       )
     }
 
-    const browser = await pw.chromium.launch({ headless: true })
+    let browser
+    try {
+      browser = await pw.chromium.launch({ headless: true })
+    } catch {
+      throw new BrowserUnavailableError(
+        'O Chromium não pôde ser iniciado (binário ausente?). Rode: npx playwright install chromium',
+      )
+    }
     try {
       const context = await browser.newContext()
       const page = await context.newPage()

@@ -9,4 +9,14 @@ describe('RuntimeVerifier degradação', () => {
     })
     await expect(v.verifyConsent('https://example.com')).rejects.toBeInstanceOf(BrowserUnavailableError)
   })
+
+  it('lança BrowserUnavailableError quando o Chromium não inicia (binário ausente)', async () => {
+    const v = new RuntimeVerifier({
+      // loader resolve (pacote presente), mas o launch do chromium falha (binário ausente)
+      loadBrowser: async () => ({
+        chromium: { launch: async () => { throw new Error("browserType.launch: Executable doesn't exist") } },
+      }) as any,
+    })
+    await expect(v.verifyConsent('https://example.com')).rejects.toBeInstanceOf(BrowserUnavailableError)
+  })
 })
