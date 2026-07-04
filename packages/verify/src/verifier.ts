@@ -35,10 +35,16 @@ export interface ContextLike {
   newPage(): Promise<PageLike>
   cookies(): Promise<{ name: string }[]>
 }
+export interface FetchResponseLike {
+  status(): number
+  headers(): Record<string, string>
+}
 export interface RouteLike {
   request(): { url(): string }
   continue(): Promise<void>
   abort(): Promise<void>
+  fetch(opts?: { maxRedirects?: number }): Promise<FetchResponseLike>
+  fulfill(opts: { response: FetchResponseLike }): Promise<void>
 }
 export interface PageLike {
   on(event: 'request', cb: (req: { url(): string }) => void): void
@@ -76,12 +82,18 @@ export async function launchWithFallback(
   }
 }
 
+type HostResolver = (host: string) => Promise<string[]>
+
 export class RuntimeVerifier {
   private readonly loadBrowser: BrowserLoader
   private readonly allowPrivate: boolean
-  constructor(opts: { loadBrowser?: BrowserLoader; allowPrivateForTest?: boolean } = {}) {
+  private readonly resolver?: HostResolver
+  constructor(opts: { loadBrowser?: BrowserLoader; allowPrivateForTest?: boolean; resolver?: HostResolver } = {}) {
     this.loadBrowser = opts.loadBrowser ?? defaultLoader
     this.allowPrivate = !!opts.allowPrivateForTest
+    // Seam de DNS: em prod usa o resolver real (undefined → default em ssrf.ts).
+    // Injetável só para classificar hosts em teste (loopback compartilhado).
+    this.resolver = opts.resolver
     if (opts.allowPrivateForTest && process.env.NODE_ENV !== 'test') {
       throw new Error('allowPrivateForTest só é permitido em teste (NODE_ENV=test)')
     }
@@ -101,7 +113,7 @@ export class RuntimeVerifier {
       verifiedAt: new Date().toISOString(),
     })
 
-    await assertPublicHost(saas, { allowPrivate: this.allowPrivate })
+    await assertPublicHost(saas, { allowPrivate: this.allowPrivate, resolver: this.resolver })
 
     let pw
     try {
@@ -119,10 +131,38 @@ export class RuntimeVerifier {
       const requestUrls: string[] = []
       page.on('request', (req) => requestUrls.push(req.url()))
 
+      const hostAllowed = (u: string) =>
+        isRequestHostAllowed(u, { allowPrivate: this.allowPrivate, resolver: this.resolver })
+
       await page.route('**/*', async (route) => {
-        const allowed = await isRequestHostAllowed(route.request().url(), { allowPrivate: this.allowPrivate })
-        if (allowed) await route.continue()
-        else await route.abort()
+        const reqUrl = route.request().url()
+        if (!(await hostAllowed(reqUrl))) return void (await route.abort())
+
+        // Validação POR-HOP: o `page.route` NÃO é reinvocado para o request que um
+        // 3xx gera internamente (verificado empiricamente), então um host público
+        // que faz `302 → 169.254.169.254` alcançaria o alvo interno. Buscamos SEM
+        // seguir o redirect, validamos o host do `Location`, e só então entregamos
+        // o 3xx ao browser — que o reemite como um request NOVO, batendo aqui de novo.
+        let resp: FetchResponseLike
+        try {
+          resp = await route.fetch({ maxRedirects: 0 })
+        } catch {
+          return void (await route.abort())
+        }
+        const status = resp.status()
+        if (status >= 300 && status < 400) {
+          const location = resp.headers()['location']
+          if (location) {
+            let nextUrl: string
+            try {
+              nextUrl = new URL(location, reqUrl).toString()
+            } catch {
+              return void (await route.abort()) // Location inparseável → fail-closed
+            }
+            if (!(await hostAllowed(nextUrl))) return void (await route.abort())
+          }
+        }
+        await route.fulfill({ response: resp })
       })
 
       try {
@@ -135,7 +175,7 @@ export class RuntimeVerifier {
       // Guard pós-navegação: se um redirect aterrissou num host privado/interno,
       // NÃO processamos o alvo (honestidade: inconclusive, nunca extrair de host interno).
       // Cobre o vetor principal (metadata da cloud); o interceptor já bloqueia requests diretos.
-      if (!(await isRequestHostAllowed(page.url(), { allowPrivate: this.allowPrivate }))) {
+      if (!(await isRequestHostAllowed(page.url(), { allowPrivate: this.allowPrivate, resolver: this.resolver }))) {
         return inconclusive()
       }
 
