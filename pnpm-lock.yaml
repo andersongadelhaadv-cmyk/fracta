@@ -357,6 +357,10 @@ importers:
       yaml:
         specifier: ^2.4.0
         version: 2.8.4
+    optionalDependencies:
+      playwright-core:
+        specifier: ^1.48.0
+        version: 1.61.1
     devDependencies:
       '@fracta/agent-auth':
         specifier: workspace:*
@@ -498,6 +502,10 @@ importers:
       yaml:
         specifier: ^2.4.0
         version: 2.8.4
+    optionalDependencies:
+      playwright-core:
+        specifier: ^1.48.0
+        version: 1.61.1
     devDependencies:
       '@fracta/agent-auth':
         specifier: workspace:*
@@ -676,13 +684,16 @@ importers:
         specifier: workspace:*
         version: link:../core
     optionalDependencies:
-      playwright:
+      playwright-core:
         specifier: ^1.48.0
         version: 1.61.1
     devDependencies:
       '@types/node':
         specifier: '*'
         version: 22.20.0
+      playwright:
+        specifier: ^1.48.0
+        version: 1.61.1
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
@@ -6363,15 +6374,13 @@ snapshots:
       mlly: 1.8.2
       pathe: 2.0.3
 
-  playwright-core@1.61.1:
-    optional: true
+  playwright-core@1.61.1: {}
 
   playwright@1.61.1:
     dependencies:
       playwright-core: 1.61.1
     optionalDependencies:
       fsevents: 2.3.2
-    optional: true
 
   possible-typed-array-names@1.1.0: {}
 

@@ -23,7 +23,7 @@ export interface VerifyReport {
 export interface BrowserLoader {
   (): Promise<{
     chromium: {
-      launch(opts: { headless: boolean }): Promise<BrowserLike>
+      launch(opts: { headless: boolean; channel?: string }): Promise<BrowserLike>
     }
   }>
 }
@@ -50,7 +50,30 @@ export interface PageLike {
 
 const defaultLoader: BrowserLoader = async () => {
   // Import dinâmico: o Playwright NUNCA entra no bundle base; ausente → catch no chamador.
-  return (await import('playwright')) as unknown as Awaited<ReturnType<BrowserLoader>>
+  // playwright-core (não o pacote `playwright`) é o que fica declarado como optionalDependency
+  // dos pacotes publicados: é leve e não baixa o browser no postinstall.
+  return (await import('playwright-core')) as unknown as Awaited<ReturnType<BrowserLoader>>
+}
+
+/**
+ * Lança o Chromium com fallback honesto: browser baixado pelo Playwright →
+ * Chrome/Edge do sistema (channel) → erro acionável. Assim `npx` funciona pra
+ * quem tem Chrome, sem exigir download de ~150MB no install.
+ */
+export async function launchWithFallback(
+  chromium: { launch(o: { headless: boolean; channel?: string }): Promise<BrowserLike> },
+): Promise<BrowserLike> {
+  try {
+    return await chromium.launch({ headless: true })
+  } catch {
+    try {
+      return await chromium.launch({ headless: true, channel: 'chrome' })
+    } catch {
+      throw new BrowserUnavailableError(
+        'Nenhum Chromium disponível para a verificação em runtime. Rode `npx playwright install chromium`, ou tenha o Google Chrome instalado.',
+      )
+    }
+  }
 }
 
 export class RuntimeVerifier {
@@ -85,18 +108,11 @@ export class RuntimeVerifier {
       pw = await this.loadBrowser()
     } catch {
       throw new BrowserUnavailableError(
-        'Verificação em runtime requer o Playwright + Chromium. Garanta o pacote (npm i playwright) e o navegador (npx playwright install chromium).',
+        'Verificação em runtime requer o Playwright. Garanta o pacote (o fractascan instala playwright-core) e um browser (npx playwright install chromium, ou Chrome do sistema).',
       )
     }
 
-    let browser
-    try {
-      browser = await pw.chromium.launch({ headless: true })
-    } catch {
-      throw new BrowserUnavailableError(
-        'O Chromium não pôde ser iniciado (binário ausente?). Rode: npx playwright install chromium',
-      )
-    }
+    const browser = await launchWithFallback(pw.chromium)
     try {
       const context = await browser.newContext()
       const page = await context.newPage()
