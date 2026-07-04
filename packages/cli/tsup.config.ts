@@ -16,5 +16,5 @@ export default defineConfig({
   // yaml e builtins (node:sqlite, node:dns, child_process…) permanecem externos.
   // playwright também fica externo: é um import() dinâmico dentro de @fracta/verify,
   // e o esbuild falha tentando empacotar o require() do chromium-bidi do playwright-core.
-  external: ['playwright'],
+  external: ['playwright', 'playwright-core'],
 })

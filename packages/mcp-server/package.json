@@ -45,6 +45,9 @@
     "undici": "^6.21.0",
     "yaml": "^2.4.0"
   },
+  "optionalDependencies": {
+    "playwright-core": "^1.48.0"
+  },
   "devDependencies": {
     "@fracta/agent-auth": "workspace:*",
     "@fracta/agent-compliance": "workspace:*",

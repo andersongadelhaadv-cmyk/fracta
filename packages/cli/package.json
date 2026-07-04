@@ -34,6 +34,9 @@
   "dependencies": {
     "yaml": "^2.4.0"
   },
+  "optionalDependencies": {
+    "playwright-core": "^1.48.0"
+  },
   "devDependencies": {
     "@fracta/core": "workspace:*",
     "@fracta/agent-auth": "workspace:*",

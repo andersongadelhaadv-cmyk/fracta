@@ -7,7 +7,7 @@ Tier de **verificação em runtime** do Fracta. Carrega a página num Chromium h
 - MCP: tool `verify_consent { url }` (via `fractascan-mcp`).
 - CLI: `fractascan verify <url>`.
 
-Requer Chromium: `npx playwright install chromium`. Sem ele, degrada com uma mensagem acionável (nunca quebra).
+Requer um Chromium: o Fracta usa o `playwright-core` (instalado como dependência opcional) e tenta, nesta ordem, um browser baixado (`npx playwright install chromium`) e o **Google Chrome do sistema**. Sem nenhum dos dois, degrada com uma mensagem acionável (nunca quebra).
 
 ## Honestidade / escopo
 

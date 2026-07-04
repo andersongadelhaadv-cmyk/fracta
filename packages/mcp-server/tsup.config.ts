@@ -18,5 +18,5 @@ export default defineConfig({
   // não pode ser bundlado: seu `playwright-core` tem requires condicionais (ex.:
   // chromium-bidi) que só existem quando o browser é instalado, e travam o esbuild
   // em build-time. Mantém externo; resolvido do node_modules em runtime, se presente.
-  external: ['playwright'],
+  external: ['playwright', 'playwright-core'],
 })

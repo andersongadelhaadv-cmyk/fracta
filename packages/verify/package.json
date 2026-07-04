@@ -15,19 +15,20 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --external playwright",
-    "dev": "tsup src/index.ts --format esm --dts --watch --external playwright",
+    "build": "tsup src/index.ts --format esm --dts --external playwright --external playwright-core",
+    "dev": "tsup src/index.ts --format esm --dts --watch --external playwright --external playwright-core",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@fracta/core": "workspace:*"
   },
   "optionalDependencies": {
-    "playwright": "^1.48.0"
+    "playwright-core": "^1.48.0"
   },
   "devDependencies": {
     "@types/node": "*",
     "playwright": "^1.48.0",
+    "playwright-core": "^1.48.0",
     "tsup": "*",
     "typescript": "*",
     "vitest": "*"

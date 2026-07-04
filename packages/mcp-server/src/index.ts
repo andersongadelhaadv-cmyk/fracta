@@ -147,7 +147,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: 'verify_consent',
       description:
-        'Verificação em RUNTIME (browser headless) do comportamento de consentimento: carrega a página, captura trackers/cookies que disparam ANTES de qualquer consentimento e detecta CMP real. Confirma com evidência o que o passive_scan só supõe. Requer Chromium (npx playwright install chromium); use em sites que você autoriza. SSRF: bloqueia requests diretos a hosts internos e recusa navegação que aterrisse em host privado, mas não previne 100% redirect/subrecurso interno — use só em alvos autorizados.',
+        'Verificação em RUNTIME (browser headless) do comportamento de consentimento: carrega a página, captura trackers/cookies que disparam ANTES de qualquer consentimento e detecta CMP real. Confirma com evidência o que o passive_scan só supõe. Funciona com o Google Chrome do sistema ou `npx playwright install chromium`; use em sites que você autoriza. SSRF: bloqueia requests diretos a hosts internos e recusa navegação que aterrisse em host privado, mas não previne 100% redirect/subrecurso interno — use só em alvos autorizados.',
       inputSchema: {
         type: 'object',
         properties: { url: { type: 'string', description: 'URL a verificar (ex.: https://exemplo.com.br)' } },
