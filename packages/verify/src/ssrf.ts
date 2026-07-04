@@ -1,16 +1,22 @@
 import { lookup } from 'node:dns/promises'
 import { SsrfError } from './errors.js'
 
-/** IPv4/IPv6 privados, loopback e link-local. */
-export function isPrivateIp(ip: string): boolean {
-  if (ip === '::1' || ip.startsWith('fe80') || ip.startsWith('fc') || ip.startsWith('fd')) return true
+/** IPv4/IPv6 privados, loopback, link-local, unique-local, CGNAT e IPv4-mapeado-em-IPv6. */
+export function isPrivateIp(ipRaw: string): boolean {
+  const ip = ipRaw.toLowerCase().trim()
+  if (ip === '::1' || ip === '0:0:0:0:0:0:0:1') return true
+  if (ip.startsWith('fc') || ip.startsWith('fd')) return true // unique-local fc00::/7
+  if (/^fe[89ab]/.test(ip)) return true                        // link-local fe80::/10
+  const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)      // IPv4-mapped IPv6
+  if (mapped) return isPrivateIp(mapped[1])
   const m = ip.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
   if (!m) return false
   const [a, b] = [Number(m[1]), Number(m[2])]
   if (a === 127 || a === 10 || a === 0) return true
-  if (a === 169 && b === 254) return true // link-local
+  if (a === 169 && b === 254) return true                      // link-local
   if (a === 172 && b >= 16 && b <= 31) return true
   if (a === 192 && b === 168) return true
+  if (a === 100 && b >= 64 && b <= 127) return true            // CGNAT 100.64/10
   return false
 }
 

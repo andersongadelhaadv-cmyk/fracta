@@ -11,6 +11,14 @@ describe('isPrivateIp', () => {
     expect(isPrivateIp('::1')).toBe(true)
     expect(isPrivateIp('8.8.8.8')).toBe(false)
   })
+
+  it('fecha bypasses: IPv4-mapeado-em-IPv6, CGNAT e caixa alta', () => {
+    expect(isPrivateIp('::ffff:127.0.0.1')).toBe(true)   // IPv4-mapped IPv6
+    expect(isPrivateIp('::ffff:192.168.1.1')).toBe(true)
+    expect(isPrivateIp('FE80::1')).toBe(true)            // uppercase IPv6 link-local
+    expect(isPrivateIp('100.64.0.1')).toBe(true)         // CGNAT 100.64/10
+    expect(isPrivateIp('100.128.0.1')).toBe(false)       // fora do CGNAT → público
+  })
 })
 
 describe('assertPublicHost', () => {
