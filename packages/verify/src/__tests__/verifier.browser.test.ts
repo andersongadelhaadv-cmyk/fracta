@@ -25,7 +25,7 @@ maybe('RuntimeVerifier (browser real)', () => {
 
   beforeAll(async () => {
     violador = page(`<html><body>oi<script>
-      new Image().src='https://www.facebook.com/tr?id=1&ev=PageView';
+      new Image().src='/connect.facebook.net/en_US/fbevents.js';
     </script></body></html>`)
     limpo = page(`<html><body>site limpo</body></html>`)
     pV = await listen(violador); pL = await listen(limpo)

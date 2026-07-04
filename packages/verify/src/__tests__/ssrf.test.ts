@@ -37,3 +37,20 @@ describe('assertPublicHost', () => {
     await expect(assertPublicHost('localhost', { resolver, allowPrivate: true })).resolves.toBeUndefined()
   })
 })
+
+import { isRequestHostAllowed } from '../ssrf.js'
+
+describe('isRequestHostAllowed', () => {
+  it('permite host público e bloqueia host privado (por request)', async () => {
+    const pub = async () => ['93.184.216.34']
+    const priv = async () => ['169.254.169.254']
+    expect(await isRequestHostAllowed('https://ok.com/a', { resolver: pub })).toBe(true)
+    expect(await isRequestHostAllowed('https://metadata.internal/a', { resolver: priv })).toBe(false)
+  })
+  it('allowPrivate libera tudo (teste/local)', async () => {
+    expect(await isRequestHostAllowed('http://127.0.0.1:8080/x', { allowPrivate: true })).toBe(true)
+  })
+  it('URL inválida → bloqueia (fail-closed)', async () => {
+    expect(await isRequestHostAllowed('not a url', {})).toBe(false)
+  })
+})

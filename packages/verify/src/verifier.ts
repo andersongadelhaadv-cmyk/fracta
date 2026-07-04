@@ -3,8 +3,8 @@ import type { Finding } from '@fracta/core'
 import { classifyTrackers } from './trackers.js'
 import { detectCmp, CMP_GLOBALS, CMP_SELECTORS, type CmpProbe } from './cmp.js'
 import { buildVerifyFindings } from './findings.js'
-import { assertPublicHost } from './ssrf.js'
-import { BrowserUnavailableError, NavigationError } from './errors.js'
+import { assertPublicHost, isRequestHostAllowed } from './ssrf.js'
+import { BrowserUnavailableError } from './errors.js'
 
 export interface VerifyReport {
   url: string
@@ -35,8 +35,14 @@ export interface ContextLike {
   newPage(): Promise<PageLike>
   cookies(): Promise<{ name: string }[]>
 }
+export interface RouteLike {
+  request(): { url(): string }
+  continue(): Promise<void>
+  abort(): Promise<void>
+}
 export interface PageLike {
   on(event: 'request', cb: (req: { url(): string }) => void): void
+  route(pattern: string, handler: (route: RouteLike) => unknown): Promise<void>
   goto(url: string, opts: { waitUntil: 'networkidle'; timeout: number }): Promise<unknown>
   evaluate<T>(fn: string): Promise<T>
 }
@@ -88,10 +94,23 @@ export class RuntimeVerifier {
       const requestUrls: string[] = []
       page.on('request', (req) => requestUrls.push(req.url()))
 
+      await page.route('**/*', async (route) => {
+        const allowed = await isRequestHostAllowed(route.request().url(), { allowPrivate: this.allowPrivate })
+        if (allowed) await route.continue()
+        else await route.abort()
+      })
+
       try {
         await page.goto(url.toString(), { waitUntil: 'networkidle', timeout })
       } catch {
-        throw new NavigationError(`Não consegui carregar ${url.toString()} (timeout/DNS/target down).`)
+        // Honestidade: alvo inacessível → inconclusive (NUNCA verde falso), como o PassiveScanner.
+        return {
+          url: url.toString(),
+          verdict: 'inconclusive',
+          findings: [],
+          evidence: { trackers: [], cookiesSetBeforeConsent: [], cmp: { detected: false }, firedBeforeInteraction: false },
+          verifiedAt: new Date().toISOString(),
+        }
       }
 
       const probe = await page.evaluate<CmpProbe>(

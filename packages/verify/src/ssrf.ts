@@ -48,3 +48,27 @@ export async function assertPublicHost(
     throw new SsrfError(`Host resolve para IP privado/interno — recusado: ${hostname}`)
   }
 }
+
+/**
+ * Decisão por-requisição para o interceptor do browser: o host da URL é público?
+ * Fecha SSRF por redirect/subrecurso (o guard inicial só cobre o host inicial).
+ * Fail-closed: URL inválida ou host privado → false.
+ */
+export async function isRequestHostAllowed(
+  url: string,
+  opts: { allowPrivate?: boolean; resolver?: Resolver } = {},
+): Promise<boolean> {
+  if (opts.allowPrivate) return true
+  let host: string
+  try {
+    host = new URL(url).hostname
+  } catch {
+    return false
+  }
+  try {
+    await assertPublicHost(host, { resolver: opts.resolver })
+    return true
+  } catch {
+    return false
+  }
+}
