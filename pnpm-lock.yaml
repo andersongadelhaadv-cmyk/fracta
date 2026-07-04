@@ -418,6 +418,9 @@ importers:
       '@fracta/store':
         specifier: workspace:*
         version: link:../store
+      '@fracta/verify':
+        specifier: workspace:*
+        version: link:../verify
       '@types/node':
         specifier: '*'
         version: 20.19.39

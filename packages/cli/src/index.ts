@@ -74,7 +74,7 @@ async function main(): Promise<void> {
 
   const command = positionals[0] ?? 'scan'
 
-  const VALID_COMMANDS = ['scan', 'docs', 'help'] as const
+  const VALID_COMMANDS = ['scan', 'docs', 'verify', 'help'] as const
   type ValidCommand = typeof VALID_COMMANDS[number]
 
   if (!VALID_COMMANDS.includes(command as ValidCommand)) {
@@ -89,8 +89,9 @@ async function main(): Promise<void> {
 Usage: fracta <command> [options]
 
 Commands:
-  scan    Run full security scan (default)
-  docs    Run documentation audit only
+  scan          Run full security scan (default)
+  docs          Run documentation audit only
+  verify <url>  Verificação em runtime (browser) de consentimento/trackers.
 
 Options:
   -t, --target      Target name from targets.yaml (default: all)
@@ -110,6 +111,31 @@ Options:
   -h, --help        Show this help
 `)
     process.exit(0)
+  }
+
+  if (command === 'verify') {
+    const targetUrl = positionals[1]
+    if (!targetUrl) {
+      console.error('[Fracta] Uso: fractascan verify <url>')
+      process.exit(2)
+    }
+    try {
+      const { RuntimeVerifier } = await import('@fracta/verify')
+      const report = await new RuntimeVerifier().verifyConsent(targetUrl)
+      console.log(`Verificação em runtime de ${report.url}`)
+      console.log(report.evidence.firedBeforeInteraction
+        ? `⚠️  trackers dispararam ANTES do consentimento: ${report.evidence.trackers.map(t => t.name).join(', ')}`
+        : '✅ nenhum tracker disparou antes do consentimento')
+      console.log(`CMP: ${report.evidence.cmp.detected ? report.evidence.cmp.vendor : 'não detectado'}`)
+      for (const f of report.findings) console.log(`- [${f.severity}] ${f.title}`)
+      process.exit(0)
+    } catch (e) {
+      const err = e as Error
+      console.error(err.name === 'BrowserUnavailableError'
+        ? err.message
+        : `[Fracta] Falha na verificação: ${err.message}`)
+      process.exit(1)
+    }
   }
 
   // Regra 1: o Fracta audita UM SaaS por vez. --target é obrigatório no scan —

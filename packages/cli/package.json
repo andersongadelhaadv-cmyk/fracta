@@ -55,6 +55,7 @@
     "@fracta/reporter": "workspace:*",
     "@fracta/store": "workspace:*",
     "@fracta/llm": "workspace:*",
+    "@fracta/verify": "workspace:*",
     "tsup": "*",
     "typescript": "*",
     "@types/node": "*"
