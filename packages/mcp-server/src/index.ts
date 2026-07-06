@@ -29,6 +29,19 @@ import { LlmEnricher } from '@fracta/llm'
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import pkg from '../package.json' with { type: 'json' }
+
+// Silencia SÓ o ExperimentalWarning do `node:sqlite` (usamos o SQLite builtin de propósito).
+// Sem isso o stderr do cliente MCP recebe o aviso a cada start (ruído). Demais avisos passam.
+// Precisa rodar ANTES do probe/store abaixo, que é quem toca o node:sqlite.
+{
+  const orig = process.emitWarning.bind(process)
+  process.emitWarning = ((w: string | Error, ...rest: unknown[]) => {
+    const msg = typeof w === 'string' ? w : w?.message ?? ''
+    if (/SQLite is an experimental feature/i.test(msg)) return
+    return (orig as (...a: unknown[]) => void)(w, ...rest)
+  }) as typeof process.emitWarning
+}
 
 // ── Auto-elevação para Node 22+ (estado entre runs no MCP) ──────────────────────
 // O store usa `node:sqlite`, builtin só em Node >=22.5. Quando o cliente MCP invoca
@@ -116,7 +129,7 @@ function buildSastOrchestrator(repoPath: string): FractaOrchestrator {
 const lastReports = new Map<string, ScanReport>()
 
 const server = new Server(
-  { name: 'fracta', version: '0.1.0' },
+  { name: 'fracta', version: pkg.version },
   { capabilities: { tools: {} } }
 )
 
