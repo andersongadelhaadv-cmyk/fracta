@@ -1,6 +1,6 @@
 {
   "name": "fractascan-mcp",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Model Context Protocol server exposing Fracta scan tools (passive_scan, scan_repo, …)",
   "license": "MIT",
   "author": "Anderson Gadelha",
@@ -44,9 +44,6 @@
     "@modelcontextprotocol/sdk": "^1.0.0",
     "undici": "^6.21.0",
     "yaml": "^2.4.0"
-  },
-  "optionalDependencies": {
-    "playwright-core": "^1.48.0"
   },
   "devDependencies": {
     "@fracta/agent-auth": "workspace:*",

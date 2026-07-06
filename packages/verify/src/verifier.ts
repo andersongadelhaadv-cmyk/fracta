@@ -56,8 +56,9 @@ export interface PageLike {
 
 const defaultLoader: BrowserLoader = async () => {
   // Import dinâmico: o Playwright NUNCA entra no bundle base; ausente → catch no chamador.
-  // playwright-core (não o pacote `playwright`) é o que fica declarado como optionalDependency
-  // dos pacotes publicados: é leve e não baixa o browser no postinstall.
+  // `playwright-core` é OPT-IN (não é mais optionalDependency dos pacotes publicados: pesava no
+  // cold-start do `npx` e quebrava a conexão do MCP por timeout). Quem quer o `verify` instala
+  // junto (ex.: `npm i -g fractascan playwright-core`). As demais ferramentas não precisam dele.
   return (await import('playwright-core')) as unknown as Awaited<ReturnType<BrowserLoader>>
 }
 
@@ -120,7 +121,7 @@ export class RuntimeVerifier {
       pw = await this.loadBrowser()
     } catch {
       throw new BrowserUnavailableError(
-        'Verificação em runtime requer o Playwright. Garanta o pacote (o fractascan instala playwright-core) e um browser (npx playwright install chromium, ou Chrome do sistema).',
+        'Verificação em runtime (verify) precisa do Playwright, que é opt-in. Instale junto do Fracta: `npm i -g fractascan playwright-core` e rode `fractascan verify` (usa o Chrome do sistema; ou `npx playwright install chromium` para baixar o Chromium). As demais ferramentas não precisam de browser.',
       )
     }
 
