@@ -5,7 +5,8 @@ import { Pipeline } from '@/components/Pipeline'
 import { FleetProof } from '@/components/FleetProof'
 import { ZapApiSupporter } from '@/components/ZapApiSupporter'
 import { Footer } from '@/components/Footer'
-import { REPO_URL } from '@/lib/config'
+import { CopyBlock } from '@/components/CopyBlock'
+import { REPO_URL, MCP_INSTALL_CMD } from '@/lib/config'
 
 export default function Home() {
   return (
@@ -15,6 +16,7 @@ export default function Home() {
         <Wordmark className="text-base" />
         <nav className="flex items-center gap-5 text-sm text-muted">
           <a href="#medimos" className="hover:text-text">o que medimos</a>
+          <a href="/mcp" className="hover:text-text">editor &amp; CLI</a>
           <a href="/blog" className="hover:text-text">blog</a>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:text-accent">
             github ↗
@@ -62,6 +64,38 @@ export default function Home() {
             Toda URL passa por um <span className="text-text">SSRF guard</span> que valida o IP real no momento da
             conexão (bloqueia interno/privado/metadata, inclusive via redirect). Só então rodam os checks passivos.
           </p>
+        </div>
+      </section>
+
+      {/* além do scanner web: MCP + CLI */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-content px-5 py-12">
+          <p className="font-mono text-xs uppercase tracking-wide text-accent">editor · terminal · CI</p>
+          <h2 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+            O scanner web é só a porta. Use o Fracta no seu editor e no seu CI.
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+            O mesmo motor determinístico, dentro do <span className="text-text">Claude</span> (via MCP) e no seu terminal
+            (via CLI). Roda na sua máquina — sem login, sem conta.
+          </p>
+          <div className="mt-6 max-w-2xl">
+            <CopyBlock text={MCP_INSTALL_CMD} />
+          </div>
+          <div className="mt-8 grid gap-5 sm:grid-cols-3">
+            <div>
+              <p className="font-mono text-sm text-accent">MCP no editor</p>
+              <p className="mt-2 text-sm text-muted">O Claude audita o repositório que você está codando — deps, secrets, código, LGPD. Read-only.</p>
+            </div>
+            <div>
+              <p className="font-mono text-sm text-accent">CLI no CI</p>
+              <p className="mt-2 text-sm text-muted">Roda no pipeline e falha o build se achar algo crítico. Zero install global (npx).</p>
+            </div>
+            <div>
+              <p className="font-mono text-sm text-accent">verify (LGPD)</p>
+              <p className="mt-2 text-sm text-muted">Um browser real confirma trackers/cookies que disparam antes do consentimento — prova, não palpite.</p>
+            </div>
+          </div>
+          <a href="/mcp" className="mt-8 inline-block font-mono text-sm text-accent hover:underline">ver todas as ferramentas →</a>
         </div>
       </section>
 

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getStore } from '@/lib/scan-store'
 import { ReportView } from '@/components/ReportView'
+import { EditorCta } from '@/components/EditorCta'
 import { Wordmark } from '@/components/Wordmark'
 
 export const runtime = 'nodejs'
@@ -45,8 +46,11 @@ export default function ResultPage({ params }: { params: { shareId: string } }) 
         <Link href="/"><Wordmark className="text-base" /></Link>
         <Link href="/" className="font-mono text-xs text-accent hover:underline">nova análise →</Link>
       </header>
-      <div className="px-5 pb-16">
+      <div className="px-5 pb-8">
         <ReportView result={result} shareId={params.shareId} />
+      </div>
+      <div className="pb-16">
+        <EditorCta />
       </div>
     </main>
   )

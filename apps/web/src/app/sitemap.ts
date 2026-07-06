@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     { url: SITE, lastModified: updated, changeFrequency: 'weekly', priority: 1 },
+    { url: `${SITE}/mcp`, lastModified: new Date('2026-07-06'), changeFrequency: 'weekly', priority: 0.9 },
     { url: `${SITE}/blog`, lastModified: updated, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${SITE}/privacidade`, lastModified: updated, changeFrequency: 'monthly', priority: 0.4 },
     ...posts,
