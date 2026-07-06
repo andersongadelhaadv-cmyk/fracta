@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Wordmark } from '@/components/Wordmark'
 import { Footer } from '@/components/Footer'
 import { CopyBlock } from '@/components/CopyBlock'
+import { TerminalDemo } from '@/components/TerminalDemo'
 import { MCP_INSTALL_CMD, MCP_JSON_CONFIG, MCP_TOOLS, REPO_URL } from '@/lib/config'
 
 const ext = { target: '_blank', rel: 'noopener noreferrer' } as const
@@ -68,6 +69,10 @@ export default function McpPage() {
             <span className="text-text"> terminal</span> (via CLI). Instala num comando, <span className="text-text">roda na sua
             máquina</span> — sem login, sem conta, sem enviar seu código pra lugar nenhum. O controle de acesso é o seu próprio ambiente.
           </p>
+          <div className="mt-10">
+            <TerminalDemo />
+            <p className="mt-2 font-mono text-[11px] text-faint">sessão real — saída exata do comando, sem encenação</p>
+          </div>
         </div>
       </section>
 

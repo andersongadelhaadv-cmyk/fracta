@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { readFile } from 'fs/promises'
+import { readFile, writeFile, access, mkdir } from 'fs/promises'
+import { dirname } from 'path'
 import { parseArgs } from 'util'
 import { parse as parseYaml } from 'yaml'
 import { FractaOrchestrator, assertUsableTarget } from '@fracta/core'
@@ -68,6 +69,7 @@ async function main(): Promise<void> {
       'no-llm': { type: 'boolean', default: false },
       'fail-on': { type: 'string', default: 'critical,high' },
       'docs-path': { type: 'string', default: './' },
+      force: { type: 'boolean', default: false },
       verbose: { type: 'boolean', short: 'v', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
@@ -75,7 +77,7 @@ async function main(): Promise<void> {
 
   const command = positionals[0] ?? 'scan'
 
-  const VALID_COMMANDS = ['scan', 'docs', 'verify', 'help'] as const
+  const VALID_COMMANDS = ['scan', 'docs', 'verify', 'init', 'help'] as const
   type ValidCommand = typeof VALID_COMMANDS[number]
 
   if (!VALID_COMMANDS.includes(command as ValidCommand)) {
@@ -93,6 +95,7 @@ Commands:
   scan          Run full security scan (default)
   docs          Run documentation audit only
   verify <url>  Verificação em runtime (browser) de consentimento/trackers.
+  init [path]   Cria um targets.yaml inicial comentado (default: ./configs/targets.yaml).
 
 Options:
   -t, --target      Target name from targets.yaml (default: all)
@@ -108,10 +111,25 @@ Options:
   --fail-on         Severities that cause exit(1) (default: critical,high)
   --docs-path       Repo path for the dedicated 'docs' command (default: ./).
                     In 'scan', DOCS uses the target's repoPath and skips if absent.
+  --force           (init) sobrescreve um targets.yaml existente
   -v, --verbose     Verbose output
   -h, --help        Show this help
 `)
     process.exit(0)
+  }
+
+  if (command === 'init') {
+    const { runInit } = await import('./init.js')
+    const path = positionals[1] ?? (values.config as string)
+    const result = await runInit(
+      { path, force: values.force as boolean },
+      {
+        exists: async (p) => { try { await access(p); return true } catch { return false } },
+        write: async (p, content) => { await mkdir(dirname(p), { recursive: true }); await writeFile(p, content, 'utf-8') },
+      },
+    )
+    console.log(result.message)
+    process.exit(result.ok ? 0 : 1)
   }
 
   if (command === 'verify') {
