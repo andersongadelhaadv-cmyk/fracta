@@ -23,6 +23,7 @@ import { SupabaseSkill } from '@fracta/skill-supabase'
 import { FractaReporter } from '@fracta/reporter'
 import { SqliteFindingStore } from '@fracta/store'
 import { LlmEnricher } from '@fracta/llm'
+import pkg from '../package.json' with { type: 'json' }
 
 const BANNER = `
 ███████╗██████╗  █████╗  ██████╗████████╗ █████╗
@@ -32,7 +33,7 @@ const BANNER = `
 ██║     ██║  ██║██║  ██║╚██████╗   ██║   ██║  ██║
 ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝   ╚═╝   ╚═╝  ╚═╝
 
-The Complete SaaS Audit Framework — v0.1.0
+The Complete SaaS Audit Framework — v${pkg.version}
 `
 
 interface TargetsFile {

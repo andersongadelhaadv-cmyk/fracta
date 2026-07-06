@@ -9,6 +9,12 @@ const display = Chakra_Petch({ subsets: ['latin'], weight: ['600', '700'], varia
 
 const SITE = 'https://fracta.pro'
 
+// Render dinâmico: o CSP com nonce por-request (middleware) só é aplicado aos
+// <script> inline do Next quando a página é renderizada a cada request. Estático
+// baked no build → HTML sem nonce → hidratação bloqueada. Custo desprezível nesta
+// escala; ganho = CSP nonce-based real (não 'unsafe-inline', que o próprio scanner reprova).
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
   title: {
