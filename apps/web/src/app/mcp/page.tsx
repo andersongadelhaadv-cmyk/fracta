@@ -4,7 +4,7 @@ import { Wordmark } from '@/components/Wordmark'
 import { Footer } from '@/components/Footer'
 import { CopyBlock } from '@/components/CopyBlock'
 import { TerminalDemo } from '@/components/TerminalDemo'
-import { MCP_INSTALL_CMD, MCP_JSON_CONFIG, MCP_TOOLS, REPO_URL } from '@/lib/config'
+import { MCP_INSTALL_CMD, MCP_INSTALL_CMD_WIN, MCP_JSON_CONFIG, MCP_JSON_CONFIG_WIN, MCP_TOOLS, REPO_URL } from '@/lib/config'
 
 const ext = { target: '_blank', rel: 'noopener noreferrer' } as const
 
@@ -89,12 +89,30 @@ export default function McpPage() {
               <div className="mt-3 max-w-2xl">
                 <CopyBlock text={MCP_INSTALL_CMD} />
               </div>
-              <details className="mt-3 max-w-2xl">
+              <details className="mt-2 max-w-2xl">
+                <summary className="cursor-pointer font-mono text-xs text-muted hover:text-accent">
+                  no Windows? o <code className="text-text">npx</code> precisa de <code className="text-text">cmd /c</code> (senão o cliente MCP dá “Failed”)
+                </summary>
+                <div className="mt-3">
+                  <CopyBlock text={MCP_INSTALL_CMD_WIN} />
+                  <p className="mt-2 text-xs text-muted">
+                    O cliente MCP spawna o comando sem shell; no Windows o <code className="font-mono text-text">npx</code> é <code className="font-mono text-text">npx.cmd</code> e não é executável direto — <code className="font-mono text-text">cmd /c</code> resolve.
+                  </p>
+                </div>
+              </details>
+              <details className="mt-2 max-w-2xl">
                 <summary className="cursor-pointer font-mono text-xs text-muted hover:text-accent">
                   outro cliente (Claude Desktop, Cursor…)? use este JSON de config
                 </summary>
-                <div className="mt-3">
-                  <CopyBlock text={MCP_JSON_CONFIG} multiline />
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-faint">macOS / Linux</p>
+                    <CopyBlock text={MCP_JSON_CONFIG} multiline />
+                  </div>
+                  <div>
+                    <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-faint">Windows</p>
+                    <CopyBlock text={MCP_JSON_CONFIG_WIN} multiline />
+                  </div>
                 </div>
               </details>
             </div>

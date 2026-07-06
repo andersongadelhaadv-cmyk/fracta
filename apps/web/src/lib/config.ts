@@ -13,13 +13,23 @@ export const PREVIUSIA_URL = 'https://previusia.com.br'
 
 // ── Distribuição MCP + CLI (npm). Fonte ÚNICA reusada pela home, /mcp e CTA. ──
 
-/** Instala o MCP no Claude Code num comando. */
+/** Instala o MCP no Claude Code num comando (macOS/Linux). */
 export const MCP_INSTALL_CMD = 'claude mcp add fracta -- npx -y fractascan-mcp'
 
-/** Config MCP p/ clientes que editam JSON (Claude Desktop, Cursor, etc.). */
+/** Windows: `npx` não é spawnável direto pelo cliente MCP (é `npx.cmd`) → envolve em `cmd /c`. */
+export const MCP_INSTALL_CMD_WIN = 'claude mcp add fracta -- cmd /c npx -y fractascan-mcp'
+
+/** Config MCP p/ clientes que editam JSON (Claude Desktop, Cursor, etc.) — macOS/Linux. */
 export const MCP_JSON_CONFIG = `{
   "mcpServers": {
     "fracta": { "command": "npx", "args": ["-y", "fractascan-mcp"] }
+  }
+}`
+
+/** Config MCP no Windows (o cliente spawna sem shell → `npx` direto dá ENOENT). */
+export const MCP_JSON_CONFIG_WIN = `{
+  "mcpServers": {
+    "fracta": { "command": "cmd", "args": ["/c", "npx", "-y", "fractascan-mcp"] }
   }
 }`
 
