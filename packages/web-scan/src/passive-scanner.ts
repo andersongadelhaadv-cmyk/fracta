@@ -7,6 +7,7 @@ import { createSafeClient } from './safe-fetch.js'
 import { findCookieIssues } from './cookie-check.js'
 import { checkLgpdLite, findPrivacyHref } from './lgpd-lite.js'
 import { detectBotChallenge } from './bot-challenge.js'
+import { detectStack } from './detect-stack.js'
 import { grade } from './grader.js'
 import type { PassiveScanResult, ScanCheck, ScanGrade, ScanVerdict } from './types.js'
 
@@ -49,26 +50,17 @@ export class PassiveScanner {
     const findings: Finding[] = []
     let headersRan = false
     let contentRan = false
+    let detectedStack: string[] = []
 
-    // 1) HEADERS agent (passivo) — reusa o motor, transporte endurecido injetado.
-    try {
-      const scope: ScanScope = {
-        target: { name: saas, url: url.toString(), stack: [] },
-        depth: 'quick',
-        agents: ['HEADERS Agent'],
-        runId,
-        startedAt: new Date(),
-      }
-      findings.push(...(await new HeadersAgent({ createClient }).run(scope)))
-      headersRan = true
-    } catch { /* inacessível ou skip — tratado pelo verdict honesto */ }
-
-    // 2) Resposta crua p/ cookies + LGPD-lite (1 GET passivo).
+    // 1) Conteúdo cru (1 GET passivo): cookies + LGPD-lite + DETECÇÃO DE STACK.
+    //    Roda ANTES do HEADERS agent para alimentar o stack detectado → o agente
+    //    entrega o fix EXATO (ex.: snippet de next.config.js em vez do genérico).
     try {
       const client = createClient(url.toString())
       const res = await client.request('/', { timeoutMs: 8000 })
       contentRan = true
       const html = res.raw ?? ''
+      detectedStack = detectStack(res.headers as Record<string, string | string[] | undefined>, html)
       const sc = res.headers['set-cookie'] as unknown as string[] | string | undefined
       const setCookie = Array.isArray(sc) ? sc : sc ? [sc] : []
 
@@ -99,6 +91,20 @@ export class PassiveScanner {
         findings.push(...checkLgpdLite(html, setCookie, saas, runId, policy))
       }
     } catch { /* idem */ }
+
+    // 2) HEADERS agent (passivo) — reusa o motor, transporte endurecido injetado.
+    //    Recebe o stack detectado no passo 1 → recomendações com o fix EXATO do stack.
+    try {
+      const scope: ScanScope = {
+        target: { name: saas, url: url.toString(), stack: detectedStack },
+        depth: 'quick',
+        agents: ['HEADERS Agent'],
+        runId,
+        startedAt: new Date(),
+      }
+      findings.push(...(await new HeadersAgent({ createClient }).run(scope)))
+      headersRan = true
+    } catch { /* inacessível ou skip — tratado pelo verdict honesto */ }
 
     // 3) Postura de e-mail/DNS (SPF/DMARC/DKIM) — passivo (só queries DNS), anti-spoofing.
     let dnsRan = false

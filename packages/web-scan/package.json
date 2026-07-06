@@ -1,6 +1,6 @@
 {
   "name": "@fracta/web-scan",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "SSRF-safe passive scan engine for fracta.pro",
   "license": "MIT",
   "author": "Anderson Gadelha",
