@@ -102,6 +102,22 @@ export default function McpPage() {
               </details>
               <details className="mt-2 max-w-2xl">
                 <summary className="cursor-pointer font-mono text-xs text-muted hover:text-accent">
+                  máxima robustez? instale global e aponte pro <code className="text-text">node</code> (zero download no start)
+                </summary>
+                <div className="mt-3 space-y-2">
+                  <CopyBlock text="npm i -g fractascan-mcp" />
+                  <CopyBlock text={`{
+  "mcpServers": {
+    "fracta": { "command": "node", "args": ["<caminho>/node_modules/fractascan-mcp/dist/index.js"] }
+  }
+}`} multiline />
+                  <p className="text-xs text-muted">
+                    Spawna o <code className="font-mono text-text">node</code> direto no dist já instalado — sem <code className="font-mono text-text">npx</code>, sem download, sem timeout. O <code className="font-mono text-text">{'<caminho>'}</code> é o <code className="font-mono text-text">npm root -g</code>.
+                  </p>
+                </div>
+              </details>
+              <details className="mt-2 max-w-2xl">
+                <summary className="cursor-pointer font-mono text-xs text-muted hover:text-accent">
                   outro cliente (Claude Desktop, Cursor…)? use este JSON de config
                 </summary>
                 <div className="mt-3 space-y-3">
@@ -225,7 +241,7 @@ export default function McpPage() {
             <CopyBlock text="npx fractascan docs --docs-path ./" />
           </div>
           <p className="mt-4 text-sm text-muted">
-            <code className="font-mono text-xs text-accent">verify</code> abre um browser (usa o Chrome do sistema ou <code className="font-mono text-xs text-text">npx playwright install chromium</code>).
+            <code className="font-mono text-xs text-accent">verify</code> precisa de um browser (é <span className="text-text">opt-in</span>, pra manter o resto leve): instale junto — <code className="font-mono text-xs text-text">npm i -g fractascan playwright-core</code> — e use o Chrome do sistema, ou <code className="font-mono text-xs text-text">npx playwright install chromium</code>.
             {' '}<code className="font-mono text-xs text-accent">scan</code> lê o <code className="font-mono text-xs text-text">targets.yaml</code>.{' '}
             <a {...ext} href={`${REPO_URL}#readme`} className="text-accent hover:underline">docs completas no GitHub ↗</a>
           </p>

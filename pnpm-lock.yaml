@@ -357,10 +357,6 @@ importers:
       yaml:
         specifier: ^2.4.0
         version: 2.8.4
-    optionalDependencies:
-      playwright-core:
-        specifier: ^1.48.0
-        version: 1.61.1
     devDependencies:
       '@fracta/agent-auth':
         specifier: workspace:*
@@ -502,10 +498,6 @@ importers:
       yaml:
         specifier: ^2.4.0
         version: 2.8.4
-    optionalDependencies:
-      playwright-core:
-        specifier: ^1.48.0
-        version: 1.61.1
     devDependencies:
       '@fracta/agent-auth':
         specifier: workspace:*
