@@ -2,9 +2,12 @@ import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 import type { ScanReport, AuditReport, Finding, Severity } from '@fracta/core'
 import { toSarif } from './sarif.js'
+import { buildScorecard } from './scorecard.js'
 
 export { toSarif } from './sarif.js'
 export type { Sarif } from './sarif.js'
+export { buildScorecard, classifyOwasp } from './scorecard.js'
+export type { ScorecardRow } from './scorecard.js'
 
 /** Type guard: relatório enriquecido (Fase 1+) traz `checks`/`resumo`. */
 function isAuditReport(r: ScanReport | AuditReport): r is AuditReport {
@@ -102,6 +105,8 @@ export class FractaReporter {
     md += `| ⚪ Info | ${report.summary.info} |\n`
     md += `| **Total** | **${report.summary.total}** |\n\n`
 
+    md += this.buildOwaspScorecard(report)
+
     // Topo: ação prioritária — ordem do LLM quando houver, senão critical/high.
     md += this.buildPriorityBlock(report)
 
@@ -154,6 +159,27 @@ export class FractaReporter {
    * (tipicamente staging fora do ar), então a ausência de achados NÃO significa
    * "seguro" — deixa isso explícito no topo, com o motivo concreto.
    */
+  /**
+   * Scorecard de POSTURA por OWASP Top 10 2021 — sintetiza os achados numa foto de
+   * maturidade ("limpo em N, exposto em M"), o que clientes (jurídico/LGPD) leem melhor
+   * que uma lista. Classificação por sinal explícito (CWE/OWASP), nunca chute.
+   */
+  private buildOwaspScorecard(report: ScanReport | AuditReport): string {
+    const rows = buildScorecard(report.findings)
+    const owasp = rows.filter(r => /^A\d\d$/.test(r.id))
+    const limpas = owasp.filter(r => r.count === 0).length
+    const emoji: Record<string, string> = { critical: '🔴', high: '🟠', medium: '🟡', low: '🔵', info: '⚪', none: '✅' }
+
+    let md = `## 🎯 Postura por OWASP Top 10 (2021)\n\n`
+    md += `Limpo em **${limpas}/10** categorias. Classificação por sinal explícito (CWE/OWASP-API); o que não tem sinal confiável fica em "Não classificado" (honestidade > cobertura fake).\n\n`
+    md += `| Categoria | Achados | Pior | Status |\n|---|---|---|---|\n`
+    for (const r of rows) {
+      const status = r.maxSeverity === 'none' ? '✅ sem achados' : `${emoji[r.maxSeverity]} ${r.maxSeverity}`
+      md += `| ${r.id} — ${r.name} | ${r.count} | ${r.maxSeverity === 'none' ? '—' : r.maxSeverity} | ${status} |\n`
+    }
+    return md + '\n'
+  }
+
   private buildInconclusiveCallout(report: AuditReport): string {
     const h = report.targetHealth
     const comErro = report.resumo?.checksComErro ?? []
