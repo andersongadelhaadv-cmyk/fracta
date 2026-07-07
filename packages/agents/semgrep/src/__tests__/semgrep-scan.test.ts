@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { interpretSemgrep, mapSemgrepFindings, type SemgrepRawResult } from '../index.js'
+import { interpretSemgrep, mapSemgrepFindings, semgrepSkipReasonFor, type SemgrepRawResult } from '../index.js'
 
 function raw(over: Partial<SemgrepRawResult> & { extra?: Partial<SemgrepRawResult['extra']> } = {}): SemgrepRawResult {
   return {
@@ -40,6 +40,18 @@ describe('interpretSemgrep', () => {
 
   it('NUNCA falso-limpo: sem JSON parseável e code de erro → error', () => {
     expect(interpretSemgrep({ code: 2, stdout: 'panic', stderr: 'fatal' }).kind).toBe('error')
+  })
+})
+
+describe('semgrepSkipReasonFor', () => {
+  it('ENOENT (binário ausente) → motivo de skip', () => {
+    expect(semgrepSkipReasonFor(Object.assign(new Error('spawn semgrep'), { code: 'ENOENT' }))).toMatch(/não encontrado/i)
+  })
+  it('timeout (semgrep lento no Windows) → motivo de skip', () => {
+    expect(semgrepSkipReasonFor(new Error('timeout após 120000ms ao executar: semgrep'))).toMatch(/excedeu o tempo/i)
+  })
+  it('erro real de execução → null (re-lança, nunca falso-verde)', () => {
+    expect(semgrepSkipReasonFor(new Error('permission denied'))).toBeNull()
   })
 })
 

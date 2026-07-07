@@ -89,6 +89,23 @@ export function mapSemgrepFindings(input: { saas: string; runId: string; results
 /** Ruleset default: pack de segurança do semgrep. Configurável via FRACTA_SEMGREP_CONFIG. */
 const DEFAULT_CONFIG = process.env.FRACTA_SEMGREP_CONFIG ?? 'p/security-audit'
 
+/**
+ * Classifica um erro de execução do semgrep num MOTIVO de skip honesto (ou `null`
+ * = re-lançar como erro real). Pura/testável. Cobre: binário ausente (ENOENT) e
+ * timeout (o semgrep no Windows cai no pysemgrep lento e pendura) — ambos viram
+ * `skipped`, nunca derrubam o scan.
+ */
+export function semgrepSkipReasonFor(err: unknown): string | null {
+  const e = err as NodeJS.ErrnoException
+  if (e?.code === 'ENOENT') {
+    return 'semgrep não encontrado no PATH — SAST semântico não executado (instale: `pipx install semgrep`)'
+  }
+  if (/timeout/i.test(e?.message ?? '')) {
+    return 'semgrep excedeu o tempo — SAST semântico não concluído (é lento no Windows; rode em CI/Linux ou ajuste FRACTA_SEMGREP_TIMEOUT)'
+  }
+  return null
+}
+
 export const defaultSemgrepScan: SemgrepScanner = async (repoPath, timeoutMs) => {
   let code: number | null
   let stdout = ''
@@ -96,17 +113,24 @@ export const defaultSemgrepScan: SemgrepScanner = async (repoPath, timeoutMs) =>
   try {
     const result = await runCommand(
       'semgrep',
-      ['scan', '--config', DEFAULT_CONFIG, '--json', '--quiet', '--no-git-ignore', repoPath],
+      [
+        'scan', '--config', DEFAULT_CONFIG, '--json', '--quiet',
+        // Respeita .gitignore (pula node_modules/dist) — SEM isto varreria tudo.
+        // Auto-bounds do próprio semgrep para não pendurar: timeout por-regra/arquivo,
+        // desiste do arquivo após 3 regras estourarem, sem telemetria de rede.
+        '--timeout', '15', '--timeout-threshold', '3', '--metrics=off',
+        repoPath,
+      ],
       { timeoutMs },
     )
     code = result.code
     stdout = result.stdout
     stderr = result.stderr
   } catch (err) {
-    const e = err as NodeJS.ErrnoException
-    if (e.code === 'ENOENT') {
-      throw new SkippedCheck('semgrep não encontrado no PATH — SAST semântico não executado (instale: `pipx install semgrep`)')
-    }
+    // ENOENT (ausente) e timeout (semgrep lento no Windows) → SKIP honesto, NUNCA
+    // trava/erra o scan inteiro. Em CI/Linux o core rápido roda em segundos.
+    const reason = semgrepSkipReasonFor(err)
+    if (reason) throw new SkippedCheck(reason)
     throw err
   }
   const outcome = interpretSemgrep({ code, stdout, stderr })
@@ -125,7 +149,9 @@ export class SemgrepAgent implements SecurityAgent {
   name = 'SEMGREP Agent'
   category: AgentCategory = 'code'
   concurrency = 1
-  timeoutMs = 180_000
+  // Timeout total (s) configurável — default 120s. Backstop do runCommand: se o
+  // semgrep pendurar (Windows), o scan degrada para `skipped`, não trava.
+  timeoutMs = Math.max(10, Number(process.env.FRACTA_SEMGREP_TIMEOUT ?? 120)) * 1000
 
   constructor(private readonly scan: SemgrepScanner = defaultSemgrepScan) {}
 
