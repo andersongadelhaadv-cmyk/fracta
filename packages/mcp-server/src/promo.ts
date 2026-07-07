@@ -16,3 +16,12 @@ export const MCP_FOOTER =
   '\n\n—\n' +
   'Fracta é grátis e open-source · [monitore isto a cada deploy](https://fracta.pro?ref=mcp&utm_source=fracta-mcp&utm_medium=mcp&utm_campaign=footer) (badge + regressão contínua).\n' +
   'Da PreviusIA — também fazemos o [zap-api.tech](https://zap-api.tech?ref=fracta-mcp&utm_source=fracta-mcp&utm_medium=mcp&utm_campaign=crosssell): API de WhatsApp pra devs, segura por padrão.'
+
+/**
+ * Rodapé de conversão respeitando `FRACTA_NO_PROMO` — defina a var (qualquer valor
+ * não-vazio) para SILENCIAR o rodapé em demos/apresentações. Lido em tempo de chamada
+ * (o MCP é um processo longo; a var é definida no launch do cliente MCP).
+ */
+export function promoFooter(): string {
+  return process.env.FRACTA_NO_PROMO ? '' : MCP_FOOTER
+}

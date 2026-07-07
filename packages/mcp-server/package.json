@@ -1,6 +1,6 @@
 {
   "name": "fractascan-mcp",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Model Context Protocol server exposing Fracta scan tools (passive_scan, scan_repo, …)",
   "license": "MIT",
   "author": "Anderson Gadelha",
