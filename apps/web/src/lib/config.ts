@@ -11,7 +11,14 @@ export const DB_PATH = process.env.FRACTA_WEB_DB ?? './fracta-web.db'
 export const SITE_URL = process.env.FRACTA_SITE ?? 'https://fracta.pro'
 
 export const REPO_URL = 'https://github.com/andersongadelhaadv-cmyk/fracta'
-export const ZAP_API_URL = 'https://zap-api.tech'
+/**
+ * CTA cross-promo do ZAP-API. Carrega atribuição (`ref`/UTM) para MEDIR quantos
+ * assinantes o Fracta manda — sem isso o elo mais importante da tese fica cego.
+ * `ref=fracta` distingue esta superfície (web) do MCP (`fracta-mcp`) e do relatório
+ * (`fracta-report`).
+ */
+export const ZAP_API_URL =
+  'https://zap-api.tech?ref=fracta&utm_source=fracta&utm_medium=web&utm_campaign=crosssell'
 export const PREVIUSIA_URL = 'https://previusia.com.br'
 
 // ── Distribuição MCP + CLI (npm). Fonte ÚNICA reusada pela home, /mcp e CTA. ──
