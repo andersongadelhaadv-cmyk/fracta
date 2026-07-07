@@ -24,7 +24,7 @@ interface SarifResult {
   ruleId: string
   level: SarifLevel
   message: { text: string }
-  locations: Array<{ physicalLocation: { artifactLocation: { uri: string } } }>
+  locations: Array<{ physicalLocation: { artifactLocation: { uri: string }; region?: { startLine: number } } }>
   partialFingerprints: { fractaFindingId: string }
 }
 type SarifLevel = 'error' | 'warning' | 'note'
@@ -60,12 +60,15 @@ export function toSarif(report: ScanReport | AuditReport, opts: { toolVersion?: 
         defaultConfiguration: { level: LEVEL[f.severity] },
       })
     }
-    const uri = f.endpoint?.trim() || report.target
+    // Localização estruturada (SAST) tem precedência: uri = arquivo + region na
+    // linha → o GitHub ancora inline. Sem ela, cai no endpoint/target (DAST).
+    const uri = f.location?.file?.trim() || f.endpoint?.trim() || report.target
+    const region = f.location?.line ? { startLine: f.location.line } : undefined
     return {
       ruleId: id,
       level: LEVEL[f.severity],
       message: { text: f.description ? `${f.title} — ${f.description}` : f.title },
-      locations: [{ physicalLocation: { artifactLocation: { uri } } }],
+      locations: [{ physicalLocation: { artifactLocation: { uri }, ...(region ? { region } : {}) } }],
       partialFingerprints: { fractaFindingId: f.id },
     }
   })

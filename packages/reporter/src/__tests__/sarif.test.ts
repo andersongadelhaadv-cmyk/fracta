@@ -64,4 +64,23 @@ describe('toSarif', () => {
     const loc = s.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri
     expect(loc).toBe('src/app.ts')
   })
+
+  it('emite region.startLine a partir de location estruturada (file:line → inline no GitHub)', () => {
+    const s = toSarif(report([finding({ id: '1', title: 'X', severity: 'high', location: { file: 'next.config.js', line: 238 } })]))
+    const phys = s.runs[0].results[0].locations[0].physicalLocation
+    expect(phys.artifactLocation.uri).toBe('next.config.js')
+    expect(phys.region?.startLine).toBe(238)
+  })
+
+  it('location estruturada tem precedência sobre endpoint na uri', () => {
+    const s = toSarif(report([finding({ id: '1', title: 'X', severity: 'high', endpoint: 'https://x.com', location: { file: 'src/a.ts', line: 4 } })]))
+    expect(s.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri).toBe('src/a.ts')
+  })
+
+  it('location sem line não emite region (só o arquivo)', () => {
+    const s = toSarif(report([finding({ id: '1', title: 'X', severity: 'high', location: { file: 'src/a.ts' } })]))
+    const phys = s.runs[0].results[0].locations[0].physicalLocation
+    expect(phys.artifactLocation.uri).toBe('src/a.ts')
+    expect(phys.region).toBeUndefined()
+  })
 })
