@@ -27,7 +27,7 @@ export function sastConfidenceSummary(findings: Pick<Finding, 'severity' | 'conf
   const lowConf = findings.length - confirmed.length
   const conf = `alta confiança: ${n('critical')} critical · ${n('high')} high · ${n('medium')} medium`
   const low = lowConf > 0
-    ? ` · +${lowConf} de baixa confiança (self-detection/fixture/exemplo — revisão, não reprovam)`
+    ? ` · +${lowConf} de baixa confiança (contexto de teste/exemplo ou regra ampla do semgrep — revisão, não reprovam)`
     : ''
   return conf + low
 }

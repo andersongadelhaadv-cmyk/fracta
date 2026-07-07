@@ -134,6 +134,8 @@ describe('StackAgent', () => {
     const first = sqlFindings.find(f => f.location?.line === 1)!
     expect(first.location).toEqual({ file: 'src/db.ts', line: 1 })
     expect(sqlFindings.every(f => f.location?.file === 'src/db.ts' && (f.location?.line ?? 0) > 0)).toBe(true)
+    // CWE → alimenta o scorecard OWASP (SQLi = CWE-89 → A03)
+    expect(first.references?.some(r => /definitions\/89\b/.test(r))).toBe(true)
   })
 
   it('flags NEXT_PUBLIC_ secret in .env and masks nothing of the value', async () => {
@@ -161,6 +163,7 @@ describe('StackAgent', () => {
     expect(f).toBeDefined()
     expect(f!.severity).toBe('high')
     expect(f!.location).toEqual({ file: 'src/cors.ts', line: 1 })
+    expect(f!.references?.some(r => /definitions\/942\b/.test(r))).toBe(true) // → A05
   })
 
   it('flags hardcoded provider key and MASKS it in evidence', async () => {
@@ -177,6 +180,7 @@ describe('StackAgent', () => {
     expect(f!.evidence).toContain('sk_live')
     expect(f!.evidence).toContain('…')
     expect(f!.location).toEqual({ file: 'src/payments.ts', line: 1 })
+    expect(f!.references?.some(r => /definitions\/798\b/.test(r))).toBe(true) // → A07
   })
 
   it('flags tenant-isolation heuristic for findMany without tenant scoping', async () => {
