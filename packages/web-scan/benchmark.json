@@ -1,0 +1,141 @@
+{
+  "csp": {
+    "tp": 17,
+    "fp": 0,
+    "fn": 6,
+    "precision": 1,
+    "recall": 0.7391304347826086,
+    "f1": 0.85
+  },
+  "cookie": {
+    "tp": 7,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1,
+    "recall": 1,
+    "f1": 1
+  },
+  "overall": {
+    "tp": 24,
+    "fp": 0,
+    "fn": 6,
+    "precision": 1,
+    "recall": 0.8,
+    "f1": 0.888888888888889
+  },
+  "perRule": {
+    "csp-unsafe-inline-script": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "csp-unsafe-eval": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "csp-no-script-src": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "csp-no-default-src": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "csp-broad-script-src": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "csp-object-src": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "csp-no-base-uri": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "csp-unsafe-inline-style": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "csp-no-frame-ancestors": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "precision": 1,
+      "recall": 0,
+      "f1": 0
+    },
+    "csp-no-form-action": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "precision": 1,
+      "recall": 0,
+      "f1": 0
+    },
+    "cookie-flags:sid": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "cookie-flags:token": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "cookie-flags:__Host-sid": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "cookie-flags:ruim": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    }
+  },
+  "cases": 24
+}
