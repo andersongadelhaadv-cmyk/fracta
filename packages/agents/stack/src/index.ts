@@ -30,6 +30,8 @@ interface FindingInput {
   location?: string
   /** Localização ESTRUTURADA (arquivo + linha) → vira `Finding.location` → SARIF region. */
   at?: { file: string; line?: number }
+  /** Referências (CWE/OWASP) → alimentam o scorecard OWASP e o SARIF. */
+  references?: string[]
   severity: Severity
   title: string
   description: string
@@ -100,6 +102,7 @@ export class StackAgent implements SecurityAgent {
       evidence: f.evidence,
       location: f.at,
       recommendation: f.recommendation,
+      references: f.references,
       proposedFix: f.proposedFix,
       createdAt: new Date(),
     }
@@ -216,6 +219,7 @@ export class StackAgent implements SecurityAgent {
       rule: `raw-sql-concat:${file.relPath}:${line}`,
       location: file.relPath,
       at: { file: file.relPath, line },
+      references: ['https://cwe.mitre.org/data/definitions/89.html', 'A03:2021 - Injection'],
       severity: 'high',
       title: `Risco de SQL injection (SQL raw): ${file.relPath}:${line}`,
       description:
@@ -349,6 +353,7 @@ export class StackAgent implements SecurityAgent {
           rule: `tenant-isolation-review:${file.relPath}:${line}`,
           location: file.relPath,
           at: { file: file.relPath, line },
+          references: ['https://cwe.mitre.org/data/definitions/639.html', 'A01:2021 - Broken Access Control'],
           severity: 'low',
           title: `Possível falta de isolamento de tenant (heurística): ${file.relPath}:${line}`,
           description:
@@ -393,6 +398,7 @@ export class StackAgent implements SecurityAgent {
           rule: `next-public-secret:${varName}`,
           location: file.relPath,
           at: { file: file.relPath, line },
+          references: ['https://cwe.mitre.org/data/definitions/200.html', 'A01:2021 - Broken Access Control'],
           severity: 'high',
           title: `Segredo exposto via NEXT_PUBLIC_: ${varName}`,
           description:
@@ -435,6 +441,7 @@ export class StackAgent implements SecurityAgent {
             rule: `cors-wildcard:${file.relPath}:${line}`,
             location: file.relPath,
             at: { file: file.relPath, line },
+            references: ['https://cwe.mitre.org/data/definitions/942.html', 'A05:2021 - Security Misconfiguration'],
             severity: 'high',
             title: `CORS permissivo (wildcard): ${file.relPath}:${line}`,
             description:
@@ -478,6 +485,7 @@ export class StackAgent implements SecurityAgent {
             rule: `hardcoded-key:${file.relPath}:${line}`,
             location: file.relPath,
             at: { file: file.relPath, line },
+            references: ['https://cwe.mitre.org/data/definitions/798.html', 'A07:2021 - Identification and Authentication Failures'],
             severity: 'high',
             title: `Chave de provider hardcoded (${label}): ${file.relPath}:${line}`,
             description:
