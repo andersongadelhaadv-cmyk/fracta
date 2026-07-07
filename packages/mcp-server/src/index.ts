@@ -199,7 +199,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'test_idor',
-      description: 'Testa IDOR e acesso cruzado entre IDs/tenants',
+      description: 'Testa IDOR: acesso direto por ID + enumeração. Se o target tiver `crossTenant` (2ª conta + `ownedResources`) no targets.yaml, PROVA isolamento multi-tenant com 2 contas reais (A tenta ler recurso de B → 200 = vazamento CONFIRMADO). Intrusivo/autenticado: use em staging.',
       inputSchema: { type: 'object', properties: { target: { type: 'string' } }, required: ['target'] },
     },
     {
