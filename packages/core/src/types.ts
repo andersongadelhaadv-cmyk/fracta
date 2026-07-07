@@ -43,6 +43,20 @@ export interface TargetAuth {
   headerPrefix?: string
 }
 
+/**
+ * Segundo tenant (B) para PROVAR isolamento cross-tenant (IDOR real). O agente
+ * autentica como A (via `auth`) e como B (aqui), confirma que B acessa os
+ * próprios `ownedResources` e então tenta acessá-los como A: A conseguir = IDOR
+ * cross-tenant CONFIRMADO. Ausente → o teste cross-tenant é no-op (opt-in, intrusivo).
+ */
+export interface TargetCrossTenant {
+  credentials: { email: string; password: string }
+  /** Endpoint de auth do tenant B (default: reusa `auth.endpoint`). */
+  endpoint?: string
+  /** Paths de recursos que PERTENCEM ao tenant B (GET). O agente confirma via B antes de sondar como A. */
+  ownedResources: string[]
+}
+
 /** Acesso a infra de um alvo (opcional — ausência → checks de infra ficam `skipped`). */
 export interface TargetInfra {
   host?: string
@@ -66,6 +80,8 @@ export interface Target {
   url: string
   stack: StackType[]
   auth?: TargetAuth
+  /** Segundo tenant p/ provar isolamento cross-tenant (IDOR real). Opt-in, intrusivo. */
+  crossTenant?: TargetCrossTenant
   agents?: string[]
   skills?: string[]
   ignore?: string[]

@@ -1,5 +1,6 @@
 import type { SecurityAgent, ScanScope, Finding, AgentCategory, ScanDepth } from '@fracta/core'
 import { FractaHttpClient, stableFindingId } from '@fracta/core'
+import { evaluateCrossTenant, type CrossTenantProbe } from './cross-tenant.js'
 
 const PATH_TEMPLATES = [
   '/users/{id}', '/api/users/{id}', '/api/v1/users/{id}', '/api/v2/users/{id}',
@@ -113,8 +114,67 @@ export class IdorAgent implements SecurityAgent {
     }
 
     await this.testEnumeration(scope, client, findings, ignore)
+    await this.testCrossTenant(scope, findings)
 
     return findings
+  }
+
+  /**
+   * IDOR cross-tenant REAL (2 contas): autentica A e B, confirma que B acessa os
+   * próprios recursos e tenta acessá-los como A. A conseguir = vazamento cross-tenant
+   * PROVADO (não heurística). Opt-in via `crossTenant` no targets.yaml; read-only.
+   */
+  private async testCrossTenant(scope: ScanScope, findings: Finding[]): Promise<void> {
+    const ct = scope.target.crossTenant
+    if (!ct) return
+
+    const auth = scope.target.auth
+    const aEndpoint = auth?.endpoint
+    const aCreds = auth?.credentials
+    if (!aCreds?.email || !aCreds.password || !aEndpoint) {
+      findings.push(this.crossTenantInfo(scope,
+        'IDOR cross-tenant: requer o tenant A autenticado',
+        'O bloco `crossTenant` (tenant B) está configurado, mas falta `auth` com `credentials` (email/senha) e `endpoint` do tenant A. O teste cross-tenant precisa das DUAS identidades.'))
+      return
+    }
+
+    let clientA: FractaHttpClient
+    let clientB: FractaHttpClient
+    try {
+      clientA = (await FractaHttpClient.withJwt(scope.target.url, aEndpoint, { email: aCreds.email, password: aCreds.password })).client
+      clientB = (await FractaHttpClient.withJwt(scope.target.url, ct.endpoint ?? aEndpoint, ct.credentials)).client
+    } catch (e) {
+      findings.push(this.crossTenantInfo(scope,
+        'IDOR cross-tenant: inconclusivo (falha ao autenticar A ou B)',
+        `Não foi possível obter token de um dos tenants: ${e instanceof Error ? e.message : String(e)}. Confira credenciais/endpoint.`))
+      return
+    }
+
+    const probes: CrossTenantProbe[] = []
+    for (const resource of ct.ownedResources) {
+      let tenantBStatus = 0
+      let tenantAStatus = 0
+      let tenantABytes = 0
+      let tenantABody: string | undefined
+      try { tenantBStatus = (await clientB.request(resource, { timeoutMs: 5_000 })).status } catch { /* B inacessível */ }
+      try {
+        const ra = await clientA.request(resource, { timeoutMs: 5_000 })
+        tenantAStatus = ra.status; tenantABytes = ra.raw.length; tenantABody = ra.raw
+      } catch { /* A negado/timeout */ }
+      probes.push({ resource, tenantBStatus, tenantAStatus, tenantABytes, tenantABody })
+    }
+
+    findings.push(...evaluateCrossTenant({ saas: scope.target.name, runId: scope.runId, probes }))
+  }
+
+  private crossTenantInfo(scope: ScanScope, title: string, description: string): Finding {
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-crosstenant-setup:${title}` }),
+      runId: scope.runId, agent: this.name, category: this.category, camada: this.category,
+      severity: 'info', confidence: 'high', title, description,
+      recommendation: 'Configure `auth` (tenant A) + `crossTenant` (tenant B, com `ownedResources`) no targets.yaml para provar isolamento multi-tenant.',
+      createdAt: new Date(),
+    }
   }
 
   private async testEnumeration(

@@ -27,6 +27,17 @@ targets:
         email: test@meuapp.com.br
         password: "\${MEUAPP_TEST_PASS}"   # defina no ambiente, não aqui
 
+    # (opcional) Isolamento MULTI-TENANT — prova IDOR cross-tenant com 2 contas.
+    # O agente confirma que B acessa os próprios recursos e então tenta lê-los
+    # como A (do bloco auth acima). A conseguir = vazamento CONFIRMADO. Só staging.
+    # crossTenant:
+    #   credentials:
+    #     email: tenant-b@meuapp.com.br
+    #     password: "\${MEUAPP_TENANT_B_PASS}"
+    #   ownedResources:            # paths que PERTENCEM ao tenant B
+    #     - /api/processos/42
+    #     - /api/clientes/7
+
     # Quais agentes rodar neste alvo.
     agents:
       - HEADERS Agent
