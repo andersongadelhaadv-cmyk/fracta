@@ -30,6 +30,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import pkg from '../package.json' with { type: 'json' }
+import { fmtFinding, sastConfidenceSummary } from './sast-format.js'
 
 // Silencia SÓ o ExperimentalWarning do `node:sqlite` (usamos o SQLite builtin de propósito).
 // Sem isso o stderr do cliente MCP recebe o aviso a cada start (ruído). Demais avisos passam.
@@ -242,7 +243,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         ? 'INCONCLUSIVO (alvo não avaliável — ausência de achados ≠ seguro)'
         : `Nota ${r.grade} (${r.score}/100)`
       const bySev = r.findings.reduce<Record<string, number>>((m, f) => ((m[f.severity] = (m[f.severity] ?? 0) + 1), m), {})
-      const lines = r.findings.map(f => `- [${f.severity}] ${f.title}`)
+      const lines = r.findings.map(fmtFinding)
       const txt = `Scan passivo de ${r.url}\n${head} · checks: ${r.checks.map(c => `${c.name}=${c.status}`).join(', ')}\nSeveridades: ${JSON.stringify(bySev)}\n\n${lines.join('\n') || '(sem achados nos checks executados)'}`
       return { content: [{ type: 'text', text: txt }] }
     }
@@ -258,9 +259,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       lastReports.set('repo-scan', report)
       const { mdPath } = await new FractaReporter().save(report)
       const statusTxt = report.verdict === 'inconclusive' ? 'INCONCLUSIVO' : report.passed ? 'PASSOU' : 'FALHOU'
-      const lines = report.findings.slice(0, 40).map(f => `- [${f.severity}] ${f.title}`)
+      const lines = report.findings.slice(0, 40).map(fmtFinding)
       const more = report.findings.length > 40 ? `\n… +${report.findings.length - 40} achados` : ''
-      const txt = `Auditoria SAST de ${path}\n${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium, ${report.summary.low} low. Status: ${statusTxt}.\nRelatório: ${mdPath}\n\n${lines.join('\n')}${more}`
+      const txt = `Auditoria SAST de ${path}\nStatus: ${statusTxt}. ${sastConfidenceSummary(report.findings)}\nRelatório: ${mdPath}\n\n${lines.join('\n')}${more}`
       return { content: [{ type: 'text', text: txt }] }
     }
 
@@ -301,7 +302,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const statusTxt = report.verdict === 'inconclusive'
         ? 'INCONCLUSIVO (alvo não exercido — ausência de achados ≠ seguro)'
         : report.passed ? 'PASSOU' : 'FALHOU'
-      const summary = `Scan concluído: ${report.summary.critical} critical, ${report.summary.high} high, ${report.summary.medium} medium. Status: ${statusTxt}. Relatório: ${mdPath}`
+      const summary = `Scan concluído. Status: ${statusTxt}. ${sastConfidenceSummary(report.findings)}. Relatório: ${mdPath}`
       return { content: [{ type: 'text', text: summary }] }
     }
 
