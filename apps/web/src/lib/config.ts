@@ -7,6 +7,9 @@ export const RATE_LIMIT = { limit: 10, windowMs: 10 * 60 * 1000 } // 10 análise
 /** Caminho do SQLite (volume na VPS). */
 export const DB_PATH = process.env.FRACTA_WEB_DB ?? './fracta-web.db'
 
+/** Base pública (p/ links de relatório/opt-out nos e-mails de monitoramento). */
+export const SITE_URL = process.env.FRACTA_SITE ?? 'https://fracta.pro'
+
 export const REPO_URL = 'https://github.com/andersongadelhaadv-cmyk/fracta'
 export const ZAP_API_URL = 'https://zap-api.tech'
 export const PREVIUSIA_URL = 'https://previusia.com.br'
