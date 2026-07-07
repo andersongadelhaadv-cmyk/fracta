@@ -37,6 +37,13 @@ author's own SaaS portfolio (DoutorINSS, Veredicto, Tribux, IATech).
 - **LLM only at the edge** — detection is 100% deterministic. The optional LLM
   pass only *prioritizes* findings and *drafts* gated fixes; it never decides a
   vulnerability, changes a severity, applies a fix, or touches the target.
+- **Measured, not just claimed** — accuracy is benchmarked, not asserted. On a
+  24-case corpus labeled from external ground truth (CSP spec / OWASP / MDN),
+  the passive CSP + cookie checks score **100% precision / 80% recall** — and the
+  recall shortfall is fully explained by two *documented* gaps we don't cover yet
+  (`frame-ancestors`, `form-action`). An honest number shows the limits; it doesn't
+  hide them. See [`packages/web-scan/BENCHMARK.md`](packages/web-scan/BENCHMARK.md)
+  (reproducible; runs in CI as a regression guard).
   Disable it (`--no-llm` / no API key) and detection is unchanged.
 - **TypeScript end-to-end** — agents, orchestrator, CLI and MCP server share the
   same `Finding` / `AuditReport` shape. No JSON-by-convention.

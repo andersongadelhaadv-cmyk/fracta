@@ -1,6 +1,8 @@
 import type { SecurityAgent, ScanScope, Finding, AgentCategory, StackType } from '@fracta/core'
 import { FractaHttpClient, SkippedCheck, stableFindingId } from '@fracta/core'
 import { analyzeCsp } from './csp.js'
+export { analyzeCsp } from './csp.js'
+export type { CspIssue } from './csp.js'
 
 /**
  * O fetch junta headers repetidos numa única string separada por vírgula
