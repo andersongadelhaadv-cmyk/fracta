@@ -87,6 +87,25 @@ export function analyzeCsp(policy: string): CspIssue[] {
       recommendation: "Adicione object-src 'none'.",
     })
   }
+  // frame-ancestors ausente → clickjacking. NÃO tem fallback em default-src (só reporting/embedding),
+  // então a ausência precisa disparar por si — é o que substitui X-Frame-Options.
+  if (!has('frame-ancestors')) {
+    issues.push({
+      rule: 'csp-no-frame-ancestors', severity: 'low',
+      title: 'CSP sem frame-ancestors',
+      detail: "Sem frame-ancestors, a página pode ser embutida em <iframe> por qualquer origem — vetor de clickjacking (UI redress). frame-ancestors não herda de default-src.",
+      recommendation: "Adicione frame-ancestors 'none' (ou 'self'/origens confiáveis). É o substituto moderno do X-Frame-Options.",
+    })
+  }
+  // form-action ausente → um form injetado pode postar credenciais p/ origem arbitrária.
+  if (!has('form-action')) {
+    issues.push({
+      rule: 'csp-no-form-action', severity: 'low',
+      title: 'CSP sem form-action',
+      detail: "Sem form-action, um <form> injetado (via XSS/HTML injection) pode enviar dados/credenciais para uma origem externa. Também não herda de default-src.",
+      recommendation: "Adicione form-action 'self' (+ origens de checkout/SSO que precisem receber POST).",
+    })
+  }
   // base-uri ausente → <base> injetado sequestra URLs relativas.
   if (!has('base-uri')) {
     issues.push({

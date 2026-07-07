@@ -39,10 +39,10 @@ author's own SaaS portfolio (DoutorINSS, Veredicto, Tribux, IATech).
   vulnerability, changes a severity, applies a fix, or touches the target.
 - **Measured, not just claimed** — accuracy is benchmarked, not asserted. On a
   24-case corpus labeled from external ground truth (CSP spec / OWASP / MDN),
-  the passive CSP + cookie checks score **100% precision / 80% recall** — and the
-  recall shortfall is fully explained by two *documented* gaps we don't cover yet
-  (`frame-ancestors`, `form-action`). An honest number shows the limits; it doesn't
-  hide them. See [`packages/web-scan/BENCHMARK.md`](packages/web-scan/BENCHMARK.md)
+  the passive CSP + cookie checks score **100% precision / 100% recall** — with
+  zero false positives and no known coverage gaps. The corpus is honest by design:
+  any rule we didn't cover would show up as a false negative (the number isn't 100%
+  by construction). See [`packages/web-scan/BENCHMARK.md`](packages/web-scan/BENCHMARK.md)
   (reproducible; runs in CI as a regression guard).
   Disable it (`--no-llm` / no API key) and detection is unchanged.
 - **TypeScript end-to-end** — agents, orchestrator, CLI and MCP server share the

@@ -1,11 +1,11 @@
 {
   "csp": {
-    "tp": 17,
+    "tp": 23,
     "fp": 0,
-    "fn": 6,
+    "fn": 0,
     "precision": 1,
-    "recall": 0.7391304347826086,
-    "f1": 0.85
+    "recall": 1,
+    "f1": 1
   },
   "cookie": {
     "tp": 7,
@@ -16,12 +16,12 @@
     "f1": 1
   },
   "overall": {
-    "tp": 24,
+    "tp": 30,
     "fp": 0,
-    "fn": 6,
+    "fn": 0,
     "precision": 1,
-    "recall": 0.8,
-    "f1": 0.888888888888889
+    "recall": 1,
+    "f1": 1
   },
   "perRule": {
     "csp-unsafe-inline-script": {
@@ -89,20 +89,20 @@
       "f1": 1
     },
     "csp-no-frame-ancestors": {
-      "tp": 0,
+      "tp": 3,
       "fp": 0,
-      "fn": 3,
+      "fn": 0,
       "precision": 1,
-      "recall": 0,
-      "f1": 0
+      "recall": 1,
+      "f1": 1
     },
     "csp-no-form-action": {
-      "tp": 0,
+      "tp": 3,
       "fp": 0,
-      "fn": 3,
+      "fn": 0,
       "precision": 1,
-      "recall": 0,
-      "f1": 0
+      "recall": 1,
+      "f1": 1
     },
     "cookie-flags:sid": {
       "tp": 4,

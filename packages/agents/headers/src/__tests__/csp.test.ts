@@ -24,8 +24,22 @@ describe('analyzeCsp', () => {
     expect(rules("default-src 'self'; object-src 'none'; base-uri 'self'")).not.toContain('csp-object-src')
   })
   it('policy estrita → só endurecimentos low (sem high/medium)', () => {
-    const issues = analyzeCsp("default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
+    const issues = analyzeCsp("default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'")
     expect(issues.every(i => i.severity === 'low' || i.severity === 'info')).toBe(true)
     expect(issues.some(i => i.severity === 'high' || i.severity === 'medium')).toBe(false)
+  })
+
+  it("sem frame-ancestors → flagra clickjacking (low)", () => {
+    // frame-ancestors NÃO tem fallback em default-src; a ausência precisa disparar por si.
+    expect(sevOf("default-src 'self'; script-src 'self'; form-action 'self'", 'csp-no-frame-ancestors')).toBe('low')
+  })
+  it("frame-ancestors 'none' presente → sem issue", () => {
+    expect(rules("default-src 'self'; frame-ancestors 'none'; form-action 'self'")).not.toContain('csp-no-frame-ancestors')
+  })
+  it("sem form-action → flagra hijack de formulário (low)", () => {
+    expect(sevOf("default-src 'self'; frame-ancestors 'none'", 'csp-no-form-action')).toBe('low')
+  })
+  it("form-action 'self' presente → sem issue", () => {
+    expect(rules("default-src 'self'; frame-ancestors 'none'; form-action 'self'")).not.toContain('csp-no-form-action')
   })
 })
