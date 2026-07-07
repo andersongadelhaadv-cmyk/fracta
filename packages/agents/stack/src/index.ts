@@ -276,6 +276,7 @@ export class StackAgent implements SecurityAgent {
     out.push({
       rule: 'validationpipe-no-whitelist',
       location: first.relPath,
+      at: { file: first.relPath, line },
       severity: 'medium',
       title: 'ValidationPipe sem whitelist: true',
       description:
@@ -347,6 +348,7 @@ export class StackAgent implements SecurityAgent {
         out.push({
           rule: `tenant-isolation-review:${file.relPath}:${line}`,
           location: file.relPath,
+          at: { file: file.relPath, line },
           severity: 'low',
           title: `Possível falta de isolamento de tenant (heurística): ${file.relPath}:${line}`,
           description:
@@ -390,6 +392,7 @@ export class StackAgent implements SecurityAgent {
         out.push({
           rule: `next-public-secret:${varName}`,
           location: file.relPath,
+          at: { file: file.relPath, line },
           severity: 'high',
           title: `Segredo exposto via NEXT_PUBLIC_: ${varName}`,
           description:
@@ -431,6 +434,7 @@ export class StackAgent implements SecurityAgent {
           out.push({
             rule: `cors-wildcard:${file.relPath}:${line}`,
             location: file.relPath,
+            at: { file: file.relPath, line },
             severity: 'high',
             title: `CORS permissivo (wildcard): ${file.relPath}:${line}`,
             description:
@@ -473,6 +477,7 @@ export class StackAgent implements SecurityAgent {
           out.push({
             rule: `hardcoded-key:${file.relPath}:${line}`,
             location: file.relPath,
+            at: { file: file.relPath, line },
             severity: 'high',
             title: `Chave de provider hardcoded (${label}): ${file.relPath}:${line}`,
             description:

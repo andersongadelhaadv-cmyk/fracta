@@ -113,6 +113,7 @@ describe('StackAgent', () => {
     const f = findings.find(x => x.title.includes('whitelist'))
     expect(f).toBeDefined()
     expect(f!.severity).toBe('medium')
+    expect(f!.location).toEqual({ file: 'src/main.ts', line: 3 })
   })
 
   it('flags raw SQL via $queryRawUnsafe and concatenation but NOT safe tagged templates', async () => {
@@ -146,6 +147,7 @@ describe('StackAgent', () => {
     expect(f!.severity).toBe('high')
     // não vaza o valor do segredo
     expect(f!.evidence).not.toContain('super-secret-value')
+    expect(f!.location).toEqual({ file: '.env', line: 1 })
     // variável "benigna" (sem KEY/SECRET/etc no nome) não vira finding
     expect(hasRule(findings, 'next-public-secret:NEXT_PUBLIC_SITE_URL', '.env')).toBe(false)
   })
@@ -158,6 +160,7 @@ describe('StackAgent', () => {
 
     expect(f).toBeDefined()
     expect(f!.severity).toBe('high')
+    expect(f!.location).toEqual({ file: 'src/cors.ts', line: 1 })
   })
 
   it('flags hardcoded provider key and MASKS it in evidence', async () => {
@@ -173,6 +176,7 @@ describe('StackAgent', () => {
     expect(f!.evidence).not.toContain(fullKey)
     expect(f!.evidence).toContain('sk_live')
     expect(f!.evidence).toContain('…')
+    expect(f!.location).toEqual({ file: 'src/payments.ts', line: 1 })
   })
 
   it('flags tenant-isolation heuristic for findMany without tenant scoping', async () => {
@@ -184,6 +188,7 @@ describe('StackAgent', () => {
     expect(f).toBeDefined()
     expect(f!.severity).toBe('low')
     expect(f!.description.toLowerCase()).toContain('heur')
+    expect(f!.location).toEqual({ file: 'src/repo.ts', line: 1 })
   })
 
   it('does NOT flag tenant heuristic when tenantId is in the where', async () => {
