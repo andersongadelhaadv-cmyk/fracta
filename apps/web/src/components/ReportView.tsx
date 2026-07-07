@@ -2,7 +2,7 @@ import type { PassiveScanResult } from '@fracta/web-scan'
 import { GradeRing } from './GradeRing'
 import { FindingRow } from './FindingRow'
 import { Honesty } from './Honesty'
-import { EmailCapture } from './EmailCapture'
+import { MonitorOptIn } from './MonitorOptIn'
 import { BadgeEmbed } from './BadgeEmbed'
 import { ZapApiSupporter } from './ZapApiSupporter'
 import { sevColor, sevLabel, sortBySeverity, severityCounts } from '@/lib/grade-ui'
@@ -68,7 +68,7 @@ export function ReportView({ result, shareId }: { result: PassiveScanResult; sha
       )}
 
       <section className="mt-4">
-        <EmailCapture context={shareId ? `result:${shareId}` : 'result'} />
+        <MonitorOptIn url={result.url} />
       </section>
 
       <section className="mt-4">

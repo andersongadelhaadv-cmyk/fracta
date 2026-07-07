@@ -36,6 +36,17 @@ export class SqliteScanStore {
       CREATE INDEX IF NOT EXISTS idx_scan_url_ts ON scan (url, scanned_at_ms);
       CREATE TABLE IF NOT EXISTS email (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, context TEXT, at_ms INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS metric (name TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (name, day));
+      CREATE TABLE IF NOT EXISTS subscription (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        url TEXT NOT NULL,
+        consent_at_ms INTEGER NOT NULL,
+        unsub_token TEXT NOT NULL UNIQUE,
+        active INTEGER NOT NULL DEFAULT 1,
+        last_notified_scan_id TEXT,
+        created_at_ms INTEGER NOT NULL,
+        UNIQUE(email, url)
+      );
     `)
     // Retenção: limpa scans antigos no boot (limita crescimento de disco num endpoint público).
     const days = opts.retentionDays ?? 90
@@ -143,6 +154,44 @@ export class SqliteScanStore {
        FROM email e JOIN scan s ON e.context = 'result:' || s.share_id
        ORDER BY e.email, s.share_id`,
     ).all() as Array<{ email: string; shareId: string; url: string }>
+  }
+
+  // ── Monitoramento contínuo (opt-in explícito + opt-out 1-clique, LGPD) ──────────
+  /**
+   * Assina o monitoramento de uma URL. Consentimento é responsabilidade do chamador
+   * (a API só chama isto após o opt-in explícito). UPSERT por (email, url): re-assinar
+   * reativa e renova o consentimento + token (o link de opt-out antigo deixa de valer).
+   */
+  subscribe(email: string, url: string, opts: { now?: () => number; genToken?: () => string } = {}): { id: number; token: string } {
+    const at = (opts.now ?? Date.now)()
+    const token = (opts.genToken ?? randomUUID)()
+    this.db.prepare(
+      `INSERT INTO subscription (email, url, consent_at_ms, unsub_token, active, created_at_ms)
+       VALUES (?, ?, ?, ?, 1, ?)
+       ON CONFLICT(email, url) DO UPDATE SET active = 1, consent_at_ms = excluded.consent_at_ms, unsub_token = excluded.unsub_token`,
+    ).run(email, url, at, token, at)
+    const row = this.db.prepare('SELECT id, unsub_token FROM subscription WHERE email = ? AND url = ?')
+      .get(email, url) as { id: number; unsub_token: string }
+    return { id: Number(row.id), token: row.unsub_token }
+  }
+
+  /** Opt-out 1-clique: desativa a assinatura do token. `false` se o token não existe. */
+  unsubscribe(token: string): boolean {
+    const res = this.db.prepare('UPDATE subscription SET active = 0 WHERE unsub_token = ?').run(token)
+    return Number(res.changes ?? 0) > 0
+  }
+
+  /** Assinaturas ATIVAS — o input do job de monitoramento. */
+  listActiveSubscriptions(): Array<{ id: number; email: string; url: string; unsubToken: string; lastNotifiedScanId: string | null }> {
+    const rows = this.db.prepare(
+      'SELECT id, email, url, unsub_token AS unsubToken, last_notified_scan_id AS lastNotifiedScanId FROM subscription WHERE active = 1 ORDER BY id',
+    ).all() as Array<{ id: number; email: string; url: string; unsubToken: string; lastNotifiedScanId: string | null }>
+    return rows.map((r) => ({ ...r, id: Number(r.id) }))
+  }
+
+  /** Marca o último scan notificado (evita re-alertar a mesma regressão). */
+  markNotified(id: number, shareId: string): void {
+    this.db.prepare('UPDATE subscription SET last_notified_scan_id = ? WHERE id = ?').run(shareId, id)
   }
 
   close(): void { this.db.close() }

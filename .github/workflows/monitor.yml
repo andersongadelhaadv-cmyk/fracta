@@ -1,0 +1,26 @@
+name: Fracta Monitor (regression alerts)
+
+# Dispara o job de monitoramento contínuo: re-escaneia as assinaturas ativas e
+# alerta por e-mail só em regressão real. O endpoint é token-gated (MONITOR_TOKEN) e
+# fica em dry-run até `MONITOR_DRY_RUN=0` + Resend serem setados no .env da VPS (v1b).
+on:
+  schedule:
+    - cron: '17 9 * * *' # diário ~09:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar /api/monitor/run
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/out.json -w "%{http_code}" -X POST https://fracta.pro/api/monitor/run \
+            -H "Authorization: Bearer ${{ secrets.MONITOR_TOKEN }}")
+          echo "HTTP $code"
+          cat /tmp/out.json
+          echo
+          test "$code" = "200"
