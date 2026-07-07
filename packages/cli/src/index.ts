@@ -17,6 +17,7 @@ import { DependenciesAgent } from '@fracta/agent-dependencies'
 import { SecretsAgent } from '@fracta/agent-secrets'
 import { StackAgent } from '@fracta/agent-stack'
 import { InfraAgent } from '@fracta/agent-infra'
+import { SemgrepAgent } from '@fracta/agent-semgrep'
 import { ComplianceAgent } from '@fracta/agent-compliance'
 import { NestJSSkill } from '@fracta/skill-nestjs'
 import { PrismaSkill } from '@fracta/skill-prisma'
@@ -235,6 +236,7 @@ Options:
         new SecretsAgent(),
         new StackAgent(),
         new InfraAgent(),
+        new SemgrepAgent(),
         new ComplianceAgent(),
         new NestJSSkill(),
         new PrismaSkill(),

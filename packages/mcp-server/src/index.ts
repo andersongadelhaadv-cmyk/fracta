@@ -19,6 +19,7 @@ import { DependenciesAgent } from '@fracta/agent-dependencies'
 import { SecretsAgent } from '@fracta/agent-secrets'
 import { StackAgent } from '@fracta/agent-stack'
 import { InfraAgent } from '@fracta/agent-infra'
+import { SemgrepAgent } from '@fracta/agent-semgrep'
 import { ComplianceAgent } from '@fracta/agent-compliance'
 import { NestJSSkill } from '@fracta/skill-nestjs'
 import { PrismaSkill } from '@fracta/skill-prisma'
@@ -109,7 +110,7 @@ function buildOrchestrator(depth: ScanDepth = 'full'): FractaOrchestrator {
     new HeadersAgent(), new DnsAgent(), new AuthAgent(), new IdorAgent(),
     new DocsAgent(), new TenantAgent(), new RaceAgent(),
     new StripeAgent(), new DependenciesAgent(),
-    new SecretsAgent(), new StackAgent(), new InfraAgent(), new ComplianceAgent(),
+    new SecretsAgent(), new StackAgent(), new InfraAgent(), new SemgrepAgent(), new ComplianceAgent(),
     new NestJSSkill(), new PrismaSkill(), new SupabaseSkill(),
   ])
   return o
@@ -124,7 +125,7 @@ function buildSastOrchestrator(repoPath: string): FractaOrchestrator {
   const o = new FractaOrchestrator({ depth: 'full', failOn: ['critical', 'high'], verbose: false, store, enricher, healthCheck })
   o.registerAgents([
     new DependenciesAgent(), new SecretsAgent(), new StackAgent(),
-    new ComplianceAgent(), new DocsAgent(),
+    new SemgrepAgent(), new ComplianceAgent(), new DocsAgent(),
   ])
   return o
 }
@@ -151,7 +152,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: 'scan_repo',
       description:
-        'Auditoria SAST do REPOSITÓRIO local, SEM config (dependências, secrets, SAST stack-aware, LGPD/compliance, docs). Read-only. Ideal para auditar o projeto que você está desenvolvendo, na IDE.',
+        'Auditoria SAST do REPOSITÓRIO local, SEM config (dependências, secrets, SAST stack-aware + SAST SEMÂNTICO via semgrep/dataflow quando instalado, LGPD/compliance, docs). Read-only. Ideal para auditar o projeto que você está desenvolvendo, na IDE. (semgrep ausente → skip honesto, não falso-verde.)',
       inputSchema: {
         type: 'object',
         properties: {
