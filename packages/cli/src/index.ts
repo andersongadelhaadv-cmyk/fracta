@@ -77,7 +77,7 @@ async function main(): Promise<void> {
 
   const command = positionals[0] ?? 'scan'
 
-  const VALID_COMMANDS = ['scan', 'docs', 'verify', 'init', 'help'] as const
+  const VALID_COMMANDS = ['scan', 'docs', 'verify', 'verify-csp', 'init', 'help'] as const
   type ValidCommand = typeof VALID_COMMANDS[number]
 
   if (!VALID_COMMANDS.includes(command as ValidCommand)) {
@@ -94,7 +94,9 @@ Usage: fracta <command> [options]
 Commands:
   scan          Run full security scan (default)
   docs          Run documentation audit only
-  verify <url>  Verificação em runtime (browser) de consentimento/trackers.
+  verify <url>      Verificação em runtime (browser) de consentimento/trackers.
+  verify-csp <url>  Prova em runtime (browser) a COBERTURA da CSP: quantos <script>
+                    a política de fato cobre (pega "CSP estrita mas N sem nonce").
   init [path]   Cria um targets.yaml inicial comentado (default: ./configs/targets.yaml).
 
 Options:
@@ -153,6 +155,29 @@ Options:
       console.error(err.name === 'BrowserUnavailableError'
         ? err.message
         : `[Fracta] Falha na verificação: ${err.message}`)
+      process.exit(1)
+    }
+  }
+
+  if (command === 'verify-csp') {
+    const targetUrl = positionals[1]
+    if (!targetUrl) {
+      console.error('[Fracta] Uso: fractascan verify-csp <url>')
+      process.exit(2)
+    }
+    try {
+      const { RuntimeCspVerifier } = await import('@fracta/verify')
+      const { formatCspCli } = await import('./csp-cli-format.js')
+      const report = await new RuntimeCspVerifier().verifyCoverage(targetUrl)
+      console.log(formatCspCli(report))
+      // Exit(1) se houver achado acionável (não-info) → plugável em CI.
+      const acionavel = report.findings.some(f => f.severity !== 'info')
+      process.exit(acionavel ? 1 : 0)
+    } catch (e) {
+      const err = e as Error
+      console.error(err.name === 'BrowserUnavailableError'
+        ? err.message
+        : `[Fracta] Falha na auditoria de CSP: ${err.message}`)
       process.exit(1)
     }
   }
