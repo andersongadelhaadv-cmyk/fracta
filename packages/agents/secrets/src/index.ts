@@ -250,6 +250,8 @@ export class SecretsAgent implements SecurityAgent {
       title: `Segredo versionado: ${ruleId} em ${file}`,
       description: `gitleaks detectou um segredo versionado correspondente à regra ${ruleId} em ${file} (linha ${line}). O valor do segredo é deliberadamente omitido deste relatório para não recriar o vazamento.`,
       evidence: `${file}:${line} (commit ${shortCommit}) — regra ${ruleId}`,
+      // Local estruturado → SARIF region.startLine (âncora inline no GitHub). Só com linha real (>0).
+      location: line > 0 ? { file, line } : { file },
       recommendation: proposedFix.description,
       proposedFix,
       createdAt: new Date(),

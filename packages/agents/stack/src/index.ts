@@ -26,7 +26,10 @@ interface SourceFile {
 
 interface FindingInput {
   rule: string
+  /** Chave de localização (string) usada só para o id estável. */
   location?: string
+  /** Localização ESTRUTURADA (arquivo + linha) → vira `Finding.location` → SARIF region. */
+  at?: { file: string; line?: number }
   severity: Severity
   title: string
   description: string
@@ -95,6 +98,7 @@ export class StackAgent implements SecurityAgent {
       title: f.title,
       description: f.description,
       evidence: f.evidence,
+      location: f.at,
       recommendation: f.recommendation,
       proposedFix: f.proposedFix,
       createdAt: new Date(),
@@ -211,6 +215,7 @@ export class StackAgent implements SecurityAgent {
     return {
       rule: `raw-sql-concat:${file.relPath}:${line}`,
       location: file.relPath,
+      at: { file: file.relPath, line },
       severity: 'high',
       title: `Risco de SQL injection (SQL raw): ${file.relPath}:${line}`,
       description:

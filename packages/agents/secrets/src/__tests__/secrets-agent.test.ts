@@ -87,6 +87,8 @@ describe('SecretsAgent', () => {
       expect(anthropic.severity).toBe('critical')
       expect(anthropic.title).toContain('src/config.ts')
       expect(anthropic.evidence).toContain('src/config.ts:12')
+      // Localização ESTRUTURADA (não só prosa) → flui pro SARIF como region.startLine
+      expect(anthropic.location).toEqual({ file: 'src/config.ts', line: 12 })
       expect(anthropic.evidence).toContain('abcdef12') // short commit (8 chars)
       expect(anthropic.evidence).not.toContain(SECRET_VALUE)
       expect(anthropic.proposedFix).toBeDefined()

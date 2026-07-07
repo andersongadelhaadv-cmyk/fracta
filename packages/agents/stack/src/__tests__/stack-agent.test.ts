@@ -129,6 +129,10 @@ describe('StackAgent', () => {
     expect(sqlFindings.every(f => f.severity === 'high')).toBe(true)
     // a forma segura (tagged template) não deve aparecer
     expect(sqlFindings.some(f => f.evidence?.includes('$queryRaw`'))).toBe(false)
+    // localização ESTRUTURADA → SARIF region.startLine (âncora inline no GitHub)
+    const first = sqlFindings.find(f => f.location?.line === 1)!
+    expect(first.location).toEqual({ file: 'src/db.ts', line: 1 })
+    expect(sqlFindings.every(f => f.location?.file === 'src/db.ts' && (f.location?.line ?? 0) > 0)).toBe(true)
   })
 
   it('flags NEXT_PUBLIC_ secret in .env and masks nothing of the value', async () => {

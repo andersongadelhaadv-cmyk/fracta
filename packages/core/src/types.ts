@@ -103,6 +103,14 @@ export interface Finding {
   description: string
   endpoint?: string
   evidence?: string
+  /**
+   * Localização ESTRUTURADA no repositório (arquivo + linha 1-based). Diferente
+   * da `evidence` em prosa: é machine-readable, então flui para o SARIF como
+   * `region.startLine` → o GitHub Code Scanning ancora o achado inline na linha
+   * exata, com o `proposedFix` do lado. Preenchida pelos agentes SAST que já
+   * sabem o local (secrets, stack). Ausente para achados DAST (sem arquivo).
+   */
+  location?: { file: string; line?: number }
   recommendation: string
   /** Correção gated, opcional — preenchida pela borda LLM (Fase 6). */
   proposedFix?: ProposedFix
