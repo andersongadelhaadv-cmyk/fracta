@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { validateScanUrl, SsrfError } from '@fracta/web-scan'
+import { validateScanUrl, SsrfError, formatWelcomeEmail } from '@fracta/web-scan'
 import { getStore } from '@/lib/scan-store'
+import { sendEmail } from '@/lib/mailer'
+import { SITE_URL } from '@/lib/config'
 import { rateLimiter } from '@/lib/rate-limit'
 import { getClientIp } from '@/lib/client-ip'
 
@@ -51,8 +53,19 @@ export async function POST(req: NextRequest) {
   const store = getStore()
   if (store) {
     try {
-      store.subscribe(email, url)
+      const { token } = store.subscribe(email, url)
       store.bump('monitor_subscribe')
+      // Boas-vindas/confirmação (best-effort; dry-run só loga). Falha de envio não derruba a assinatura.
+      const welcome = formatWelcomeEmail({
+        url,
+        unsubUrl: `${SITE_URL}/api/unsubscribe?token=${encodeURIComponent(token)}`,
+        headerSrc: `${SITE_URL}/email/monitor-welcome.png`,
+      })
+      if (process.env.MONITOR_DRY_RUN !== '0') {
+        console.log(`[subscribe][dry-run] welcome p/ ${email}`)
+      } else {
+        try { await sendEmail(email, welcome) } catch (e) { console.warn('[fracta-web] welcome falhou:', (e as Error).message) }
+      }
     } catch (e) {
       console.warn('[fracta-web] falha ao assinar monitoramento:', (e as Error).message)
     }
