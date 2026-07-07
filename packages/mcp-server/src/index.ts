@@ -31,6 +31,7 @@ import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import pkg from '../package.json' with { type: 'json' }
 import { fmtFinding, sastConfidenceSummary } from './sast-format.js'
+import { looksLikeUrl, targetFromUrl } from './target-resolver.js'
 
 // Silencia SÓ o ExperimentalWarning do `node:sqlite` (usamos o SQLite builtin de propósito).
 // Sem isso o stderr do cliente MCP recebe o aviso a cada start (ruído). Demais avisos passam.
@@ -169,6 +170,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'verify_csp',
+      description:
+        'READ-ONLY, prova em RUNTIME (browser headless) a COBERTURA da CSP — não só o header. Carrega a página, captura os SecurityPolicyViolationEvent reais e mostra quantos <script> a política de fato cobre. Pega o caso "CSP estrita e bonita, mas N scripts sem nonce" que um check de header jamais pegaria. Aceite uma URL direta, sem config. Precisa do Chrome do sistema ou `npx playwright install chromium`.',
+      inputSchema: {
+        type: 'object',
+        properties: { url: { type: 'string', description: 'URL a auditar (ex.: https://exemplo.com.br)' } },
+        required: ['url'],
+      },
+    },
+    {
       name: 'scan_target',
       description: 'Executa scan completo de segurança em um target configurado no targets.yaml',
       inputSchema: {
@@ -192,8 +203,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'check_headers',
-      description: 'Verifica security headers e configuração de CORS',
-      inputSchema: { type: 'object', properties: { target: { type: 'string' } }, required: ['target'] },
+      description:
+        'READ-ONLY (só um GET dos response headers) — seguro em PRODUÇÃO, sem intrusão. Aceite uma URL direta (ex.: https://exemplo.com.br) SEM config nenhuma, ou o nome de um target do targets.yaml. Verifica security headers (CSP, HSTS, X-Frame-Options…) e configuração de CORS.',
+      inputSchema: {
+        type: 'object',
+        properties: { target: { type: 'string', description: 'URL http(s) direta (recomendado) OU nome de um target do targets.yaml' } },
+        required: ['target'],
+      },
     },
     {
       name: 'audit_docs',
@@ -216,12 +232,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'generate_report',
-      description: 'Gera relatório do último scan em markdown ou JSON',
+      description: 'Gera relatório do último scan em markdown, JSON ou SARIF 2.1.0 (para subir no GitHub Code Scanning e virar control de CI)',
       inputSchema: {
         type: 'object',
         properties: {
           target: { type: 'string' },
-          format: { type: 'string', enum: ['markdown', 'json'], default: 'markdown' },
+          format: { type: 'string', enum: ['markdown', 'json', 'sarif'], default: 'markdown' },
         },
         required: ['target'],
       },
@@ -257,7 +273,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const target: Target = { name: 'repo-scan', url: 'file://local', stack, repoPath: path }
       const report = await buildSastOrchestrator(path).scan(target)
       lastReports.set('repo-scan', report)
-      const { mdPath } = await new FractaReporter().save(report)
+      const { mdPath } = await new FractaReporter({ toolVersion: pkg.version }).save(report)
       const statusTxt = report.verdict === 'inconclusive' ? 'INCONCLUSIVO' : report.passed ? 'PASSOU' : 'FALHOU'
       const lines = report.findings.slice(0, 40).map(fmtFinding)
       const more = report.findings.length > 40 ? `\n… +${report.findings.length - 40} achados` : ''
@@ -281,10 +297,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
+    if (name === 'verify_csp') {
+      const url = a.url
+      if (!url) return { content: [{ type: 'text', text: 'Informe `url`.' }] }
+      try {
+        const { RuntimeCspVerifier } = await import('@fracta/verify')
+        const report = await new RuntimeCspVerifier().verifyCoverage(url)
+        const { formatCspReport } = await import('./csp-format.js')
+        return { content: [{ type: 'text', text: formatCspReport(report) }] }
+      } catch (e) {
+        const msg = e instanceof Error && e.name === 'BrowserUnavailableError'
+          ? e.message
+          : `Falha na auditoria de CSP em runtime: ${e instanceof Error ? e.message : String(e)}`
+        return { content: [{ type: 'text', text: msg }] }
+      }
+    }
+
     if (name === 'scan_target' || name === 'test_auth' || name === 'test_idor' || name === 'check_headers') {
-      const targets = await loadTargets()
-      const target = targets.find(t => t.name === a.target)
-      if (!target) return { content: [{ type: 'text', text: `Target "${a.target}" não encontrado no targets.yaml` }] }
+      // Gate-by-type: check_headers é READ-ONLY (um GET), então aceita URL direta
+      // sem targets.yaml — o config existe para PROTEGER os scans intrusivos
+      // (auth/idor/scan_target), não um GET de headers seguro em prod.
+      let target: Target | undefined
+      if (name === 'check_headers' && looksLikeUrl(a.target)) {
+        target = targetFromUrl(a.target)
+      } else {
+        const targets = await loadTargets()
+        target = targets.find(t => t.name === a.target)
+        if (!target) {
+          const hint = name === 'check_headers'
+            ? ` — ou passe uma URL http(s) direta (ex.: https://exemplo.com.br), sem config.`
+            : ''
+          return { content: [{ type: 'text', text: `Target "${a.target}" não encontrado no targets.yaml${hint}` }] }
+        }
+      }
 
       let agentFilter: string[] | undefined
       if (name === 'test_auth') agentFilter = ['AUTH Agent']
@@ -296,7 +341,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const report = await buildOrchestrator(depth).scan(scopedTarget)
       lastReports.set(a.target, report)
 
-      const reporter = new FractaReporter()
+      const reporter = new FractaReporter({ toolVersion: pkg.version })
       const { mdPath } = await reporter.save(report)
 
       const statusTxt = report.verdict === 'inconclusive'
@@ -326,9 +371,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === 'generate_report') {
       const report = lastReports.get(a.target)
       if (!report) return { content: [{ type: 'text', text: 'Nenhum scan encontrado. Execute scan_target primeiro.' }] }
-      const reporter = new FractaReporter()
-      const { mdPath, jsonPath } = await reporter.save(report)
-      const path = a.format === 'json' ? jsonPath : mdPath
+      const reporter = new FractaReporter({ toolVersion: pkg.version })
+      const { mdPath, jsonPath, sarifPath } = await reporter.save(report)
+      const path = a.format === 'json' ? jsonPath : a.format === 'sarif' ? sarifPath : mdPath
       return { content: [{ type: 'text', text: `Relatório salvo em: ${path}` }] }
     }
 

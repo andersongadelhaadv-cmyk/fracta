@@ -54,7 +54,7 @@ export interface PageLike {
   evaluate<T>(fn: string): Promise<T>
 }
 
-const defaultLoader: BrowserLoader = async () => {
+export const defaultLoader: BrowserLoader = async () => {
   // Import dinâmico: o Playwright NUNCA entra no bundle base; ausente → catch no chamador.
   // `playwright-core` é OPT-IN (não é mais optionalDependency dos pacotes publicados: pesava no
   // cold-start do `npx` e quebrava a conexão do MCP por timeout). Quem quer o `verify` instala

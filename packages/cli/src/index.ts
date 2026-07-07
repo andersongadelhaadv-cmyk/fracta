@@ -250,17 +250,18 @@ Options:
   })
   orchestrator.registerAgents(allAgents)
 
-  const reporter = new FractaReporter({ outputDir: values.output as string })
+  const reporter = new FractaReporter({ outputDir: values.output as string, toolVersion: pkg.version })
 
   let anyFailed = false
 
   try {
     for (const target of targets) {
       const report = await orchestrator.scan(target)
-      const { mdPath, jsonPath } = await reporter.save(report)
+      const { mdPath, jsonPath, sarifPath } = await reporter.save(report)
       console.log(`\n[Fracta] Reports saved:`)
       console.log(`  Markdown: ${mdPath}`)
       console.log(`  JSON:     ${jsonPath}`)
+      console.log(`  SARIF:    ${sarifPath}  (upload no GitHub Code Scanning)`)
       if (report.resumo.regressoes > 0) {
         console.log(`  ⏪ Regressões detectadas: ${report.resumo.regressoes}`)
       }

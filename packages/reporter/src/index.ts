@@ -1,6 +1,10 @@
 import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 import type { ScanReport, AuditReport, Finding, Severity } from '@fracta/core'
+import { toSarif } from './sarif.js'
+
+export { toSarif } from './sarif.js'
+export type { Sarif } from './sarif.js'
 
 /** Type guard: relatório enriquecido (Fase 1+) traz `checks`/`resumo`. */
 function isAuditReport(r: ScanReport | AuditReport): r is AuditReport {
@@ -17,16 +21,20 @@ const SEVERITY_EMOJI: Record<Severity, string> = {
 
 export interface ReporterOptions {
   outputDir?: string
+  /** Versão do Fracta gravada no SARIF (`tool.driver.version`). */
+  toolVersion?: string
 }
 
 export class FractaReporter {
   private readonly outputDir: string
+  private readonly toolVersion: string
 
   constructor(options: ReporterOptions = {}) {
     this.outputDir = options.outputDir ?? './fracta-reports'
+    this.toolVersion = options.toolVersion ?? '0.0.0'
   }
 
-  async save(report: ScanReport | AuditReport): Promise<{ mdPath: string; jsonPath: string }> {
+  async save(report: ScanReport | AuditReport): Promise<{ mdPath: string; jsonPath: string; sarifPath: string }> {
     await mkdir(this.outputDir, { recursive: true })
 
     const slug = report.target.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -39,11 +47,14 @@ export class FractaReporter {
     const baseName = `${slug}-${ts}`
     const mdPath = join(this.outputDir, `${baseName}.md`)
     const jsonPath = join(this.outputDir, `${baseName}.json`)
+    // SARIF sempre emitido → pronto pra subir no GitHub Code Scanning (control de CI).
+    const sarifPath = join(this.outputDir, `${baseName}.sarif`)
 
     await writeFile(mdPath, this.buildMarkdown(report), 'utf-8')
     await writeFile(jsonPath, JSON.stringify(report, null, 2), 'utf-8')
+    await writeFile(sarifPath, JSON.stringify(toSarif(report, { toolVersion: this.toolVersion }), null, 2), 'utf-8')
 
-    return { mdPath, jsonPath }
+    return { mdPath, jsonPath, sarifPath }
   }
 
   private buildMarkdown(report: ScanReport | AuditReport): string {
