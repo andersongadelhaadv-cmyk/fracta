@@ -42,7 +42,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "yaml": "^2.4.0"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@fracta/agent-auth": "workspace:*",
