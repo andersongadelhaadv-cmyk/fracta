@@ -32,6 +32,7 @@ import { createRequire } from 'node:module'
 import pkg from '../package.json' with { type: 'json' }
 import { fmtFinding, sastConfidenceSummary } from './sast-format.js'
 import { looksLikeUrl, targetFromUrl } from './target-resolver.js'
+import { MCP_FOOTER } from './promo.js'
 
 // Silencia SÓ o ExperimentalWarning do `node:sqlite` (usamos o SQLite builtin de propósito).
 // Sem isso o stderr do cliente MCP recebe o aviso a cada start (ruído). Demais avisos passam.
@@ -261,7 +262,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const bySev = r.findings.reduce<Record<string, number>>((m, f) => ((m[f.severity] = (m[f.severity] ?? 0) + 1), m), {})
       const lines = r.findings.map(fmtFinding)
       const txt = `Scan passivo de ${r.url}\n${head} · checks: ${r.checks.map(c => `${c.name}=${c.status}`).join(', ')}\nSeveridades: ${JSON.stringify(bySev)}\n\n${lines.join('\n') || '(sem achados nos checks executados)'}`
-      return { content: [{ type: 'text', text: txt }] }
+      return { content: [{ type: 'text', text: txt + MCP_FOOTER }] }
     }
 
     // ── Zero-config: auditoria SAST do repositório local (sem targets.yaml) ──
@@ -278,7 +279,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const lines = report.findings.slice(0, 40).map(fmtFinding)
       const more = report.findings.length > 40 ? `\n… +${report.findings.length - 40} achados` : ''
       const txt = `Auditoria SAST de ${path}\nStatus: ${statusTxt}. ${sastConfidenceSummary(report.findings)}\nRelatório: ${mdPath}\n\n${lines.join('\n')}${more}`
-      return { content: [{ type: 'text', text: txt }] }
+      return { content: [{ type: 'text', text: txt + MCP_FOOTER }] }
     }
 
     if (name === 'verify_consent') {
@@ -348,7 +349,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         ? 'INCONCLUSIVO (alvo não exercido — ausência de achados ≠ seguro)'
         : report.passed ? 'PASSOU' : 'FALHOU'
       const summary = `Scan concluído. Status: ${statusTxt}. ${sastConfidenceSummary(report.findings)}. Relatório: ${mdPath}`
-      return { content: [{ type: 'text', text: summary }] }
+      return { content: [{ type: 'text', text: summary + MCP_FOOTER }] }
     }
 
     if (name === 'audit_docs') {
@@ -358,7 +359,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       o.registerAgents([new DocsAgent(repoPath)])
       const report = await o.scan(docsTarget)
       lastReports.set('docs-audit', report)
-      return { content: [{ type: 'text', text: `Docs audit: ${report.summary.total} findings. Medium: ${report.summary.medium}, Low: ${report.summary.low}` }] }
+      return { content: [{ type: 'text', text: `Docs audit: ${report.summary.total} findings. Medium: ${report.summary.medium}, Low: ${report.summary.low}` + MCP_FOOTER }] }
     }
 
     if (name === 'get_findings') {
@@ -374,7 +375,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const reporter = new FractaReporter({ toolVersion: pkg.version })
       const { mdPath, jsonPath, sarifPath } = await reporter.save(report)
       const path = a.format === 'json' ? jsonPath : a.format === 'sarif' ? sarifPath : mdPath
-      return { content: [{ type: 'text', text: `Relatório salvo em: ${path}` }] }
+      return { content: [{ type: 'text', text: `Relatório salvo em: ${path}` + MCP_FOOTER }] }
     }
 
     return { content: [{ type: 'text', text: `Tool desconhecida: ${name}` }] }

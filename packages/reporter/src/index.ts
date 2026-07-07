@@ -143,7 +143,9 @@ export class FractaReporter {
       md += this.buildTransparencySection(report)
     }
 
-    md += `*Gerado pelo [Fracta](https://github.com/fracta/fracta) — The Complete SaaS Audit Framework*\n`
+    md += `---\n\n`
+    md += `*Gerado pelo [Fracta](https://fracta.pro?ref=report&utm_source=fracta-report&utm_medium=report&utm_campaign=footer) — auditoria de segurança grátis e open-source para SaaS. Monitoramento contínuo + regressão em [fracta.pro](https://fracta.pro?ref=report).*\n`
+    md += `*Feito pela PreviusIA, também criadora do [zap-api.tech](https://zap-api.tech?ref=fracta-report&utm_source=fracta-report&utm_medium=report&utm_campaign=crosssell) — API de WhatsApp para devs.*\n`
     return md
   }
 
