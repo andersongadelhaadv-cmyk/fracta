@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server'
-import { runMonitor, formatAlertEmail, PassiveScanner } from '@fracta/web-scan'
+import { runMonitor, formatAlertEmail, PassiveScanner, type ScanDiff } from '@fracta/web-scan'
 import { getStore } from '@/lib/scan-store'
 import { sendEmail } from '@/lib/mailer'
 import { SITE_URL } from '@/lib/config'
@@ -28,6 +28,29 @@ function tokenOk(req: NextRequest): boolean {
 
 export async function POST(req: NextRequest) {
   if (!tokenOk(req)) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  // Test-send (token-gated): prova o pipe REAL (formatAlertEmail + Resend) sem depender de
+  // uma regressão espontânea. `{ "test": "voce@dominio" }` → manda 1 alerta de amostra.
+  let body: { test?: unknown } = {}
+  try { body = await req.json() } catch { /* cron manda sem corpo */ }
+  const testTo = typeof body.test === 'string' ? body.test.trim() : ''
+  if (testTo) {
+    const sampleDiff: ScanDiff = {
+      url: 'https://exemplo.com.br/', previousGrade: 'A', currentGrade: 'D', gradeDelta: 'worsened',
+      newFindings: [{ id: 'hsts', severity: 'high', title: 'HSTS ausente' } as unknown as ScanDiff['newFindings'][number]],
+      resolvedFindings: [], changed: true, regressed: true,
+    }
+    const email = formatAlertEmail(sampleDiff, {
+      reportUrl: `${SITE_URL}/r/exemplo`,
+      unsubUrl: `${SITE_URL}/api/unsubscribe?token=amostra`,
+    })
+    try {
+      await sendEmail(testTo, { ...email, subject: `[TESTE] ${email.subject}` })
+      return Response.json({ ok: true, testSent: true, to: testTo }, { status: 200 })
+    } catch (e) {
+      return Response.json({ ok: false, testSent: false, error: (e as Error).message }, { status: 502 })
+    }
+  }
 
   const store = getStore()
   if (!store) return Response.json({ ok: false, store: 'down' }, { status: 503 })
