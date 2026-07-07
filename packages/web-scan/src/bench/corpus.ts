@@ -1,13 +1,15 @@
 /**
  * Corpus de benchmark — casos rotulados por GROUND-TRUTH externo (CSP spec / OWASP / MDN),
- * NÃO pelo que o nosso detector faz. Inclui de propósito casos-gap: regras que um scanner
- * completo emitiria mas o Fracta AINDA não cobre (`csp-no-frame-ancestors`, `csp-no-form-action`)
- * → viram false-negative honesto, pra o número não ser 100% por construção.
+ * NÃO pelo que o nosso detector faz.
  *
  * `expected` = ids de regra que DEVERIAM disparar. Regras do analyzeCsp:
  *   csp-unsafe-inline-script, csp-unsafe-eval, csp-no-script-src, csp-broad-script-src,
- *   csp-no-default-src, csp-object-src, csp-no-base-uri, csp-unsafe-inline-style.
- * Regras-gap (não emitidas hoje): csp-no-frame-ancestors, csp-no-form-action.
+ *   csp-no-default-src, csp-object-src, csp-no-base-uri, csp-unsafe-inline-style,
+ *   csp-no-frame-ancestors, csp-no-form-action.
+ *
+ * CSP_GAP_RULES está VAZIO: os antigos gaps (frame-ancestors/form-action) foram fechados.
+ * Se um dia entrar uma regra que ainda não cobrimos, liste-a aqui para o FN virar honesto
+ * em vez de quebrar o piso do bench.
  */
 export interface CspCase {
   name: string
@@ -16,8 +18,8 @@ export interface CspCase {
   rationale: string
 }
 
-/** Regras que um bom scanner emite mas o Fracta ainda NÃO cobre (documenta os gaps). */
-export const CSP_GAP_RULES = ['csp-no-frame-ancestors', 'csp-no-form-action'] as const
+/** Regras que um bom scanner emite mas o Fracta ainda NÃO cobre (documenta os gaps). Vazio = sem gaps conhecidos. */
+export const CSP_GAP_RULES = [] as const
 
 export const CSP_CORPUS: CspCase[] = [
   {
@@ -107,18 +109,18 @@ export const CSP_CORPUS: CspCase[] = [
     rationale: 'Política frouxa e incompleta — vários achados, incl. os gaps de clickjacking/form-action.',
   },
   {
-    // GAP: política forte de XSS mas SEM frame-ancestors → clickjacking. Fracta não cobre → FN honesto.
-    name: 'gap-sem-frame-ancestors',
+    // Política forte de XSS mas SEM frame-ancestors → clickjacking (agora coberto).
+    name: 'sem-frame-ancestors',
     csp: "default-src 'self'; script-src 'self' 'nonce-r'; object-src 'none'; base-uri 'self'; form-action 'self'",
     expected: ['csp-no-frame-ancestors'],
-    rationale: 'GAP conhecido: sem frame-ancestors há risco de clickjacking; o Fracta ainda não checa isso.',
+    rationale: 'Sem frame-ancestors há risco de clickjacking; frame-ancestors não herda de default-src.',
   },
   {
-    // GAP: sem form-action → hijack de formulário. Fracta não cobre → FN honesto.
-    name: 'gap-sem-form-action',
+    // Sem form-action → hijack de formulário (agora coberto).
+    name: 'sem-form-action',
     csp: "default-src 'self'; script-src 'self' 'nonce-r'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
     expected: ['csp-no-form-action'],
-    rationale: 'GAP conhecido: sem form-action um form injetado pode postar p/ origem arbitrária.',
+    rationale: 'Sem form-action um <form> injetado pode postar credenciais p/ origem arbitrária.',
   },
   {
     name: 'apenas-default-self',

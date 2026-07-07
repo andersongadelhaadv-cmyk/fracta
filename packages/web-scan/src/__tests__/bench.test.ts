@@ -33,15 +33,15 @@ describe('benchmark de correção (CSP + cookies)', () => {
     expect(cookie.precision).toBeGreaterThanOrEqual(0.99)
   })
 
-  it('recall alto (os únicos misses são os gaps documentados)', () => {
-    expect(overall.recall).toBeGreaterThanOrEqual(0.8)
+  it('recall ~perfeito (sem gaps conhecidos, pegamos tudo do corpus)', () => {
+    expect(overall.recall).toBeGreaterThanOrEqual(0.99)
   })
 
   it('os ÚNICOS false-negatives são as regras-gap conhecidas (nada regrediu escondido)', () => {
     const fnRules = Object.entries(perRule)
       .filter(([, m]) => m.fn > 0)
       .map(([rule]) => rule)
-    // todo FN precisa ser uma regra-gap declarada — senão é regressão silenciosa
+    // todo FN precisa ser uma regra-gap declarada — com CSP_GAP_RULES vazio, isso exige ZERO FN
     for (const r of fnRules) expect(CSP_GAP_RULES).toContain(r)
   })
 
@@ -63,13 +63,15 @@ function renderReport(r: { csp: Metrics; cookie: Metrics; overall: Metrics; perR
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([rule, m]) => `| \`${rule}\` | ${m.tp} | ${m.fp} | ${m.fn} | ${pct(m.precision)} | ${pct(m.recall)} |`)
     .join('\n')
-  const gaps = CSP_GAP_RULES.map((g) => `- \`${g}\` — regra que um scanner completo emite e o Fracta ainda **não** cobre.`).join('\n')
+  const gaps = CSP_GAP_RULES.length
+    ? CSP_GAP_RULES.map((g) => `- \`${g}\` — regra que um scanner completo emite e o Fracta ainda **não** cobre.`).join('\n')
+    : '_Nenhum gap conhecido — todas as regras do corpus são cobertas._'
   return `# Fracta — benchmark de correção (CSP + cookies)
 
 Precisão/recall/F1 dos detectores **determinísticos** do Fracta, medidos sobre um corpus
-rotulado por **ground-truth externo** (CSP spec / OWASP / MDN). O corpus inclui de propósito
-**casos-gap** (o que ainda não cobrimos) — por isso o recall NÃO é 100%: um número honesto
-mostra os limites, não os esconde. Reproduzível: \`BENCH_WRITE=1 npx vitest run src/__tests__/bench.test.ts\`.
+rotulado por **ground-truth externo** (CSP spec / OWASP / MDN). O corpus é honesto por design:
+qualquer regra que ainda não cobríssemos entraria como false-negative (não é 100% por construção).
+Reproduzível: \`BENCH_WRITE=1 npx vitest run src/__tests__/bench.test.ts\`.
 
 ## Resultado (${CSP_CORPUS.length + COOKIE_CORPUS.length} casos)
 
@@ -82,7 +84,7 @@ ${row('**Geral**', CSP_CORPUS.length + COOKIE_CORPUS.length, r.overall)}
 **Precisão** = dos achados que emitimos, quantos são corretos (sem falso-positivo).
 **Recall** = dos problemas reais, quantos pegamos.
 
-## Gaps conhecidos (false-negatives deliberados — próximos a cobrir)
+## Gaps conhecidos (false-negatives — próximos a cobrir)
 ${gaps}
 
 ## Por regra

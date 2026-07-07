@@ -1,6 +1,6 @@
 {
   "name": "@fracta/agent-headers",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fracta headers agent — security headers and CORS misconfiguration",
   "license": "MIT",
   "author": "Anderson Gadelha",
@@ -13,7 +13,14 @@
   "bugs": {
     "url": "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
   },
-  "keywords": ["fracta", "security", "headers", "cors", "csp", "owasp"],
+  "keywords": [
+    "fracta",
+    "security",
+    "headers",
+    "cors",
+    "csp",
+    "owasp"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
