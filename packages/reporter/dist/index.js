@@ -1,6 +1,146 @@
 // src/index.ts
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
+
+// src/sarif.ts
+var LEVEL = {
+  critical: "error",
+  high: "error",
+  medium: "warning",
+  low: "note",
+  info: "note"
+};
+function slug(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+function ruleIdFor(f) {
+  return `${f.category}/${slug(f.agent)}`;
+}
+function toSarif(report, opts = {}) {
+  const findings = report.findings ?? [];
+  const rules = /* @__PURE__ */ new Map();
+  const results = findings.map((f) => {
+    const id = ruleIdFor(f);
+    if (!rules.has(id)) {
+      rules.set(id, {
+        id,
+        name: `${f.agent} (${f.category})`,
+        shortDescription: { text: `Achados de ${f.agent}` },
+        defaultConfiguration: { level: LEVEL[f.severity] }
+      });
+    }
+    const uri = f.location?.file?.trim() || f.endpoint?.trim() || report.target;
+    const region = f.location?.line ? { startLine: f.location.line } : void 0;
+    return {
+      ruleId: id,
+      level: LEVEL[f.severity],
+      message: { text: f.description ? `${f.title} \u2014 ${f.description}` : f.title },
+      locations: [{ physicalLocation: { artifactLocation: { uri }, ...region ? { region } : {} } }],
+      partialFingerprints: { fractaFindingId: f.id }
+    };
+  });
+  return {
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: "Fracta",
+            version: opts.toolVersion ?? "0.0.0",
+            informationUri: "https://fracta.pro",
+            rules: [...rules.values()]
+          }
+        },
+        results
+      }
+    ]
+  };
+}
+
+// src/scorecard.ts
+var OWASP_2021 = [
+  { id: "A01", name: "Broken Access Control" },
+  { id: "A02", name: "Cryptographic Failures" },
+  { id: "A03", name: "Injection" },
+  { id: "A04", name: "Insecure Design" },
+  { id: "A05", name: "Security Misconfiguration" },
+  { id: "A06", name: "Vulnerable and Outdated Components" },
+  { id: "A07", name: "Identification and Authentication Failures" },
+  { id: "A08", name: "Software and Data Integrity Failures" },
+  { id: "A09", name: "Security Logging and Monitoring Failures" },
+  { id: "A10", name: "Server-Side Request Forgery" }
+];
+var CWE_TO_OWASP = {
+  "639": "A01",
+  "285": "A01",
+  "200": "A01",
+  "352": "A01",
+  "862": "A01",
+  "347": "A02",
+  "311": "A02",
+  "319": "A02",
+  "79": "A03",
+  "89": "A03",
+  "94": "A03",
+  "78": "A03",
+  "77": "A03",
+  "362": "A04",
+  "16": "A05",
+  "693": "A05",
+  "942": "A05",
+  "208": "A07",
+  "287": "A07",
+  "307": "A07",
+  "798": "A07",
+  "918": "A10"
+};
+var APICAT_TO_OWASP = {
+  "0xa1": "A01",
+  "0xa3": "A01",
+  "0xa5": "A01",
+  "0xa2": "A07"
+};
+var SEV_RANK = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
+function classifyOwasp(finding) {
+  const hay = [finding.title, finding.description, ...finding.references ?? []].join(" ");
+  const explicit = hay.match(/\bA(\d{2}):2021\b/i);
+  if (explicit) return `A${explicit[1]}`;
+  const cwe = hay.match(/(?:CWE-|definitions\/)(\d+)/i);
+  if (cwe && CWE_TO_OWASP[cwe[1]]) return CWE_TO_OWASP[cwe[1]];
+  const api = hay.match(/0xa[0-9]/i);
+  if (api && APICAT_TO_OWASP[api[0].toLowerCase()]) return APICAT_TO_OWASP[api[0].toLowerCase()];
+  if (finding.category === "deps") return "A06";
+  if (finding.category === "compliance") return "LGPD";
+  return "unclassified";
+}
+var EXTRA_NAMES = {
+  LGPD: "Privacidade / LGPD (fora do OWASP Top 10)",
+  unclassified: "N\xE3o classificado"
+};
+function buildScorecard(findings) {
+  const acc = /* @__PURE__ */ new Map();
+  for (const cat of OWASP_2021) acc.set(cat.id, { count: 0, rank: -1 });
+  for (const f of findings) {
+    const id = classifyOwasp(f);
+    const cur = acc.get(id) ?? { count: 0, rank: -1 };
+    cur.count += 1;
+    cur.rank = Math.max(cur.rank, SEV_RANK[f.severity]);
+    acc.set(id, cur);
+  }
+  const rankToSev = (r) => r < 0 ? "none" : ["info", "low", "medium", "high", "critical"][r];
+  const rows = OWASP_2021.map((cat) => {
+    const a = acc.get(cat.id);
+    return { id: cat.id, name: cat.name, count: a.count, maxSeverity: rankToSev(a.rank) };
+  });
+  for (const id of ["LGPD", "unclassified"]) {
+    const a = acc.get(id);
+    if (a && a.count > 0) rows.push({ id, name: EXTRA_NAMES[id], count: a.count, maxSeverity: rankToSev(a.rank) });
+  }
+  return rows;
+}
+
+// src/index.ts
 function isAuditReport(r) {
   return Array.isArray(r.checks);
 }
@@ -13,19 +153,23 @@ var SEVERITY_EMOJI = {
 };
 var FractaReporter = class {
   outputDir;
+  toolVersion;
   constructor(options = {}) {
     this.outputDir = options.outputDir ?? "./fracta-reports";
+    this.toolVersion = options.toolVersion ?? "0.0.0";
   }
   async save(report) {
     await mkdir(this.outputDir, { recursive: true });
-    const slug = report.target.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const slug2 = report.target.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const ts = new Date(report.startedAt).toISOString().replace(/[:.]/g, "-").replace("T", "_").substring(0, 19);
-    const baseName = `${slug}-${ts}`;
+    const baseName = `${slug2}-${ts}`;
     const mdPath = join(this.outputDir, `${baseName}.md`);
     const jsonPath = join(this.outputDir, `${baseName}.json`);
+    const sarifPath = join(this.outputDir, `${baseName}.sarif`);
     await writeFile(mdPath, this.buildMarkdown(report), "utf-8");
     await writeFile(jsonPath, JSON.stringify(report, null, 2), "utf-8");
-    return { mdPath, jsonPath };
+    await writeFile(sarifPath, JSON.stringify(toSarif(report, { toolVersion: this.toolVersion }), null, 2), "utf-8");
+    return { mdPath, jsonPath, sarifPath };
   }
   buildMarkdown(report) {
     const date = new Date(report.startedAt);
@@ -86,6 +230,7 @@ var FractaReporter = class {
     md += `| **Total** | **${report.summary.total}** |
 
 `;
+    md += this.buildOwaspScorecard(report);
     md += this.buildPriorityBlock(report);
     const severityTitles = {
       critical: "\u{1F534} CR\xCDTICO",
@@ -141,7 +286,12 @@ ${f.evidence}
     if (isAuditReport(report)) {
       md += this.buildTransparencySection(report);
     }
-    md += `*Gerado pelo [Fracta](https://github.com/fracta/fracta) \u2014 The Complete SaaS Audit Framework*
+    md += `---
+
+`;
+    md += `*Gerado pelo [Fracta](https://fracta.pro?ref=report&utm_source=fracta-report&utm_medium=report&utm_campaign=footer) \u2014 auditoria de seguran\xE7a gr\xE1tis e open-source para SaaS. Monitoramento cont\xEDnuo + regress\xE3o em [fracta.pro](https://fracta.pro?ref=report).*
+`;
+    md += `*Feito pela PreviusIA, tamb\xE9m criadora do [zap-api.tech](https://zap-api.tech?ref=fracta-report&utm_source=fracta-report&utm_medium=report&utm_campaign=crosssell) \u2014 API de WhatsApp para devs.*
 `;
     return md;
   }
@@ -150,6 +300,32 @@ ${f.evidence}
    * (tipicamente staging fora do ar), então a ausência de achados NÃO significa
    * "seguro" — deixa isso explícito no topo, com o motivo concreto.
    */
+  /**
+   * Scorecard de POSTURA por OWASP Top 10 2021 — sintetiza os achados numa foto de
+   * maturidade ("limpo em N, exposto em M"), o que clientes (jurídico/LGPD) leem melhor
+   * que uma lista. Classificação por sinal explícito (CWE/OWASP), nunca chute.
+   */
+  buildOwaspScorecard(report) {
+    const rows = buildScorecard(report.findings);
+    const owasp = rows.filter((r) => /^A\d\d$/.test(r.id));
+    const limpas = owasp.filter((r) => r.count === 0).length;
+    const emoji = { critical: "\u{1F534}", high: "\u{1F7E0}", medium: "\u{1F7E1}", low: "\u{1F535}", info: "\u26AA", none: "\u2705" };
+    let md = `## \u{1F3AF} Postura por OWASP Top 10 (2021)
+
+`;
+    md += `Limpo em **${limpas}/10** categorias. Classifica\xE7\xE3o por sinal expl\xEDcito (CWE/OWASP-API); o que n\xE3o tem sinal confi\xE1vel fica em "N\xE3o classificado" (honestidade > cobertura fake).
+
+`;
+    md += `| Categoria | Achados | Pior | Status |
+|---|---|---|---|
+`;
+    for (const r of rows) {
+      const status = r.maxSeverity === "none" ? "\u2705 sem achados" : `${emoji[r.maxSeverity]} ${r.maxSeverity}`;
+      md += `| ${r.id} \u2014 ${r.name} | ${r.count} | ${r.maxSeverity === "none" ? "\u2014" : r.maxSeverity} | ${status} |
+`;
+    }
+    return md + "\n";
+  }
   buildInconclusiveCallout(report) {
     const h = report.targetHealth;
     const comErro = report.resumo?.checksComErro ?? [];
@@ -300,5 +476,8 @@ ${fix.diff}
   }
 };
 export {
-  FractaReporter
+  FractaReporter,
+  buildScorecard,
+  classifyOwasp,
+  toSarif
 };

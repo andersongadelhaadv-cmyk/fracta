@@ -22,6 +22,22 @@ interface TargetAuth {
     headerName?: string;
     headerPrefix?: string;
 }
+/**
+ * Segundo tenant (B) para PROVAR isolamento cross-tenant (IDOR real). O agente
+ * autentica como A (via `auth`) e como B (aqui), confirma que B acessa os
+ * próprios `ownedResources` e então tenta acessá-los como A: A conseguir = IDOR
+ * cross-tenant CONFIRMADO. Ausente → o teste cross-tenant é no-op (opt-in, intrusivo).
+ */
+interface TargetCrossTenant {
+    credentials: {
+        email: string;
+        password: string;
+    };
+    /** Endpoint de auth do tenant B (default: reusa `auth.endpoint`). */
+    endpoint?: string;
+    /** Paths de recursos que PERTENCEM ao tenant B (GET). O agente confirma via B antes de sondar como A. */
+    ownedResources: string[];
+}
 /** Acesso a infra de um alvo (opcional — ausência → checks de infra ficam `skipped`). */
 interface TargetInfra {
     host?: string;
@@ -42,6 +58,8 @@ interface Target {
     url: string;
     stack: StackType[];
     auth?: TargetAuth;
+    /** Segundo tenant p/ provar isolamento cross-tenant (IDOR real). Opt-in, intrusivo. */
+    crossTenant?: TargetCrossTenant;
     agents?: string[];
     skills?: string[];
     ignore?: string[];
@@ -77,6 +95,17 @@ interface Finding {
     description: string;
     endpoint?: string;
     evidence?: string;
+    /**
+     * Localização ESTRUTURADA no repositório (arquivo + linha 1-based). Diferente
+     * da `evidence` em prosa: é machine-readable, então flui para o SARIF como
+     * `region.startLine` → o GitHub Code Scanning ancora o achado inline na linha
+     * exata, com o `proposedFix` do lado. Preenchida pelos agentes SAST que já
+     * sabem o local (secrets, stack). Ausente para achados DAST (sem arquivo).
+     */
+    location?: {
+        file: string;
+        line?: number;
+    };
     recommendation: string;
     /** Correção gated, opcional — preenchida pela borda LLM (Fase 6). */
     proposedFix?: ProposedFix;
@@ -403,4 +432,4 @@ type CommandRunner = (command: string, args: string[], opts?: RunCommandOptions)
  */
 declare const runCommand: CommandRunner;
 
-export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Confidence, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpClientOptions, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, applyConfidence, assertUsableTarget, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };
+export { type AgentCategory, type AuditReport, type CheckResult, type CheckStatus, type CommandResult, type CommandRunner, type Confidence, type Finding, type FindingStatus, type FindingStore, FractaHttpClient, FractaOrchestrator, type FractaSkill, type HealthInputs, type HttpClientOptions, type HttpResponse, KNOWN_STACKS, type OrchestratorOptions, type Prioritization, type ProposedFix, type ReportEnricher, type RequestOptions, type RunCommandOptions, type ScanDepth, type ScanReport, type ScanScope, type SecurityAgent, type SecurityTest, type Severity, SkippedCheck, type StackType, type Target, type TargetAuth, type TargetConfig, type TargetCrossTenant, type TargetFrontend, type TargetHealth, type TargetHealthStatus, type TargetInfra, type Verdict, applyConfidence, assertUsableTarget, checkTargetHealth, deriveHealthStatus, deriveVerdict, makeFinding, runCommand, stableFindingId };

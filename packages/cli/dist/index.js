@@ -1,504 +1,61 @@
 #!/usr/bin/env node
+import {
+  FractaHttpClient,
+  FractaOrchestrator,
+  SkippedCheck,
+  assertUsableTarget,
+  runCommand,
+  stableFindingId
+} from "./chunk-U24RMSTQ.js";
 import "./chunk-JSBRDJBE.js";
 
 // src/index.ts
-import { readFile as readFile6 } from "fs/promises";
-import { parseArgs } from "util";
+import { readFile as readFile6, writeFile as writeFile2, access, mkdir as mkdir2 } from "fs/promises";
+import { dirname } from "path";
 import { parse as parseYaml } from "yaml";
 
-// ../core/dist/index.js
-import { randomUUID, createHash } from "crypto";
-import { randomUUID as randomUUID2 } from "crypto";
-import { stat } from "fs/promises";
-import { join } from "path";
-import { connect } from "net";
-import { spawn } from "child_process";
-function stableFindingId(parts) {
-  const key = [
-    parts.saas.trim().toLowerCase(),
-    parts.camada.trim().toLowerCase(),
-    parts.rule.trim().toLowerCase(),
-    (parts.location ?? "").trim().toLowerCase()
-  ].join("|");
-  return createHash("sha256").update(key).digest("hex").slice(0, 16);
-}
-var SkippedCheck = class extends Error {
-  /**
-   * @param motivo   por que o check não rodou.
-   * @param degraded `true` quando a checagem DEVERIA ter rodado mas uma capacidade
-   *   faltou (ex.: gitleaks ausente) → vira ressalva no topo do relatório (🧭-A).
-   *   `false` (default) = skip benigno/não-aplicável (ex.: agente repo-only sem
-   *   `repoPath`) → não rebaixa a headline.
-   */
-  constructor(motivo, degraded = false) {
-    super(motivo);
-    this.motivo = motivo;
-    this.degraded = degraded;
-    this.name = "SkippedCheck";
-  }
-  motivo;
-  degraded;
+// src/args.ts
+import { parseArgs } from "util";
+var CLI_OPTIONS = {
+  target: { type: "string", short: "t" },
+  config: { type: "string", short: "c", default: "./configs/targets.yaml" },
+  depth: { type: "string", short: "d", default: "full" },
+  output: { type: "string", short: "o", default: "./fracta-reports" },
+  state: { type: "string", default: "./fracta-state.db" },
+  "no-state": { type: "boolean", default: false },
+  llm: { type: "boolean", default: false },
+  "no-llm": { type: "boolean", default: false },
+  "fail-on": { type: "string", default: "critical,high" },
+  "docs-path": { type: "string", default: "./" },
+  force: { type: "boolean", default: false },
+  verbose: { type: "boolean", short: "v", default: false },
+  version: { type: "boolean", short: "V", default: false },
+  help: { type: "boolean", short: "h", default: false }
 };
-var FP_PRONE = /(\.(test|spec|stories)\.[cm]?[jt]sx?|[\\/](tests?|__tests__|fixtures?|__fixtures__|mocks?|__mocks__|examples?|samples?|stories|e2e|cypress|playwright)[\\/]|\.(example|sample|mock|fixture)\.|[\\/](demo|seed)s?[\\/]|\.d\.ts$)/i;
-var SELF_DETECTOR = /[\\/]?packages[\\/]agents[\\/][^\\/]+[\\/]src[\\/]/i;
-function locationOf(f) {
-  return [f.title, f.evidence, f.endpoint].filter(Boolean).join(" ");
-}
-function applyConfidence(findings) {
-  return findings.map((f) => {
-    let confidence = f.confidence ?? "high";
-    const loc = locationOf(f);
-    if (confidence !== "low" && (FP_PRONE.test(loc) || SELF_DETECTOR.test(loc))) confidence = "low";
-    return confidence === f.confidence ? f : { ...f, confidence };
-  });
-}
-var FractaHttpClient = class _FractaHttpClient {
-  baseUrl;
-  baseHeaders;
-  clientOptions;
-  constructor(baseUrl, baseHeaders = {}, options = {}) {
-    if (typeof baseUrl !== "string" || baseUrl.trim() === "") {
-      throw new SkippedCheck("sem url v\xE1lida para este alvo \u2014 o check n\xE3o p\xF4de exercer a superf\xEDcie (defina `url:` no target)");
-    }
-    this.baseUrl = baseUrl.replace(/\/$/, "");
-    this.baseHeaders = {
-      "Content-Type": "application/json",
-      // UA honesto estilo bot (padrão Googlebot): identifica o Fracta + URL, mas
-      // sem a palavra "Scanner" que dispara regras ingênuas de WAF. Não resolve
-      // fingerprint TLS (JA3) de bot-protection avançada (ex.: Cloudflare em IP de datacenter).
-      "User-Agent": "Mozilla/5.0 (compatible; FractaBot/0.1; +https://fracta.pro)",
-      ...baseHeaders
-    };
-    this.clientOptions = options;
+var CliUsageError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CliUsageError";
   }
-  async request(path, options = {}) {
-    const { method = "GET", headers = {}, body, timeoutMs = 1e4, redirect } = options;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-      const init = {
-        method,
-        headers: { ...this.baseHeaders, ...headers },
-        body: body !== void 0 ? JSON.stringify(body) : void 0,
-        signal: controller.signal
-      };
-      const eff = redirect ?? this.clientOptions.redirect;
-      if (eff) init.redirect = eff;
-      if (this.clientOptions.dispatcher) init.dispatcher = this.clientOptions.dispatcher;
-      const res = await fetch(`${this.baseUrl}${normalizedPath}`, init);
-      const raw = await res.text();
-      let parsed = raw;
-      const ct = res.headers.get("content-type") ?? "";
-      if (ct.includes("application/json")) {
-        try {
-          parsed = JSON.parse(raw);
-        } catch {
-        }
-      }
-      const responseHeaders = {};
-      res.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
-      return { status: res.status, headers: responseHeaders, body: parsed, raw };
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  withHeaders(extra) {
-    return new _FractaHttpClient(this.baseUrl, { ...this.baseHeaders, ...extra });
-  }
-  static async withJwt(baseUrl, authEndpoint, credentials) {
-    const tmp = new _FractaHttpClient(baseUrl);
-    const res = await tmp.request(authEndpoint, {
-      method: "POST",
-      body: credentials
+};
+function parseCliArgs(argv) {
+  try {
+    return parseArgs({
+      args: argv,
+      allowPositionals: true,
+      options: CLI_OPTIONS
     });
-    if (res.status >= 400) {
-      throw new Error(
-        `Auth failed: ${authEndpoint} returned HTTP ${res.status}. Body: ${res.raw.substring(0, 200)}`
+  } catch (e) {
+    const err = e;
+    if (typeof err.code === "string" && err.code.startsWith("ERR_PARSE_ARGS")) {
+      const opt = err.message.match(/'(-[^']+)'/)?.[1] ?? "(op\xE7\xE3o inv\xE1lida)";
+      throw new CliUsageError(
+        `[Fracta] Op\xE7\xE3o desconhecida: ${opt}. Rode "fracta --help" para ver as op\xE7\xF5es v\xE1lidas.`
       );
     }
-    const data = res.body;
-    const token = data?.access_token ?? data?.token ?? data?.accessToken ?? data?.data?.token;
-    if (!token) {
-      throw new Error(`Auth failed: no token in response from ${authEndpoint}`);
-    }
-    const client = new _FractaHttpClient(baseUrl, { Authorization: `Bearer ${token}` });
-    return { client, token };
-  }
-};
-function assertUsableTarget(target) {
-  const name = target?.name ?? "(sem nome)";
-  const url = target?.url;
-  const repoPath = target?.repoPath;
-  const hasRepo = typeof repoPath === "string" && repoPath.trim().length > 0;
-  if (url === void 0 || url === null || typeof url === "string" && url.trim() === "") {
-    if (hasRepo) return;
-    throw new Error(
-      `Target "${name}" n\xE3o tem \`url\` nem \`repoPath\`. Defina uma \`url\` http(s) (o campo can\xF4nico \xE9 \`url:\`, n\xE3o \`baseUrl:\`) ou um \`repoPath\` para auditoria de reposit\xF3rio.`
-    );
-  }
-  if (!/^https?:\/\//i.test(url)) {
-    if (hasRepo) return;
-    throw new Error(
-      `Target "${name}" tem uma \`url\` inv\xE1lida ("${url}"): precisa come\xE7ar com http:// ou https://.`
-    );
+    throw e;
   }
 }
-async function checkTargetHealth(target) {
-  const hasRepo = !!target.repoPath;
-  const repoAccessible = hasRepo ? await isGitRepo(target.repoPath) : true;
-  const stagingApplicable = isHttpUrl(target.url);
-  const stagingResponding = stagingApplicable ? await httpResponds(target.url) : void 0;
-  const host = target.infra?.host;
-  const vpsApplicable = !!host;
-  const vpsReachable = host ? await tcpReachable(host) : void 0;
-  const status = deriveHealthStatus({
-    hasRepo,
-    repoAccessible,
-    stagingApplicable,
-    stagingResponding,
-    vpsApplicable,
-    vpsReachable
-  });
-  return { repoAccessible, stagingResponding, vpsReachable, status };
-}
-function deriveHealthStatus(p) {
-  if (p.hasRepo && !p.repoAccessible) return "unreachable";
-  const probes = [];
-  if (p.stagingApplicable) probes.push(p.stagingResponding === true);
-  if (p.vpsApplicable) probes.push(p.vpsReachable === true);
-  if (probes.length === 0) return "healthy";
-  if (probes.every(Boolean)) return "healthy";
-  if (probes.some(Boolean)) return "degraded";
-  return "unreachable";
-}
-function isHttpUrl(url) {
-  return !!url && /^https?:\/\//i.test(url);
-}
-async function isGitRepo(repoPath) {
-  try {
-    const dir = await stat(repoPath);
-    if (!dir.isDirectory()) return false;
-    await stat(join(repoPath, ".git"));
-    return true;
-  } catch {
-    return false;
-  }
-}
-async function httpResponds(url, timeoutMs = 5e3) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    await fetch(url, { method: "HEAD", signal: controller.signal });
-    return true;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-function tcpReachable(host, port = 22, timeoutMs = 4e3) {
-  return new Promise((resolve) => {
-    const socket = connect({ host, port });
-    let settled = false;
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      socket.destroy();
-      resolve(value);
-    };
-    socket.setTimeout(timeoutMs);
-    socket.once("connect", () => finish(true));
-    socket.once("timeout", () => finish(false));
-    socket.once("error", (err) => {
-      finish(err.code === "ECONNREFUSED");
-    });
-  });
-}
-var SEVERITY_ORDER = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  info: 4
-};
-function deriveVerdict(summary, failOn, health, checks = []) {
-  if (failOn.some((s) => summary[s] > 0)) return "failed";
-  if (health.status === "unreachable") return "inconclusive";
-  if (checks.some((c) => c.status === "error")) return "inconclusive";
-  return "passed";
-}
-var FractaOrchestrator = class {
-  agents = [];
-  options;
-  store;
-  healthCheck;
-  enricher;
-  constructor(options = {}) {
-    this.options = {
-      concurrency: options.concurrency ?? 3,
-      failOn: options.failOn ?? ["critical", "high"],
-      depth: options.depth ?? "full",
-      verbose: options.verbose ?? false
-    };
-    this.store = options.store;
-    this.healthCheck = options.healthCheck ?? checkTargetHealth;
-    this.enricher = options.enricher;
-  }
-  registerAgent(agent) {
-    this.agents.push(agent);
-    return this;
-  }
-  registerAgents(agents) {
-    agents.forEach((a) => this.registerAgent(a));
-    return this;
-  }
-  async scan(target) {
-    const runId = randomUUID2();
-    const startedAt = /* @__PURE__ */ new Date();
-    const activeAgents = target.agents && target.agents.length > 0 ? this.agents.filter((a) => target.agents.includes(a.name)) : this.agents;
-    if (this.options.verbose) {
-      console.log(`
-[Fracta] Scanning: ${target.name} (${target.url})`);
-      console.log(`[Fracta] Agents: ${activeAgents.map((a) => a.name).join(", ")}`);
-      console.log(`[Fracta] Depth: ${this.options.depth}`);
-    }
-    const health = await this.healthCheck(target);
-    if (target.repoPath && !health.repoAccessible) {
-      return this.buildAbortedReport(target, runId, startedAt, health);
-    }
-    const scope = {
-      target,
-      depth: this.options.depth,
-      agents: activeAgents.map((a) => a.name),
-      runId,
-      startedAt,
-      health
-    };
-    const checks = [];
-    const chunks = chunkArray(activeAgents, this.options.concurrency);
-    for (const chunk of chunks) {
-      const results = await Promise.all(chunk.map((a) => this.runCheckIsolated(a, scope)));
-      checks.push(...results);
-    }
-    let findings = checks.flatMap((c) => c.findings);
-    if (this.store) {
-      try {
-        const suppressions = target.config?.suppressions ?? [];
-        findings = await this.store.applyStatus(target.name, findings, suppressions);
-      } catch (err) {
-        if (this.options.verbose) console.error(`[Fracta] Store.applyStatus falhou: ${String(err)}`);
-      }
-    }
-    findings = applyConfidence(findings);
-    findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
-    const summary = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-    const failSummary = { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-    for (const f of findings) {
-      if (f.status === "suppressed") continue;
-      summary.total++;
-      summary[f.severity]++;
-      if (f.confidence !== "low") {
-        failSummary.total++;
-        failSummary[f.severity]++;
-      }
-    }
-    const finishedAt = /* @__PURE__ */ new Date();
-    const verdict = deriveVerdict(failSummary, this.options.failOn, health, checks);
-    const passed = verdict === "passed";
-    const targetHealth = health;
-    let report = {
-      runId,
-      target: target.name,
-      startedAt,
-      finishedAt,
-      durationMs: finishedAt.getTime() - startedAt.getTime(),
-      summary,
-      findings,
-      passed,
-      saas: target.name,
-      timestamp: finishedAt.toISOString(),
-      targetHealth,
-      verdict,
-      checks,
-      resumo: {
-        porSeveridade: {
-          critical: summary.critical,
-          high: summary.high,
-          medium: summary.medium,
-          low: summary.low,
-          info: summary.info
-        },
-        regressoes: findings.filter((f) => f.status === "regression").length,
-        checksComErro: checks.filter((c) => c.status === "error").map((c) => c.agent),
-        checksPulados: checks.filter((c) => c.status === "skipped").map((c) => c.agent),
-        checksDegradados: checks.filter((c) => c.status === "skipped" && c.degraded).map((c) => c.agent)
-      }
-    };
-    if (this.enricher) {
-      try {
-        report = await this.enricher.enrich(report);
-      } catch (err) {
-        if (this.options.verbose) console.error(`[Fracta] Enricher falhou: ${String(err)}`);
-      }
-    }
-    if (this.store) {
-      try {
-        await this.store.recordRun(report);
-      } catch (err) {
-        if (this.options.verbose) console.error(`[Fracta] Store.recordRun falhou: ${String(err)}`);
-      }
-    }
-    this.printSummary(report);
-    return report;
-  }
-  async scanAll(targets) {
-    const reports = [];
-    for (const target of targets) {
-      reports.push(await this.scan(target));
-    }
-    return reports;
-  }
-  /**
-   * Executa UM agente de forma isolada: aplica timeout, captura qualquer falha
-   * e devolve sempre um CheckResult (ok | error | skipped). Nunca propaga exceção.
-   */
-  async runCheckIsolated(agent, scope) {
-    const camada = agent.category;
-    const start = Date.now();
-    try {
-      const findings = await withTimeout(agent.run(scope), agent.timeoutMs);
-      return {
-        agent: agent.name,
-        camada,
-        status: "ok",
-        durationMs: Date.now() - start,
-        findings: findings.map((f) => normalizeFinding(f, camada))
-      };
-    } catch (err) {
-      const durationMs = Date.now() - start;
-      if (err instanceof SkippedCheck) {
-        return { agent: agent.name, camada, status: "skipped", motivo: err.motivo, degraded: err.degraded, durationMs, findings: [] };
-      }
-      const motivo = err instanceof Error ? err.message : String(err);
-      if (this.options.verbose) console.error(`[Fracta] Check error (${agent.name}): ${motivo}`);
-      return { agent: agent.name, camada, status: "error", motivo, durationMs, findings: [] };
-    }
-  }
-  /**
-   * Auditoria abortada por repo obrigatório inacessível. Devolve um AuditReport
-   * honesto (nenhum check rodou, não passou) sem persistir nada.
-   */
-  buildAbortedReport(target, runId, startedAt, health) {
-    const finishedAt = /* @__PURE__ */ new Date();
-    const motivo = `repoPath inacess\xEDvel ou n\xE3o \xE9 um reposit\xF3rio git v\xE1lido: ${target.repoPath}`;
-    console.error(`
-[Fracta] ${target.name} \u2014 \u26D4 AUDITORIA ABORTADA: ${motivo}`);
-    return {
-      runId,
-      target: target.name,
-      startedAt,
-      finishedAt,
-      durationMs: finishedAt.getTime() - startedAt.getTime(),
-      summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 },
-      findings: [],
-      passed: false,
-      saas: target.name,
-      timestamp: finishedAt.toISOString(),
-      targetHealth: health,
-      // Repo obrigatório inacessível: não foi possível auditar → inconclusivo, não "falhou".
-      verdict: "inconclusive",
-      checks: [],
-      resumo: {
-        porSeveridade: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
-        regressoes: 0,
-        checksComErro: [],
-        checksPulados: []
-      }
-    };
-  }
-  printSummary(report) {
-    const degradados = report.resumo.checksDegradados ?? [];
-    const status = report.verdict === "inconclusive" ? "\u26A0\uFE0F INCONCLUSIVE (alvo n\xE3o exercido)" : report.passed ? degradados.length > 0 ? `\u2705 PASSED \u26A0\uFE0F COM RESSALVAS (${degradados.length} check(s) cr\xEDtico(s) n\xE3o rodaram: ${degradados.join(", ")})` : "\u2705 PASSED" : "\u274C FAILED";
-    console.log(`
-[Fracta] ${report.target} \u2014 ${status}`);
-    console.log(`  Critical: ${report.summary.critical}  High: ${report.summary.high}  Medium: ${report.summary.medium}  Low: ${report.summary.low}  Info: ${report.summary.info}`);
-    if (report.resumo.checksComErro.length > 0) {
-      console.log(`  \u26A0 Checks com erro: ${report.resumo.checksComErro.join(", ")}`);
-    }
-    if (report.resumo.checksPulados.length > 0) {
-      console.log(`  \u2298 Checks pulados: ${report.resumo.checksPulados.join(", ")}`);
-    }
-    console.log(`  Duration: ${report.durationMs}ms  Run ID: ${report.runId}`);
-  }
-};
-function normalizeFinding(f, camada) {
-  return {
-    ...f,
-    camada: f.camada ?? camada,
-    status: f.status ?? "open"
-  };
-}
-function withTimeout(promise, ms) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timeout ap\xF3s ${ms}ms`)), ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
-}
-function chunkArray(arr, size) {
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-}
-var runCommand = (command, args, opts = {}) => {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: opts.cwd,
-      // No Windows, npm/gitleaks são .cmd e exigem shell para resolver no PATH.
-      shell: process.platform === "win32"
-    });
-    let stdout = "";
-    let stderr = "";
-    let timer;
-    if (opts.timeoutMs) {
-      timer = setTimeout(() => {
-        child.kill("SIGKILL");
-        reject(new Error(`timeout ap\xF3s ${opts.timeoutMs}ms ao executar: ${command}`));
-      }, opts.timeoutMs);
-    }
-    child.stdout.on("data", (d) => {
-      stdout += d.toString();
-    });
-    child.stderr.on("data", (d) => {
-      stderr += d.toString();
-    });
-    child.on("error", (err) => {
-      if (timer) clearTimeout(timer);
-      reject(err);
-    });
-    child.on("close", (code) => {
-      if (timer) clearTimeout(timer);
-      resolve({ stdout, stderr, code });
-    });
-    if (opts.input !== void 0) {
-      child.stdin.write(opts.input);
-      child.stdin.end();
-    }
-  });
-};
 
 // ../agents/auth/dist/index.js
 var COMMON_ENDPOINTS = [
@@ -730,6 +287,24 @@ function analyzeCsp(policy) {
       title: "CSP sem object-src 'none'",
       detail: "object-src 'none' bloqueia <object>/<embed>/<applet> \u2014 vetores legados de execu\xE7\xE3o de conte\xFAdo.",
       recommendation: "Adicione object-src 'none'."
+    });
+  }
+  if (!has("frame-ancestors")) {
+    issues.push({
+      rule: "csp-no-frame-ancestors",
+      severity: "low",
+      title: "CSP sem frame-ancestors",
+      detail: "Sem frame-ancestors, a p\xE1gina pode ser embutida em <iframe> por qualquer origem \u2014 vetor de clickjacking (UI redress). frame-ancestors n\xE3o herda de default-src.",
+      recommendation: "Adicione frame-ancestors 'none' (ou 'self'/origens confi\xE1veis). \xC9 o substituto moderno do X-Frame-Options."
+    });
+  }
+  if (!has("form-action")) {
+    issues.push({
+      rule: "csp-no-form-action",
+      severity: "low",
+      title: "CSP sem form-action",
+      detail: "Sem form-action, um <form> injetado (via XSS/HTML injection) pode enviar dados/credenciais para uma origem externa. Tamb\xE9m n\xE3o herda de default-src.",
+      recommendation: "Adicione form-action 'self' (+ origens de checkout/SSO que precisem receber POST)."
     });
   }
   if (!has("base-uri")) {
@@ -1212,6 +787,74 @@ var DnsAgent = class {
 };
 
 // ../agents/idor/dist/index.js
+var CATEGORY = "security";
+var AGENT = "IDOR Agent";
+var REFS2 = [
+  "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/",
+  "https://cwe.mitre.org/data/definitions/639.html"
+];
+function tenantBOwns(p) {
+  return p.tenantBStatus === 200;
+}
+function tenantALeaked(p) {
+  return p.tenantAStatus === 200 && p.tenantABytes > 10;
+}
+function evaluateCrossTenant(input) {
+  const { saas, runId, probes } = input;
+  if (probes.length === 0) return [];
+  const usable = probes.filter(tenantBOwns);
+  if (usable.length === 0) {
+    return [{
+      id: stableFindingId({ saas, camada: CATEGORY, rule: "idor-crosstenant-inconclusive" }),
+      runId,
+      agent: AGENT,
+      category: CATEGORY,
+      camada: CATEGORY,
+      severity: "info",
+      confidence: "high",
+      title: "IDOR cross-tenant: inconclusivo (tenant B n\xE3o acessou os pr\xF3prios recursos)",
+      description: `O tenant B n\xE3o conseguiu acessar nenhum dos ${probes.length} recurso(s) declarados como seus (status \u2260 200). Sem essa \xE2ncora n\xE3o \xE9 poss\xEDvel provar (nem descartar) vazamento cross-tenant. Confira as credenciais/paths de \`crossTenant.ownedResources\` no targets.yaml.`,
+      recommendation: "Ajuste os recursos de B em `crossTenant.ownedResources` para paths que o tenant B realmente acessa (GET 200).",
+      references: REFS2,
+      createdAt: /* @__PURE__ */ new Date()
+    }];
+  }
+  const leaks = usable.filter(tenantALeaked);
+  if (leaks.length > 0) {
+    return leaks.map((p) => ({
+      id: stableFindingId({ saas, camada: CATEGORY, rule: `idor-crosstenant-confirmed:${p.resource}`, location: p.resource }),
+      runId,
+      agent: AGENT,
+      category: CATEGORY,
+      camada: CATEGORY,
+      severity: "critical",
+      confidence: "high",
+      title: `IDOR cross-tenant CONFIRMADO: tenant A leu recurso de B (${p.resource})`,
+      description: `Provado em runtime: o recurso ${p.resource} PERTENCE ao tenant B (B o acessa com 200), e o tenant A conseguiu l\xEA-lo (HTTP ${p.tenantAStatus}, ${p.tenantABytes} bytes). Isso \xE9 Broken Object Level Authorization: dados de um tenant vazam para outro. N\xE3o \xE9 heur\xEDstica \u2014 \xE9 acesso cruzado real.`,
+      endpoint: p.resource,
+      evidence: `A: GET ${p.resource} \u2192 ${p.tenantAStatus} (${p.tenantABytes} bytes)${p.tenantABody ? `
+${p.tenantABody.slice(0, 200)}` : ""}
+B (dono): GET ${p.resource} \u2192 200`,
+      recommendation: "Escope TODA leitura de recurso ao tenant/owner do usu\xE1rio autenticado (filtro no `where`, Prisma extension ou Postgres RLS). Nunca confie s\xF3 no ID da rota \u2014 verifique a propriedade antes de retornar.",
+      references: REFS2,
+      createdAt: /* @__PURE__ */ new Date()
+    }));
+  }
+  return [{
+    id: stableFindingId({ saas, camada: CATEGORY, rule: "idor-crosstenant-isolated" }),
+    runId,
+    agent: AGENT,
+    category: CATEGORY,
+    camada: CATEGORY,
+    severity: "info",
+    confidence: "high",
+    title: "Isolamento multi-tenant confirmado em runtime",
+    description: `Verificado com 2 contas: o tenant A foi NEGADO em ${usable.length} recurso(s) que pertencem ao tenant B (B os acessa com 200; A recebeu 403/404). Isolamento cross-tenant OK para os recursos testados \u2014 prova positiva, n\xE3o suposi\xE7\xE3o.`,
+    recommendation: "Mantenha o escopo por tenant em toda query. Amplie `crossTenant.ownedResources` para cobrir mais rotas sens\xEDveis.",
+    references: REFS2,
+    createdAt: /* @__PURE__ */ new Date()
+  }];
+}
 var PATH_TEMPLATES = [
   "/users/{id}",
   "/api/users/{id}",
@@ -1338,7 +981,76 @@ if (!record) throw new NotFoundException(\`Recurso ${id} n\xE3o encontrado\`);
       }
     }
     await this.testEnumeration(scope, client, findings, ignore);
+    await this.testCrossTenant(scope, findings);
     return findings;
+  }
+  /**
+   * IDOR cross-tenant REAL (2 contas): autentica A e B, confirma que B acessa os
+   * próprios recursos e tenta acessá-los como A. A conseguir = vazamento cross-tenant
+   * PROVADO (não heurística). Opt-in via `crossTenant` no targets.yaml; read-only.
+   */
+  async testCrossTenant(scope, findings) {
+    const ct = scope.target.crossTenant;
+    if (!ct) return;
+    const auth = scope.target.auth;
+    const aEndpoint = auth?.endpoint;
+    const aCreds = auth?.credentials;
+    if (!aCreds?.email || !aCreds.password || !aEndpoint) {
+      findings.push(this.crossTenantInfo(
+        scope,
+        "IDOR cross-tenant: requer o tenant A autenticado",
+        "O bloco `crossTenant` (tenant B) est\xE1 configurado, mas falta `auth` com `credentials` (email/senha) e `endpoint` do tenant A. O teste cross-tenant precisa das DUAS identidades."
+      ));
+      return;
+    }
+    let clientA;
+    let clientB;
+    try {
+      clientA = (await FractaHttpClient.withJwt(scope.target.url, aEndpoint, { email: aCreds.email, password: aCreds.password })).client;
+      clientB = (await FractaHttpClient.withJwt(scope.target.url, ct.endpoint ?? aEndpoint, ct.credentials)).client;
+    } catch (e) {
+      findings.push(this.crossTenantInfo(
+        scope,
+        "IDOR cross-tenant: inconclusivo (falha ao autenticar A ou B)",
+        `N\xE3o foi poss\xEDvel obter token de um dos tenants: ${e instanceof Error ? e.message : String(e)}. Confira credenciais/endpoint.`
+      ));
+      return;
+    }
+    const probes = [];
+    for (const resource of ct.ownedResources) {
+      let tenantBStatus = 0;
+      let tenantAStatus = 0;
+      let tenantABytes = 0;
+      let tenantABody;
+      try {
+        tenantBStatus = (await clientB.request(resource, { timeoutMs: 5e3 })).status;
+      } catch {
+      }
+      try {
+        const ra = await clientA.request(resource, { timeoutMs: 5e3 });
+        tenantAStatus = ra.status;
+        tenantABytes = ra.raw.length;
+        tenantABody = ra.raw;
+      } catch {
+      }
+      probes.push({ resource, tenantBStatus, tenantAStatus, tenantABytes, tenantABody });
+    }
+    findings.push(...evaluateCrossTenant({ saas: scope.target.name, runId: scope.runId, probes }));
+  }
+  crossTenantInfo(scope, title, description) {
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-crosstenant-setup:${title}` }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "info",
+      confidence: "high",
+      title,
+      description,
+      recommendation: "Configure `auth` (tenant A) + `crossTenant` (tenant B, com `ownedResources`) no targets.yaml para provar isolamento multi-tenant.",
+      createdAt: /* @__PURE__ */ new Date()
+    };
   }
   async testEnumeration(scope, client, findings, ignore) {
     for (const basePath of ENUM_PATHS) {
@@ -1373,11 +1085,12 @@ if (!record) throw new NotFoundException(\`Recurso ${id} n\xE3o encontrado\`);
 };
 
 // ../agents/docs/dist/index.js
-import { readdir, readFile, stat as stat2 } from "fs/promises";
-import { join as join2, relative } from "path";
+import { readdir, readFile, stat } from "fs/promises";
+import { join, relative } from "path";
 var IGNORE_DIRS = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
 var LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i;
 var MS_IN_DAY = 864e5;
+var TODO_MARKER = /\b(TODO|FIXME|XXX|HACK)\b/;
 var DocsAgent = class {
   /**
    * `explicitRepoPath` é um override (ex.: o comando `fracta docs --docs-path`).
@@ -1472,7 +1185,7 @@ var DocsAgent = class {
         createdAt: /* @__PURE__ */ new Date()
       });
     }
-    if (/TODO|FIXME/i.test(file.content)) {
+    if (TODO_MARKER.test(file.content)) {
       findings.push({
         id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-todo:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
@@ -1481,7 +1194,7 @@ var DocsAgent = class {
         camada: this.category,
         severity: "low",
         title: `TODOs n\xE3o resolvidos: ${file.relativePath}`,
-        description: "Arquivo cont\xE9m marca\xE7\xF5es TODO ou FIXME indicando documenta\xE7\xE3o incompleta.",
+        description: "Arquivo cont\xE9m marca\xE7\xF5es TODO/FIXME/XXX/HACK indicando documenta\xE7\xE3o incompleta.",
         endpoint: file.relativePath,
         recommendation: "Resolva os TODOs ou abra issues para rastre\xE1-los.",
         createdAt: /* @__PURE__ */ new Date()
@@ -1542,9 +1255,9 @@ var DocsAgent = class {
     }
     for (const entry of entries) {
       if (IGNORE_DIRS.has(entry)) continue;
-      const fullPath = join2(dir, entry);
+      const fullPath = join(dir, entry);
       try {
-        const info = await stat2(fullPath);
+        const info = await stat(fullPath);
         if (info.isDirectory()) {
           await this.walkDir(fullPath, baseDir, files);
         } else if (entry.endsWith(".md")) {
@@ -1772,7 +1485,7 @@ ${shortBody(res.raw)}`,
 };
 
 // ../agents/race/dist/index.js
-import { randomUUID as randomUUID3 } from "crypto";
+import { randomUUID } from "crypto";
 var PROBES = [
   { path: "/api/coupons/redeem", body: { code: "FRACTA-TEST" }, description: "resgate de cupom" },
   { path: "/api/cupons/aplicar", body: { codigo: "FRACTA-TEST" }, description: "aplica\xE7\xE3o de cupom" },
@@ -1886,7 +1599,7 @@ var RaceAgent = class {
     const samples = 5;
     for (const path of paths) {
       const validEmail = target.auth.credentials.email;
-      const fakeEmail = `does-not-exist-${randomUUID3().substring(0, 8)}@fracta.test`;
+      const fakeEmail = `does-not-exist-${randomUUID().substring(0, 8)}@fracta.test`;
       const timesValid = await this.measureLogin(baseClient, path, validEmail, samples);
       const timesFake = await this.measureLogin(baseClient, path, fakeEmail, samples);
       if (timesValid.length < samples || timesFake.length < samples) continue;
@@ -2113,8 +1826,8 @@ var StripeAgent = class {
 };
 
 // ../agents/dependencies/dist/index.js
-import { join as join3 } from "path";
-import { stat as stat3 } from "fs/promises";
+import { join as join2 } from "path";
+import { stat as stat2 } from "fs/promises";
 var SEVERITY_MAP = {
   info: "info",
   low: "low",
@@ -2158,7 +1871,7 @@ var DependenciesAgent = class {
   }
   async ensurePackageJson(repoPath) {
     try {
-      await stat3(join3(repoPath, "package.json"));
+      await stat2(join2(repoPath, "package.json"));
     } catch {
       throw new SkippedCheck(`sem package.json em ${repoPath} \u2014 n\xE3o parece um projeto Node`);
     }
@@ -2226,7 +1939,7 @@ var DependenciesAgent = class {
 };
 
 // ../agents/secrets/dist/index.js
-import { join as join4 } from "path";
+import { join as join3 } from "path";
 import { tmpdir } from "os";
 import { mkdtemp, readFile as readFile2, rm, readdir as readdir2 } from "fs/promises";
 function looksLikeMissingBinary(code, stderr) {
@@ -2254,8 +1967,8 @@ function interpretGitleaks(input) {
   return { kind: "error", reason: `gitleaks saiu com c\xF3digo inesperado (${code ?? "null"})` };
 }
 var defaultGitleaksScan = async (repoPath, timeoutMs) => {
-  const dir = await mkdtemp(join4(tmpdir(), "fracta-gitleaks-"));
-  const reportPath = join4(dir, "report.json");
+  const dir = await mkdtemp(join3(tmpdir(), "fracta-gitleaks-"));
+  const reportPath = join3(dir, "report.json");
   try {
     let code;
     let stderr = "";
@@ -2374,6 +2087,8 @@ var SecretsAgent = class {
       title: `Segredo versionado: ${ruleId} em ${file}`,
       description: `gitleaks detectou um segredo versionado correspondente \xE0 regra ${ruleId} em ${file} (linha ${line}). O valor do segredo \xE9 deliberadamente omitido deste relat\xF3rio para n\xE3o recriar o vazamento.`,
       evidence: `${file}:${line} (commit ${shortCommit}) \u2014 regra ${ruleId}`,
+      // Local estruturado → SARIF region.startLine (âncora inline no GitHub). Só com linha real (>0).
+      location: line > 0 ? { file, line } : { file },
       recommendation: proposedFix.description,
       proposedFix,
       createdAt: /* @__PURE__ */ new Date()
@@ -2382,7 +2097,7 @@ var SecretsAgent = class {
   /** Checagens de higiene de configuração de segredos (read-only). */
   async hygieneFindings(scope, repoPath) {
     const findings = [];
-    const gitignore = await this.readFileSafe(join4(repoPath, ".gitignore"));
+    const gitignore = await this.readFileSafe(join3(repoPath, ".gitignore"));
     if (gitignore === null) {
       const committedEnv = await this.findEnvFiles(repoPath);
       if (committedEnv.length > 0) {
@@ -2423,7 +2138,7 @@ var SecretsAgent = class {
         createdAt: /* @__PURE__ */ new Date()
       });
     }
-    const envExample = await this.readFileSafe(join4(repoPath, ".env.example"));
+    const envExample = await this.readFileSafe(join3(repoPath, ".env.example"));
     if (envExample === null) {
       findings.push({
         id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "no-env-example", location: ".env.example" }),
@@ -2543,8 +2258,8 @@ var SecretsAgent = class {
 };
 
 // ../agents/stack/dist/index.js
-import { readdir as readdir3, readFile as readFile3, stat as stat4 } from "fs/promises";
-import { join as join5, relative as relative2, basename } from "path";
+import { readdir as readdir3, readFile as readFile3, stat as stat3 } from "fs/promises";
+import { join as join4, relative as relative2, basename } from "path";
 var IGNORE_DIRS2 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
 var TEXT_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|json)$/i;
 var ENV_FILE = /(^|[\\/])\.env($|\.[^\\/]+$)/i;
@@ -2590,14 +2305,16 @@ var StackAgent = class {
       title: f.title,
       description: f.description,
       evidence: f.evidence,
+      location: f.at,
       recommendation: f.recommendation,
+      references: f.references,
       proposedFix: f.proposedFix,
       createdAt: /* @__PURE__ */ new Date()
     };
   }
   async readPackageJson(repoPath) {
     try {
-      const raw = await readFile3(join5(repoPath, "package.json"), "utf-8");
+      const raw = await readFile3(join4(repoPath, "package.json"), "utf-8");
       return JSON.parse(raw);
     } catch {
       return null;
@@ -2688,6 +2405,8 @@ var StackAgent = class {
     return {
       rule: `raw-sql-concat:${file.relPath}:${line}`,
       location: file.relPath,
+      at: { file: file.relPath, line },
+      references: ["https://cwe.mitre.org/data/definitions/89.html", "A03:2021 - Injection"],
       severity: "high",
       title: `Risco de SQL injection (SQL raw): ${file.relPath}:${line}`,
       description: `SQL bruto constru\xEDdo via ${how}. Isso permite inje\xE7\xE3o de SQL. A forma SEGURA \xE9 o tagged template \`prisma.$queryRaw\`...\`\` (sem par\xEAntese), que parametriza as interpola\xE7\xF5es automaticamente.`,
@@ -2729,6 +2448,7 @@ var StackAgent = class {
     out.push({
       rule: "validationpipe-no-whitelist",
       location: first.relPath,
+      at: { file: first.relPath, line },
       severity: "medium",
       title: "ValidationPipe sem whitelist: true",
       description: "O `ValidationPipe` \xE9 usado mas sem `whitelist: true`. Sem whitelist, propriedades n\xE3o declaradas no DTO n\xE3o s\xE3o removidas, abrindo espa\xE7o para mass-assignment.",
@@ -2777,6 +2497,8 @@ var StackAgent = class {
         out.push({
           rule: `tenant-isolation-review:${file.relPath}:${line}`,
           location: file.relPath,
+          at: { file: file.relPath, line },
+          references: ["https://cwe.mitre.org/data/definitions/639.html", "A01:2021 - Broken Access Control"],
           severity: "low",
           title: `Poss\xEDvel falta de isolamento de tenant (heur\xEDstica): ${file.relPath}:${line}`,
           description: `HEUR\xCDSTICA (requer revis\xE3o humana): consulta Prisma \`${m[1]}\` ${hasWhere ? "com `where` mas" : "sem `where` e"} sem refer\xEAncia a \`tenantId|ownerId|accountId|orgId\` na vizinhan\xE7a. Pode haver vazamento entre tenants \u2014 ou pode ser uma query leg\xEDtimamente global. Confirme manualmente.`,
@@ -2808,6 +2530,8 @@ var StackAgent = class {
         out.push({
           rule: `next-public-secret:${varName}`,
           location: file.relPath,
+          at: { file: file.relPath, line },
+          references: ["https://cwe.mitre.org/data/definitions/200.html", "A01:2021 - Broken Access Control"],
           severity: "high",
           title: `Segredo exposto via NEXT_PUBLIC_: ${varName}`,
           description: `A vari\xE1vel \`${varName}\` (em ${file.relPath}) usa o prefixo \`NEXT_PUBLIC_\`. No Next.js, tudo com esse prefixo \xE9 EMBUTIDO no bundle do cliente e fica P\xDABLICO \u2014 vis\xEDvel a qualquer visitante. O nome sugere que isto \xE9 um segredo, ent\xE3o ele est\xE1 efetivamente vazado.`,
@@ -2838,6 +2562,8 @@ var StackAgent = class {
           out.push({
             rule: `cors-wildcard:${file.relPath}:${line}`,
             location: file.relPath,
+            at: { file: file.relPath, line },
+            references: ["https://cwe.mitre.org/data/definitions/942.html", "A05:2021 - Security Misconfiguration"],
             severity: "high",
             title: `CORS permissivo (wildcard): ${file.relPath}:${line}`,
             description: "Configura\xE7\xE3o de CORS com origem curinga (`*` ou `true`). Isso permite que qualquer site fa\xE7a requisi\xE7\xF5es autenticadas ao backend; combinado com credenciais, exp\xF5e a API a CSRF/exfiltra\xE7\xE3o cross-origin.",
@@ -2872,6 +2598,8 @@ var StackAgent = class {
           out.push({
             rule: `hardcoded-key:${file.relPath}:${line}`,
             location: file.relPath,
+            at: { file: file.relPath, line },
+            references: ["https://cwe.mitre.org/data/definitions/798.html", "A07:2021 - Identification and Authentication Failures"],
             severity: "high",
             title: `Chave de provider hardcoded (${label}): ${file.relPath}:${line}`,
             description: `Uma ${label} aparece embutida no c\xF3digo-fonte (${file.relPath}). Segredos em source s\xE3o commitados, distribu\xEDdos e frequentemente buildados para o cliente \u2014 trate como comprometidos.`,
@@ -2905,9 +2633,9 @@ var StackAgent = class {
     }
     for (const entry of entries) {
       if (IGNORE_DIRS2.has(entry)) continue;
-      const fullPath = join5(dir, entry);
+      const fullPath = join4(dir, entry);
       try {
-        const info = await stat4(fullPath);
+        const info = await stat3(fullPath);
         if (info.isDirectory()) {
           await this.walkDir(fullPath, baseDir, files);
           continue;
@@ -2936,9 +2664,9 @@ var StackAgent = class {
 
 // ../agents/infra/dist/index.js
 import { readFile as readFile4 } from "fs/promises";
-import { connect as connect2 } from "net";
+import { connect } from "net";
 var defaultProbePort = (host, port, timeoutMs) => new Promise((resolve) => {
-  const socket = connect2({ host, port });
+  const socket = connect({ host, port });
   let settled = false;
   const finish = (open) => {
     if (settled) return;
@@ -3167,9 +2895,128 @@ var InfraAgent = class {
   }
 };
 
+// ../agents/semgrep/dist/index.js
+function looksLikeMissingBinary2(stderr) {
+  return /reconhecido|recognized|command not found|no such file|cannot find|n[ãa]o encontrad|not found/i.test(stderr);
+}
+function interpretSemgrep(input) {
+  const { code, stdout, stderr } = input;
+  if (looksLikeMissingBinary2(stderr) && !stdout.trim()) {
+    return { kind: "skip", reason: "semgrep n\xE3o encontrado no PATH \u2014 SAST sem\xE2ntico n\xE3o executado (instale: `pipx install semgrep`)" };
+  }
+  const trimmed = stdout.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed.results)) return { kind: "findings", results: parsed.results };
+    } catch {
+    }
+  }
+  if (code === 0) return { kind: "findings", results: [] };
+  return { kind: "error", reason: `semgrep terminou com code ${code} e sa\xEDda n\xE3o-parse\xE1vel: ${(stderr || stdout).slice(0, 200)}` };
+}
+var SEV = { ERROR: "high", WARNING: "medium", INFO: "low" };
+var CONF = { HIGH: "high", MEDIUM: "medium", LOW: "low" };
+function mapSemgrepFindings(input) {
+  const { saas, runId, results } = input;
+  return results.map((r) => {
+    const severity = SEV[String(r.extra.severity).toUpperCase()] ?? "medium";
+    const confidence = CONF[String(r.extra.metadata?.confidence ?? "").toUpperCase()] ?? "medium";
+    const cwe = r.extra.metadata?.cwe ?? [];
+    const owasp = r.extra.metadata?.owasp ?? [];
+    const refs = [...cwe, ...owasp, ...r.extra.metadata?.references ?? []];
+    const shortRule = r.check_id.split(".").slice(-2).join(".") || r.check_id;
+    return {
+      id: stableFindingId({ saas, camada: "code", rule: `semgrep:${r.check_id}`, location: `${r.path}:${r.start.line}` }),
+      runId,
+      agent: "SEMGREP Agent",
+      category: "code",
+      camada: "code",
+      severity,
+      confidence,
+      title: `SAST (semgrep): ${shortRule} \u2014 ${r.path}:${r.start.line}`,
+      description: `${r.extra.message ?? r.check_id} (regra: ${r.check_id}). An\xE1lise sem\xE2ntica/dataflow \u2014 n\xE3o \xE9 s\xF3 regex.`,
+      location: { file: r.path, line: r.start.line },
+      evidence: r.extra.lines ? `${r.path}:${r.start.line} \u2014 ${r.extra.lines.trim().slice(0, 200)}` : `${r.path}:${r.start.line}`,
+      recommendation: r.extra.message ?? "Reveja o trecho sinalizado pelo semgrep e aplique a corre\xE7\xE3o da regra.",
+      references: refs.length ? refs : ["https://semgrep.dev/"],
+      createdAt: /* @__PURE__ */ new Date()
+    };
+  });
+}
+var DEFAULT_CONFIG = process.env.FRACTA_SEMGREP_CONFIG ?? "p/security-audit";
+function semgrepSkipReasonFor(err) {
+  const e = err;
+  if (e?.code === "ENOENT") {
+    return "semgrep n\xE3o encontrado no PATH \u2014 SAST sem\xE2ntico n\xE3o executado (instale: `pipx install semgrep`)";
+  }
+  if (/timeout/i.test(e?.message ?? "")) {
+    return "semgrep excedeu o tempo \u2014 SAST sem\xE2ntico n\xE3o conclu\xEDdo (\xE9 lento no Windows; rode em CI/Linux ou ajuste FRACTA_SEMGREP_TIMEOUT)";
+  }
+  return null;
+}
+var defaultSemgrepScan = async (repoPath, timeoutMs) => {
+  let code;
+  let stdout = "";
+  let stderr = "";
+  try {
+    const result = await runCommand(
+      "semgrep",
+      [
+        "scan",
+        "--config",
+        DEFAULT_CONFIG,
+        "--json",
+        "--quiet",
+        // Respeita .gitignore (pula node_modules/dist) — SEM isto varreria tudo.
+        // Auto-bounds do próprio semgrep para não pendurar: timeout por-regra/arquivo,
+        // desiste do arquivo após 3 regras estourarem, sem telemetria de rede.
+        "--timeout",
+        "15",
+        "--timeout-threshold",
+        "3",
+        "--metrics=off",
+        repoPath
+      ],
+      { timeoutMs }
+    );
+    code = result.code;
+    stdout = result.stdout;
+    stderr = result.stderr;
+  } catch (err) {
+    const reason = semgrepSkipReasonFor(err);
+    if (reason) throw new SkippedCheck(reason);
+    throw err;
+  }
+  const outcome = interpretSemgrep({ code, stdout, stderr });
+  if (outcome.kind === "skip") throw new SkippedCheck(outcome.reason);
+  if (outcome.kind === "error") throw new Error(outcome.reason);
+  return outcome.results;
+};
+var SemgrepAgent = class {
+  constructor(scan = defaultSemgrepScan) {
+    this.scan = scan;
+  }
+  scan;
+  name = "SEMGREP Agent";
+  category = "code";
+  concurrency = 1;
+  // Timeout total (s) configurável — default 120s. Backstop do runCommand: se o
+  // semgrep pendurar (Windows), o scan degrada para `skipped`, não trava.
+  timeoutMs = Math.max(10, Number(process.env.FRACTA_SEMGREP_TIMEOUT ?? 120)) * 1e3;
+  async run(scope) {
+    const repoPath = scope.target.repoPath;
+    if (!repoPath) {
+      throw new SkippedCheck("sem repoPath \u2014 SEMGREP Agent precisa do reposit\xF3rio local");
+    }
+    const results = await this.scan(repoPath, this.timeoutMs);
+    return mapSemgrepFindings({ saas: scope.target.name, runId: scope.runId, results });
+  }
+};
+
 // ../agents/compliance/dist/index.js
-import { readdir as readdir4, readFile as readFile5, stat as stat5 } from "fs/promises";
-import { join as join6, relative as relative3 } from "path";
+import { readdir as readdir4, readFile as readFile5, stat as stat4 } from "fs/promises";
+import { join as join5, relative as relative3 } from "path";
 var SENSITIVE_FIELD = /(cpf|cnpj|cnis|\brg\b|senha|password|passwd|secret|processo|prontuario|prontuário|\bnis\b|\bpis\b|cart[aã]o|benef[ií]cio|sa[uú]de|health|biometr|genetic|gen[eé]tico|racial|etnia|religi|orienta[cç][aã]o|sexual|criminal|diagn[oó]stico)/i;
 var PERSONAL_FIELD = /(nome|\bname\b|email|e-mail|\bmail\b|telefone|phone|celular|whatsapp|endere[cç]o|address|logradouro|\bcep\b|nascimento|birth|\bdob\b|\bidade\b|g[eê]nero|gender|foto|avatar|\bip\b|geoloc|latitude|longitude|documento|passaporte|matr[ií]cula)/i;
 function classifyField(fieldName) {
@@ -3276,6 +3123,15 @@ function findPolicyDoc(files) {
   return best ? { relPath: best.relPath, text: best.text } : null;
 }
 var INTL_DISCLOSURE = /transfer[êe]ncia internacional|fora do (?:pa[ií]s|brasil)|outside brazil|other countries|estados unidos|\beua\b|internacional/i;
+var INTL_DENIAL = new RegExp(
+  [
+    // "não" + (até ~30 chars, aceita acentos via [\s\S]) + termo de transferência ao exterior
+    "n[\xE3a]o[\\s\\S]{0,30}?(?:transfer[\xEAe]ncia\\s+internacional|transfer\\w*\\b[\\s\\S]{0,20}?(?:exterior|fora do (?:pa[i\xED]s|brasil)))",
+    // afirmação territorial: os dados permanecem/ficam/são mantidos/armazenados/hospedados NO Brasil
+    "(?:permanec\\w+|fica\\w*|mantid\\w+|armazenad\\w+|hospedad\\w+)[\\s\\S]{0,25}?(?:no|em)\\s+brasil"
+  ].join("|"),
+  "i"
+);
 var OPERATOR_SYNONYMS = {
   AWS: ["aws", "amazon web services", "amazon"],
   "Google Cloud/Firebase": ["google", "firebase", "gcp", "google cloud"],
@@ -3297,7 +3153,8 @@ var OPERATOR_SYNONYMS = {
 var NOT_A_SUBPROCESSOR = /* @__PURE__ */ new Set(["Banco de dados (self-hosted)"]);
 function diffPolicyVsCode(policy, operators) {
   const text = policy.text.toLowerCase();
-  const internationalDisclosed = INTL_DISCLOSURE.test(policy.text);
+  const internationalDenied = INTL_DENIAL.test(policy.text);
+  const internationalDisclosed = INTL_DISCLOSURE.test(policy.text) && !internationalDenied;
   const hasInternationalOps = operators.some((o) => o.international);
   const undeclaredOperators = [];
   for (const op of operators) {
@@ -3306,7 +3163,7 @@ function diffPolicyVsCode(policy, operators) {
     const declared = syns.some((s) => text.includes(s));
     if (!declared) undeclaredOperators.push(op);
   }
-  return { policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, undeclaredOperators };
+  return { policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, internationalDenied, undeclaredOperators };
 }
 var IGNORE_DIRS3 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
 var TEXT_EXT = /* @__PURE__ */ new Set([
@@ -3407,8 +3264,12 @@ var ComplianceAgent = class {
       const policy = findPolicyDoc(files);
       if (policy) {
         const div = diffPolicyVsCode(policy, operators);
-        if (div.hasInternationalOps && !div.internationalDisclosed) {
-          findings.push(this.intlTransferUndisclosed(scope, policy.relPath, operators.filter((o) => o.international)));
+        if (div.hasInternationalOps) {
+          if (div.internationalDenied) {
+            findings.push(this.intlTransferContradicted(scope, policy.relPath, operators.filter((o) => o.international)));
+          } else if (!div.internationalDisclosed) {
+            findings.push(this.intlTransferUndisclosed(scope, policy.relPath, operators.filter((o) => o.international)));
+          }
         }
         if (div.undeclaredOperators.length) {
           findings.push(this.operatorsUndeclared(scope, policy.relPath, div.undeclaredOperators));
@@ -3422,6 +3283,26 @@ var ComplianceAgent = class {
   // -------------------------------------------------------------------------
   // Check 7 — divergência política×código (materializa o diferencial LGPD-nativo)
   // -------------------------------------------------------------------------
+  intlTransferContradicted(scope, policyPath, intlOps) {
+    const rule = "lgpd-policy-intl-contradicted";
+    const names = intlOps.map((o) => o.name).join(", ");
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "medium",
+      // mais grave que a omissão (low): a política CONTRADIZ o código
+      confidence: "low",
+      // heurística de negação — pede confirmação humana antes de agir
+      title: `Transfer\xEAncia internacional NEGADA na pol\xEDtica, mas o c\xF3digo a realiza (Art. 33)`,
+      description: `CONFERI A POL\xCDTICA PUBLICADA CONTRA O C\xD3DIGO e encontrei uma CONTRADI\xC7\xC3O DIRETA. A pol\xEDtica de privacidade (${policyPath}) AFIRMA que N\xC3O h\xE1 transfer\xEAncia internacional (ou que os dados permanecem no Brasil), mas o c\xF3digo usa operadores que processam dados fora do Brasil (${names}) \u2014 o que configura TRANSFER\xCANCIA INTERNACIONAL (Art. 33 da LGPD). Uma pol\xEDtica que NEGA o que o c\xF3digo faz \xE9 pior que uma omissa: induz o titular a erro. HEUR\xCDSTICA \u2014 a detec\xE7\xE3o de nega\xE7\xE3o \xE9 aproximada; CONFIRME o texto da pol\xEDtica antes de agir (a declara\xE7\xE3o pode estar segmentada).`,
+      evidence: `Pol\xEDtica conferida: ${policyPath}. A pol\xEDtica NEGA transfer\xEAncia internacional / afirma reten\xE7\xE3o no Brasil, mas h\xE1 operadores internacionais no c\xF3digo: ${names}.`,
+      recommendation: `Corrija a contradi\xE7\xE3o: ou (a) a Pol\xEDtica de Privacidade passa a DECLARAR a transfer\xEAncia internacional ancorada numa hip\xF3tese do Art. 33 (cl\xE1usulas-padr\xE3o da ANPD, pa\xEDs adequado, etc.) e lista os operadores no exterior (${names}); ou (b) elimine a transfer\xEAncia internacional de fato (operador nacional/self-hosted). Manter a nega\xE7\xE3o enquanto o c\xF3digo transfere exp\xF5e o controlador a san\xE7\xE3o por informa\xE7\xE3o enganosa ao titular (Art. 6\xBA, VI \u2014 transpar\xEAncia).`,
+      createdAt: /* @__PURE__ */ new Date()
+    };
+  }
   intlTransferUndisclosed(scope, policyPath, intlOps) {
     const rule = "lgpd-policy-intl-undisclosed";
     const names = intlOps.map((o) => o.name).join(", ");
@@ -3569,7 +3450,7 @@ var ComplianceAgent = class {
   async findHashingLib(repoPath) {
     let pkgRaw;
     try {
-      pkgRaw = await readFile5(join6(repoPath, "package.json"), "utf-8");
+      pkgRaw = await readFile5(join5(repoPath, "package.json"), "utf-8");
     } catch {
       return null;
     }
@@ -3685,9 +3566,9 @@ var ComplianceAgent = class {
     }
     for (const entry of entries) {
       if (IGNORE_DIRS3.has(entry)) continue;
-      const fullPath = join6(dir, entry);
+      const fullPath = join5(dir, entry);
       try {
-        const info = await stat5(fullPath);
+        const info = await stat4(fullPath);
         if (info.isDirectory()) {
           await this.walkDir(fullPath, baseDir, files);
         } else if (this.isTextFile(entry) && info.size <= MAX_FILE_BYTES) {
@@ -4067,7 +3948,141 @@ ${res.raw.substring(0, 200).replace(/\s+/g, " ").trim()}`,
 
 // ../reporter/dist/index.js
 import { mkdir, writeFile } from "fs/promises";
-import { join as join7 } from "path";
+import { join as join6 } from "path";
+var LEVEL = {
+  critical: "error",
+  high: "error",
+  medium: "warning",
+  low: "note",
+  info: "note"
+};
+function slug(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+function ruleIdFor(f) {
+  return `${f.category}/${slug(f.agent)}`;
+}
+function toSarif(report, opts = {}) {
+  const findings = report.findings ?? [];
+  const rules = /* @__PURE__ */ new Map();
+  const results = findings.map((f) => {
+    const id = ruleIdFor(f);
+    if (!rules.has(id)) {
+      rules.set(id, {
+        id,
+        name: `${f.agent} (${f.category})`,
+        shortDescription: { text: `Achados de ${f.agent}` },
+        defaultConfiguration: { level: LEVEL[f.severity] }
+      });
+    }
+    const uri = f.location?.file?.trim() || f.endpoint?.trim() || report.target;
+    const region = f.location?.line ? { startLine: f.location.line } : void 0;
+    return {
+      ruleId: id,
+      level: LEVEL[f.severity],
+      message: { text: f.description ? `${f.title} \u2014 ${f.description}` : f.title },
+      locations: [{ physicalLocation: { artifactLocation: { uri }, ...region ? { region } : {} } }],
+      partialFingerprints: { fractaFindingId: f.id }
+    };
+  });
+  return {
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: "Fracta",
+            version: opts.toolVersion ?? "0.0.0",
+            informationUri: "https://fracta.pro",
+            rules: [...rules.values()]
+          }
+        },
+        results
+      }
+    ]
+  };
+}
+var OWASP_2021 = [
+  { id: "A01", name: "Broken Access Control" },
+  { id: "A02", name: "Cryptographic Failures" },
+  { id: "A03", name: "Injection" },
+  { id: "A04", name: "Insecure Design" },
+  { id: "A05", name: "Security Misconfiguration" },
+  { id: "A06", name: "Vulnerable and Outdated Components" },
+  { id: "A07", name: "Identification and Authentication Failures" },
+  { id: "A08", name: "Software and Data Integrity Failures" },
+  { id: "A09", name: "Security Logging and Monitoring Failures" },
+  { id: "A10", name: "Server-Side Request Forgery" }
+];
+var CWE_TO_OWASP = {
+  "639": "A01",
+  "285": "A01",
+  "200": "A01",
+  "352": "A01",
+  "862": "A01",
+  "347": "A02",
+  "311": "A02",
+  "319": "A02",
+  "79": "A03",
+  "89": "A03",
+  "94": "A03",
+  "78": "A03",
+  "77": "A03",
+  "362": "A04",
+  "16": "A05",
+  "693": "A05",
+  "942": "A05",
+  "208": "A07",
+  "287": "A07",
+  "307": "A07",
+  "798": "A07",
+  "918": "A10"
+};
+var APICAT_TO_OWASP = {
+  "0xa1": "A01",
+  "0xa3": "A01",
+  "0xa5": "A01",
+  "0xa2": "A07"
+};
+var SEV_RANK = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
+function classifyOwasp(finding) {
+  const hay = [finding.title, finding.description, ...finding.references ?? []].join(" ");
+  const explicit = hay.match(/\bA(\d{2}):2021\b/i);
+  if (explicit) return `A${explicit[1]}`;
+  const cwe = hay.match(/(?:CWE-|definitions\/)(\d+)/i);
+  if (cwe && CWE_TO_OWASP[cwe[1]]) return CWE_TO_OWASP[cwe[1]];
+  const api = hay.match(/0xa[0-9]/i);
+  if (api && APICAT_TO_OWASP[api[0].toLowerCase()]) return APICAT_TO_OWASP[api[0].toLowerCase()];
+  if (finding.category === "deps") return "A06";
+  if (finding.category === "compliance") return "LGPD";
+  return "unclassified";
+}
+var EXTRA_NAMES = {
+  LGPD: "Privacidade / LGPD (fora do OWASP Top 10)",
+  unclassified: "N\xE3o classificado"
+};
+function buildScorecard(findings) {
+  const acc = /* @__PURE__ */ new Map();
+  for (const cat of OWASP_2021) acc.set(cat.id, { count: 0, rank: -1 });
+  for (const f of findings) {
+    const id = classifyOwasp(f);
+    const cur = acc.get(id) ?? { count: 0, rank: -1 };
+    cur.count += 1;
+    cur.rank = Math.max(cur.rank, SEV_RANK[f.severity]);
+    acc.set(id, cur);
+  }
+  const rankToSev = (r) => r < 0 ? "none" : ["info", "low", "medium", "high", "critical"][r];
+  const rows = OWASP_2021.map((cat) => {
+    const a = acc.get(cat.id);
+    return { id: cat.id, name: cat.name, count: a.count, maxSeverity: rankToSev(a.rank) };
+  });
+  for (const id of ["LGPD", "unclassified"]) {
+    const a = acc.get(id);
+    if (a && a.count > 0) rows.push({ id, name: EXTRA_NAMES[id], count: a.count, maxSeverity: rankToSev(a.rank) });
+  }
+  return rows;
+}
 function isAuditReport(r) {
   return Array.isArray(r.checks);
 }
@@ -4080,19 +4095,23 @@ var SEVERITY_EMOJI = {
 };
 var FractaReporter = class {
   outputDir;
+  toolVersion;
   constructor(options = {}) {
     this.outputDir = options.outputDir ?? "./fracta-reports";
+    this.toolVersion = options.toolVersion ?? "0.0.0";
   }
   async save(report) {
     await mkdir(this.outputDir, { recursive: true });
-    const slug = report.target.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const slug2 = report.target.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const ts = new Date(report.startedAt).toISOString().replace(/[:.]/g, "-").replace("T", "_").substring(0, 19);
-    const baseName = `${slug}-${ts}`;
-    const mdPath = join7(this.outputDir, `${baseName}.md`);
-    const jsonPath = join7(this.outputDir, `${baseName}.json`);
+    const baseName = `${slug2}-${ts}`;
+    const mdPath = join6(this.outputDir, `${baseName}.md`);
+    const jsonPath = join6(this.outputDir, `${baseName}.json`);
+    const sarifPath = join6(this.outputDir, `${baseName}.sarif`);
     await writeFile(mdPath, this.buildMarkdown(report), "utf-8");
     await writeFile(jsonPath, JSON.stringify(report, null, 2), "utf-8");
-    return { mdPath, jsonPath };
+    await writeFile(sarifPath, JSON.stringify(toSarif(report, { toolVersion: this.toolVersion }), null, 2), "utf-8");
+    return { mdPath, jsonPath, sarifPath };
   }
   buildMarkdown(report) {
     const date = new Date(report.startedAt);
@@ -4153,6 +4172,7 @@ var FractaReporter = class {
     md += `| **Total** | **${report.summary.total}** |
 
 `;
+    md += this.buildOwaspScorecard(report);
     md += this.buildPriorityBlock(report);
     const severityTitles = {
       critical: "\u{1F534} CR\xCDTICO",
@@ -4208,7 +4228,12 @@ ${f.evidence}
     if (isAuditReport(report)) {
       md += this.buildTransparencySection(report);
     }
-    md += `*Gerado pelo [Fracta](https://github.com/fracta/fracta) \u2014 The Complete SaaS Audit Framework*
+    md += `---
+
+`;
+    md += `*Gerado pelo [Fracta](https://fracta.pro?ref=report&utm_source=fracta-report&utm_medium=report&utm_campaign=footer) \u2014 auditoria de seguran\xE7a gr\xE1tis e open-source para SaaS. Monitoramento cont\xEDnuo + regress\xE3o em [fracta.pro](https://fracta.pro?ref=report).*
+`;
+    md += `*Feito pela PreviusIA, tamb\xE9m criadora do [zap-api.tech](https://zap-api.tech?ref=fracta-report&utm_source=fracta-report&utm_medium=report&utm_campaign=crosssell) \u2014 API de WhatsApp para devs.*
 `;
     return md;
   }
@@ -4217,6 +4242,32 @@ ${f.evidence}
    * (tipicamente staging fora do ar), então a ausência de achados NÃO significa
    * "seguro" — deixa isso explícito no topo, com o motivo concreto.
    */
+  /**
+   * Scorecard de POSTURA por OWASP Top 10 2021 — sintetiza os achados numa foto de
+   * maturidade ("limpo em N, exposto em M"), o que clientes (jurídico/LGPD) leem melhor
+   * que uma lista. Classificação por sinal explícito (CWE/OWASP), nunca chute.
+   */
+  buildOwaspScorecard(report) {
+    const rows = buildScorecard(report.findings);
+    const owasp = rows.filter((r) => /^A\d\d$/.test(r.id));
+    const limpas = owasp.filter((r) => r.count === 0).length;
+    const emoji = { critical: "\u{1F534}", high: "\u{1F7E0}", medium: "\u{1F7E1}", low: "\u{1F535}", info: "\u26AA", none: "\u2705" };
+    let md = `## \u{1F3AF} Postura por OWASP Top 10 (2021)
+
+`;
+    md += `Limpo em **${limpas}/10** categorias. Classifica\xE7\xE3o por sinal expl\xEDcito (CWE/OWASP-API); o que n\xE3o tem sinal confi\xE1vel fica em "N\xE3o classificado" (honestidade > cobertura fake).
+
+`;
+    md += `| Categoria | Achados | Pior | Status |
+|---|---|---|---|
+`;
+    for (const r of rows) {
+      const status = r.maxSeverity === "none" ? "\u2705 sem achados" : `${emoji[r.maxSeverity]} ${r.maxSeverity}`;
+      md += `| ${r.id} \u2014 ${r.name} | ${r.count} | ${r.maxSeverity === "none" ? "\u2014" : r.maxSeverity} | ${status} |
+`;
+    }
+    return md + "\n";
+  }
   buildInconclusiveCallout(report) {
     const h = report.targetHealth;
     const comErro = report.resumo?.checksComErro ?? [];
@@ -4623,6 +4674,82 @@ function createAnthropicClient(apiKey) {
   };
 }
 
+// package.json
+var package_default = {
+  name: "fractascan",
+  version: "0.1.15",
+  description: "Fracta \u2014 auditor de seguran\xE7a + LGPD multi-agente e determin\xEDstico para SaaS (DAST + SAST, relat\xF3rio A\u2013F). CLI: fracta scan.",
+  license: "MIT",
+  author: "Anderson Gadelha",
+  homepage: "https://github.com/andersongadelhaadv-cmyk/fracta#readme",
+  repository: {
+    type: "git",
+    url: "https://github.com/andersongadelhaadv-cmyk/fracta.git",
+    directory: "packages/cli"
+  },
+  bugs: {
+    url: "https://github.com/andersongadelhaadv-cmyk/fracta/issues"
+  },
+  keywords: [
+    "fracta",
+    "cli",
+    "security",
+    "scanner",
+    "lgpd",
+    "owasp"
+  ],
+  type: "module",
+  main: "dist/index.js",
+  bin: {
+    fracta: "./dist/index.js"
+  },
+  files: [
+    "dist",
+    "README.md"
+  ],
+  engines: {
+    node: ">=20"
+  },
+  publishConfig: {
+    access: "public"
+  },
+  scripts: {
+    build: "tsup",
+    dev: "tsup --watch",
+    test: "vitest run --passWithNoTests"
+  },
+  dependencies: {
+    yaml: "^2.4.0"
+  },
+  devDependencies: {
+    "@fracta/agent-auth": "workspace:*",
+    "@fracta/agent-compliance": "workspace:*",
+    "@fracta/agent-dependencies": "workspace:*",
+    "@fracta/agent-dns": "workspace:*",
+    "@fracta/agent-docs": "workspace:*",
+    "@fracta/agent-headers": "workspace:*",
+    "@fracta/agent-idor": "workspace:*",
+    "@fracta/agent-infra": "workspace:*",
+    "@fracta/agent-semgrep": "workspace:*",
+    "@fracta/agent-race": "workspace:*",
+    "@fracta/agent-secrets": "workspace:*",
+    "@fracta/agent-stack": "workspace:*",
+    "@fracta/agent-stripe": "workspace:*",
+    "@fracta/agent-tenant": "workspace:*",
+    "@fracta/core": "workspace:*",
+    "@fracta/llm": "workspace:*",
+    "@fracta/reporter": "workspace:*",
+    "@fracta/skill-nestjs": "workspace:*",
+    "@fracta/skill-prisma": "workspace:*",
+    "@fracta/skill-supabase": "workspace:*",
+    "@fracta/store": "workspace:*",
+    "@fracta/verify": "workspace:*",
+    "@types/node": "*",
+    tsup: "*",
+    typescript: "*"
+  }
+};
+
 // src/index.ts
 var BANNER = `
 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557
@@ -4632,7 +4759,7 @@ var BANNER = `
 \u2588\u2588\u2551     \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2551  \u2588\u2588\u2551\u255A\u2588\u2588\u2588\u2588\u2588\u2588\u2557   \u2588\u2588\u2551   \u2588\u2588\u2551  \u2588\u2588\u2551
 \u255A\u2550\u255D     \u255A\u2550\u255D  \u255A\u2550\u255D\u255A\u2550\u255D  \u255A\u2550\u255D \u255A\u2550\u2550\u2550\u2550\u2550\u255D   \u255A\u2550\u255D   \u255A\u2550\u255D  \u255A\u2550\u255D
 
-The Complete SaaS Audit Framework \u2014 v0.1.0
+The Complete SaaS Audit Framework \u2014 v${package_default.version}
 `;
 async function loadTargets(configPath) {
   const raw = await readFile6(configPath, "utf-8");
@@ -4643,27 +4770,25 @@ async function loadTargets(configPath) {
   return targets;
 }
 async function main() {
-  console.log(BANNER);
-  const { values, positionals } = parseArgs({
-    args: process.argv.slice(2),
-    allowPositionals: true,
-    options: {
-      target: { type: "string", short: "t" },
-      config: { type: "string", short: "c", default: "./configs/targets.yaml" },
-      depth: { type: "string", short: "d", default: "full" },
-      output: { type: "string", short: "o", default: "./fracta-reports" },
-      state: { type: "string", default: "./fracta-state.db" },
-      "no-state": { type: "boolean", default: false },
-      llm: { type: "boolean", default: false },
-      "no-llm": { type: "boolean", default: false },
-      "fail-on": { type: "string", default: "critical,high" },
-      "docs-path": { type: "string", default: "./" },
-      verbose: { type: "boolean", short: "v", default: false },
-      help: { type: "boolean", short: "h", default: false }
+  let values;
+  let positionals;
+  try {
+    ;
+    ({ values, positionals } = parseCliArgs(process.argv.slice(2)));
+  } catch (err) {
+    if (err instanceof CliUsageError) {
+      console.error(err.message);
+      process.exit(1);
     }
-  });
+    throw err;
+  }
+  if (values.version) {
+    console.log(package_default.version);
+    process.exit(0);
+  }
+  console.log(BANNER);
   const command = positionals[0] ?? "scan";
-  const VALID_COMMANDS = ["scan", "docs", "help"];
+  const VALID_COMMANDS = ["scan", "docs", "verify", "verify-csp", "init", "help"];
   if (!VALID_COMMANDS.includes(command)) {
     console.error(`[Fracta] Unknown command: "${command}"`);
     console.error(`         Valid commands: ${VALID_COMMANDS.join(", ")}`);
@@ -4675,8 +4800,12 @@ async function main() {
 Usage: fracta <command> [options]
 
 Commands:
-  scan    Run full security scan (default)
-  docs    Run documentation audit only
+  scan          Run full security scan (default)
+  docs          Run documentation audit only
+  verify <url>      Verifica\xE7\xE3o em runtime (browser) de consentimento/trackers.
+  verify-csp <url>  Prova em runtime (browser) a COBERTURA da CSP: quantos <script>
+                    a pol\xEDtica de fato cobre (pega "CSP estrita mas N sem nonce").
+  init [path]   Cria um targets.yaml inicial comentado (default: ./configs/targets.yaml).
 
 Options:
   -t, --target      Target name from targets.yaml (default: all)
@@ -4692,10 +4821,74 @@ Options:
   --fail-on         Severities that cause exit(1) (default: critical,high)
   --docs-path       Repo path for the dedicated 'docs' command (default: ./).
                     In 'scan', DOCS uses the target's repoPath and skips if absent.
+  --force           (init) sobrescreve um targets.yaml existente
   -v, --verbose     Verbose output
+  -V, --version     Imprime a vers\xE3o e sai
   -h, --help        Show this help
 `);
     process.exit(0);
+  }
+  if (command === "init") {
+    const { runInit } = await import("./init-EUSLT3FC.js");
+    const path = positionals[1] ?? values.config;
+    const result = await runInit(
+      { path, force: values.force },
+      {
+        exists: async (p) => {
+          try {
+            await access(p);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        write: async (p, content) => {
+          await mkdir2(dirname(p), { recursive: true });
+          await writeFile2(p, content, "utf-8");
+        }
+      }
+    );
+    console.log(result.message);
+    process.exit(result.ok ? 0 : 1);
+  }
+  if (command === "verify") {
+    const targetUrl = positionals[1];
+    if (!targetUrl) {
+      console.error("[Fracta] Uso: fractascan verify <url>");
+      process.exit(2);
+    }
+    try {
+      const { RuntimeVerifier } = await import("./dist-XCY4P772.js");
+      const report = await new RuntimeVerifier().verifyConsent(targetUrl);
+      console.log(`Verifica\xE7\xE3o em runtime de ${report.url}`);
+      console.log(report.evidence.firedBeforeInteraction ? `\u26A0\uFE0F  trackers dispararam ANTES do consentimento: ${report.evidence.trackers.map((t) => t.name).join(", ")}` : "\u2705 nenhum tracker disparou antes do consentimento");
+      console.log(`CMP: ${report.evidence.cmp.detected ? report.evidence.cmp.vendor : "n\xE3o detectado"}`);
+      for (const f of report.findings) console.log(`- [${f.severity}] ${f.title}`);
+      process.exit(0);
+    } catch (e) {
+      const err = e;
+      console.error(err.name === "BrowserUnavailableError" ? err.message : `[Fracta] Falha na verifica\xE7\xE3o: ${err.message}`);
+      process.exit(1);
+    }
+  }
+  if (command === "verify-csp") {
+    const targetUrl = positionals[1];
+    if (!targetUrl) {
+      console.error("[Fracta] Uso: fractascan verify-csp <url>");
+      process.exit(2);
+    }
+    try {
+      const { RuntimeCspVerifier } = await import("./dist-XCY4P772.js");
+      const { formatCspCli } = await import("./csp-cli-format-WPU5K4QA.js");
+      const report = await new RuntimeCspVerifier().verifyCoverage(targetUrl);
+      console.log(formatCspCli(report));
+      const acionavel = report.findings.some((f) => f.severity !== "info");
+      process.exit(acionavel ? 1 : 0);
+    } catch (e) {
+      const err = e;
+      console.error(err.name === "BrowserUnavailableError" ? err.message : `[Fracta] Falha na auditoria de CSP: ${err.message}`);
+      process.exit(1);
+    }
   }
   if (command === "scan" && !values.target) {
     console.error("[Fracta] --target \xE9 obrigat\xF3rio: o Fracta audita UM SaaS por vez (blast radius contido).");
@@ -4743,6 +4936,7 @@ ${String(err)}`);
     new SecretsAgent(),
     new StackAgent(),
     new InfraAgent(),
+    new SemgrepAgent(),
     new ComplianceAgent(),
     new NestJSSkill(),
     new PrismaSkill(),
@@ -4774,16 +4968,17 @@ ${String(err)}`);
     enricher
   });
   orchestrator.registerAgents(allAgents);
-  const reporter = new FractaReporter({ outputDir: values.output });
+  const reporter = new FractaReporter({ outputDir: values.output, toolVersion: package_default.version });
   let anyFailed = false;
   try {
     for (const target of targets) {
       const report = await orchestrator.scan(target);
-      const { mdPath, jsonPath } = await reporter.save(report);
+      const { mdPath, jsonPath, sarifPath } = await reporter.save(report);
       console.log(`
 [Fracta] Reports saved:`);
       console.log(`  Markdown: ${mdPath}`);
       console.log(`  JSON:     ${jsonPath}`);
+      console.log(`  SARIF:    ${sarifPath}  (upload no GitHub Code Scanning)`);
       if (report.resumo.regressoes > 0) {
         console.log(`  \u23EA Regress\xF5es detectadas: ${report.resumo.regressoes}`);
       }

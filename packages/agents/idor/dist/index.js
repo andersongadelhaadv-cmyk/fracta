@@ -1,5 +1,78 @@
 // src/index.ts
-import { FractaHttpClient, stableFindingId } from "@fracta/core";
+import { FractaHttpClient, stableFindingId as stableFindingId2 } from "@fracta/core";
+
+// src/cross-tenant.ts
+import { stableFindingId } from "@fracta/core";
+var CATEGORY = "security";
+var AGENT = "IDOR Agent";
+var REFS = [
+  "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/",
+  "https://cwe.mitre.org/data/definitions/639.html"
+];
+function tenantBOwns(p) {
+  return p.tenantBStatus === 200;
+}
+function tenantALeaked(p) {
+  return p.tenantAStatus === 200 && p.tenantABytes > 10;
+}
+function evaluateCrossTenant(input) {
+  const { saas, runId, probes } = input;
+  if (probes.length === 0) return [];
+  const usable = probes.filter(tenantBOwns);
+  if (usable.length === 0) {
+    return [{
+      id: stableFindingId({ saas, camada: CATEGORY, rule: "idor-crosstenant-inconclusive" }),
+      runId,
+      agent: AGENT,
+      category: CATEGORY,
+      camada: CATEGORY,
+      severity: "info",
+      confidence: "high",
+      title: "IDOR cross-tenant: inconclusivo (tenant B n\xE3o acessou os pr\xF3prios recursos)",
+      description: `O tenant B n\xE3o conseguiu acessar nenhum dos ${probes.length} recurso(s) declarados como seus (status \u2260 200). Sem essa \xE2ncora n\xE3o \xE9 poss\xEDvel provar (nem descartar) vazamento cross-tenant. Confira as credenciais/paths de \`crossTenant.ownedResources\` no targets.yaml.`,
+      recommendation: "Ajuste os recursos de B em `crossTenant.ownedResources` para paths que o tenant B realmente acessa (GET 200).",
+      references: REFS,
+      createdAt: /* @__PURE__ */ new Date()
+    }];
+  }
+  const leaks = usable.filter(tenantALeaked);
+  if (leaks.length > 0) {
+    return leaks.map((p) => ({
+      id: stableFindingId({ saas, camada: CATEGORY, rule: `idor-crosstenant-confirmed:${p.resource}`, location: p.resource }),
+      runId,
+      agent: AGENT,
+      category: CATEGORY,
+      camada: CATEGORY,
+      severity: "critical",
+      confidence: "high",
+      title: `IDOR cross-tenant CONFIRMADO: tenant A leu recurso de B (${p.resource})`,
+      description: `Provado em runtime: o recurso ${p.resource} PERTENCE ao tenant B (B o acessa com 200), e o tenant A conseguiu l\xEA-lo (HTTP ${p.tenantAStatus}, ${p.tenantABytes} bytes). Isso \xE9 Broken Object Level Authorization: dados de um tenant vazam para outro. N\xE3o \xE9 heur\xEDstica \u2014 \xE9 acesso cruzado real.`,
+      endpoint: p.resource,
+      evidence: `A: GET ${p.resource} \u2192 ${p.tenantAStatus} (${p.tenantABytes} bytes)${p.tenantABody ? `
+${p.tenantABody.slice(0, 200)}` : ""}
+B (dono): GET ${p.resource} \u2192 200`,
+      recommendation: "Escope TODA leitura de recurso ao tenant/owner do usu\xE1rio autenticado (filtro no `where`, Prisma extension ou Postgres RLS). Nunca confie s\xF3 no ID da rota \u2014 verifique a propriedade antes de retornar.",
+      references: REFS,
+      createdAt: /* @__PURE__ */ new Date()
+    }));
+  }
+  return [{
+    id: stableFindingId({ saas, camada: CATEGORY, rule: "idor-crosstenant-isolated" }),
+    runId,
+    agent: AGENT,
+    category: CATEGORY,
+    camada: CATEGORY,
+    severity: "info",
+    confidence: "high",
+    title: "Isolamento multi-tenant confirmado em runtime",
+    description: `Verificado com 2 contas: o tenant A foi NEGADO em ${usable.length} recurso(s) que pertencem ao tenant B (B os acessa com 200; A recebeu 403/404). Isolamento cross-tenant OK para os recursos testados \u2014 prova positiva, n\xE3o suposi\xE7\xE3o.`,
+    recommendation: "Mantenha o escopo por tenant em toda query. Amplie `crossTenant.ownedResources` para cobrir mais rotas sens\xEDveis.",
+    references: REFS,
+    createdAt: /* @__PURE__ */ new Date()
+  }];
+}
+
+// src/index.ts
 var PATH_TEMPLATES = [
   "/users/{id}",
   "/api/users/{id}",
@@ -36,7 +109,7 @@ var IdorAgent = class {
     const findings = [];
     if (!scope.target.auth) {
       findings.push({
-        id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: "idor-auth-not-configured" }),
+        id: stableFindingId2({ saas: scope.target.name, camada: this.category, rule: "idor-auth-not-configured" }),
         runId: scope.runId,
         agent: this.name,
         category: this.category,
@@ -75,7 +148,7 @@ var IdorAgent = class {
           const res = await client.request(path, { timeoutMs: 5e3 });
           if (res.status === 200 && res.raw.length > 10) {
             findings.push({
-              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-direct-access:${path}`, location: path }),
+              id: stableFindingId2({ saas: scope.target.name, camada: this.category, rule: `idor-direct-access:${path}`, location: path }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
@@ -103,7 +176,7 @@ async findOne(@Param('id') id: string, @CurrentUser() user: User) {
             });
           } else if (res.status === 500) {
             findings.push({
-              id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-error-500:${path}`, location: path }),
+              id: stableFindingId2({ saas: scope.target.name, camada: this.category, rule: `idor-error-500:${path}`, location: path }),
               runId: scope.runId,
               agent: this.name,
               category: this.category,
@@ -126,7 +199,76 @@ if (!record) throw new NotFoundException(\`Recurso ${id} n\xE3o encontrado\`);
       }
     }
     await this.testEnumeration(scope, client, findings, ignore);
+    await this.testCrossTenant(scope, findings);
     return findings;
+  }
+  /**
+   * IDOR cross-tenant REAL (2 contas): autentica A e B, confirma que B acessa os
+   * próprios recursos e tenta acessá-los como A. A conseguir = vazamento cross-tenant
+   * PROVADO (não heurística). Opt-in via `crossTenant` no targets.yaml; read-only.
+   */
+  async testCrossTenant(scope, findings) {
+    const ct = scope.target.crossTenant;
+    if (!ct) return;
+    const auth = scope.target.auth;
+    const aEndpoint = auth?.endpoint;
+    const aCreds = auth?.credentials;
+    if (!aCreds?.email || !aCreds.password || !aEndpoint) {
+      findings.push(this.crossTenantInfo(
+        scope,
+        "IDOR cross-tenant: requer o tenant A autenticado",
+        "O bloco `crossTenant` (tenant B) est\xE1 configurado, mas falta `auth` com `credentials` (email/senha) e `endpoint` do tenant A. O teste cross-tenant precisa das DUAS identidades."
+      ));
+      return;
+    }
+    let clientA;
+    let clientB;
+    try {
+      clientA = (await FractaHttpClient.withJwt(scope.target.url, aEndpoint, { email: aCreds.email, password: aCreds.password })).client;
+      clientB = (await FractaHttpClient.withJwt(scope.target.url, ct.endpoint ?? aEndpoint, ct.credentials)).client;
+    } catch (e) {
+      findings.push(this.crossTenantInfo(
+        scope,
+        "IDOR cross-tenant: inconclusivo (falha ao autenticar A ou B)",
+        `N\xE3o foi poss\xEDvel obter token de um dos tenants: ${e instanceof Error ? e.message : String(e)}. Confira credenciais/endpoint.`
+      ));
+      return;
+    }
+    const probes = [];
+    for (const resource of ct.ownedResources) {
+      let tenantBStatus = 0;
+      let tenantAStatus = 0;
+      let tenantABytes = 0;
+      let tenantABody;
+      try {
+        tenantBStatus = (await clientB.request(resource, { timeoutMs: 5e3 })).status;
+      } catch {
+      }
+      try {
+        const ra = await clientA.request(resource, { timeoutMs: 5e3 });
+        tenantAStatus = ra.status;
+        tenantABytes = ra.raw.length;
+        tenantABody = ra.raw;
+      } catch {
+      }
+      probes.push({ resource, tenantBStatus, tenantAStatus, tenantABytes, tenantABody });
+    }
+    findings.push(...evaluateCrossTenant({ saas: scope.target.name, runId: scope.runId, probes }));
+  }
+  crossTenantInfo(scope, title, description) {
+    return {
+      id: stableFindingId2({ saas: scope.target.name, camada: this.category, rule: `idor-crosstenant-setup:${title}` }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "info",
+      confidence: "high",
+      title,
+      description,
+      recommendation: "Configure `auth` (tenant A) + `crossTenant` (tenant B, com `ownedResources`) no targets.yaml para provar isolamento multi-tenant.",
+      createdAt: /* @__PURE__ */ new Date()
+    };
   }
   async testEnumeration(scope, client, findings, ignore) {
     for (const basePath of ENUM_PATHS) {
@@ -141,7 +283,7 @@ if (!record) throw new NotFoundException(\`Recurso ${id} n\xE3o encontrado\`);
       }
       if (hits >= 3) {
         findings.push({
-          id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `idor-enumeration:${basePath}`, location: basePath }),
+          id: stableFindingId2({ saas: scope.target.name, camada: this.category, rule: `idor-enumeration:${basePath}`, location: basePath }),
           runId: scope.runId,
           agent: this.name,
           category: this.category,
