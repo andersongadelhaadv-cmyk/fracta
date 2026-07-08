@@ -222,6 +222,44 @@ describe('ComplianceAgent', () => {
     expect(intl!.evidence).toContain('PRIVACIDADE.md')
   })
 
+  it('Check 7 (FURO DE HONESTIDADE): política que NEGA transferência intl + código a faz → finding de CONTRADIÇÃO', async () => {
+    // O pior caso da marca "não mente": a política afirma que NÃO transfere para fora do
+    // Brasil, mas o código usa Stripe/OpenAI (internacional). Tem de FLAGGAR (não escapar).
+    await writeFile(
+      join(repoDir, 'PRIVACIDADE.md'),
+      '# Política de Privacidade\n\n## Transferência internacional\n' +
+        'Não realizamos transferência internacional de dados. Todos os dados permanecem no Brasil.\n\n' +
+        '## Operadores\nTerceiros sob contrato. Base legal: consentimento. Retenção legal. Cookies. Encarregado.\n',
+    )
+    await writeFile(
+      join(repoDir, 'package.json'),
+      JSON.stringify({ name: 'demo', dependencies: { stripe: '^1', openai: '^4' } }),
+    )
+
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    const contra = findings.find(f => /internacional NEGADA|contradiz/i.test(f.title))
+    expect(contra).toBeDefined()
+    expect(contra!.severity).toBe('medium') // mais grave que a mera omissão (low): a política MENTE
+    expect(contra!.evidence).toContain('Stripe')
+    expect(contra!.evidence).toContain('PRIVACIDADE.md')
+    // NÃO deve degradar para o finding de "não declarada" (que diz "nenhuma menção") — seria mentira:
+    // a política MENCIONA (para negar). O achado correto é o de contradição.
+    expect(findings.find(f => f.title.startsWith('Transferência internacional não declarada'))).toBeUndefined()
+  })
+
+  it('Check 7 (GUARD DE RECALL): política que DECLARA honestamente a transferência intl NÃO gera contradição', async () => {
+    await mkdir(join(repoDir, 'app', 'privacidade'), { recursive: true })
+    await writeFile(join(repoDir, 'app', 'privacidade', 'page.tsx'), COMPLIANT_POLICY_TSX)
+    await writeFile(
+      join(repoDir, 'package.json'),
+      JSON.stringify({ name: 'demo', dependencies: { stripe: '^1', resend: '^6', '@sentry/nextjs': '^8' } }),
+    )
+
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    expect(findings.find(f => /internacional NEGADA|contradiz/i.test(f.title))).toBeUndefined()
+    expect(findings.find(f => f.title.startsWith('Transferência internacional não declarada'))).toBeUndefined()
+  })
+
   it('Check 7: operadores no código mas nenhuma política no repo → nota honesta (não verificável)', async () => {
     await writeFile(
       join(repoDir, 'package.json'),

@@ -53,6 +53,33 @@ O titular pode exercer seus direitos. Tratamos com base no legítimo interesse.
 Cookies são usados. A retenção segue os prazos legais. Encarregado disponível.
 `
 
+// Política que MENTE: NEGA transferência internacional enquanto o código usa Stripe/OpenAI/AWS.
+// É o caso MAIS grave e o que a heurística antiga deixava passar (mention≠denial): o termo
+// "transferência internacional" aparecia (na negação) → contava como disclosed → escapava.
+const DENIES_INTL_POLICY = `
+# Política de Privacidade
+
+## Transferência internacional
+Não realizamos transferência internacional de dados. Todos os dados dos titulares
+permanecem armazenados no Brasil.
+
+## Operadores e base legal
+Utilizamos ferramentas de terceiros sob contrato. Base legal: legítimo interesse.
+Cookies são usados. A retenção segue os prazos legais. Encarregado (DPO) disponível.
+`
+
+// Variante de negação por AFIRMAÇÃO territorial ("dados não saem do Brasil"), sem repetir
+// o termo "internacional" — a heurística tem de pegar as duas formas.
+const DATA_STAYS_IN_BRAZIL_POLICY = `
+# Política de Privacidade
+
+## Onde tratamos seus dados
+Os dados dos titulares não são transferidos para fora do Brasil; permanecem no Brasil.
+
+## Operadores e base legal
+Terceiros sob contrato. Base legal: consentimento. Cookies. Retenção legal. Encarregado.
+`
+
 describe('stripMarkup', () => {
   it('remove tags JSX/HTML e atributos, preservando o texto visível', () => {
     const out = stripMarkup('<td className="py-2 pr-4">Stripe</td>')
@@ -111,5 +138,30 @@ describe('diffPolicyVsCode', () => {
     const div = diffPolicyVsCode(doc, [op('Stripe', true), op('AWS', true)])
     expect(div.hasInternationalOps).toBe(true)
     expect(div.internationalDisclosed).toBe(false)
+    expect(div.internationalDenied).toBe(false) // omissão ≠ negação
+  })
+
+  it('FURO DE HONESTIDADE: política que NEGA transferência intl + código a faz → NEGADA, nunca disclosed', () => {
+    const doc = findPolicyDoc([{ relPath: 'PRIVACIDADE.md', content: DENIES_INTL_POLICY }])!
+    const div = diffPolicyVsCode(doc, [op('Stripe', true), op('OpenAI', true)])
+    expect(div.hasInternationalOps).toBe(true)
+    // O bug: a negação NÃO pode contar como disclosure (era `true` antes → escapava do check).
+    expect(div.internationalDisclosed).toBe(false)
+    // E precisa ser marcada como NEGAÇÃO explícita (contradição direta com o código).
+    expect(div.internationalDenied).toBe(true)
+  })
+
+  it('negação por afirmação territorial ("não saem do Brasil / permanecem no Brasil") também é NEGAÇÃO', () => {
+    const doc = findPolicyDoc([{ relPath: 'PRIVACIDADE.md', content: DATA_STAYS_IN_BRAZIL_POLICY }])!
+    const div = diffPolicyVsCode(doc, [op('AWS', true)])
+    expect(div.internationalDisclosed).toBe(false)
+    expect(div.internationalDenied).toBe(true)
+  })
+
+  it('GUARD DE RECALL: política que DECLARA honestamente (Art. 33) não é marcada como negação', () => {
+    const doc = findPolicyDoc([{ relPath: 'privacidade/page.tsx', content: COMPLIANT_POLICY }])!
+    const div = diffPolicyVsCode(doc, operators)
+    expect(div.internationalDisclosed).toBe(true)
+    expect(div.internationalDenied).toBe(false) // declaração verdadeira não vira falso-positivo de negação
   })
 })

@@ -162,8 +162,14 @@ export class ComplianceAgent implements SecurityAgent {
       const policy = findPolicyDoc(files)
       if (policy) {
         const div = diffPolicyVsCode(policy, operators)
-        if (div.hasInternationalOps && !div.internationalDisclosed) {
-          findings.push(this.intlTransferUndisclosed(scope, policy.relPath, operators.filter(o => o.international)))
+        if (div.hasInternationalOps) {
+          if (div.internationalDenied) {
+            // Pior caso da marca "não mente": a política AFIRMA que não transfere ao exterior
+            // enquanto o código o faz. Contradição direta — mais grave que a mera omissão.
+            findings.push(this.intlTransferContradicted(scope, policy.relPath, operators.filter(o => o.international)))
+          } else if (!div.internationalDisclosed) {
+            findings.push(this.intlTransferUndisclosed(scope, policy.relPath, operators.filter(o => o.international)))
+          }
         }
         if (div.undeclaredOperators.length) {
           findings.push(this.operatorsUndeclared(scope, policy.relPath, div.undeclaredOperators))
@@ -179,6 +185,36 @@ export class ComplianceAgent implements SecurityAgent {
   // -------------------------------------------------------------------------
   // Check 7 — divergência política×código (materializa o diferencial LGPD-nativo)
   // -------------------------------------------------------------------------
+  private intlTransferContradicted(scope: ScanScope, policyPath: string, intlOps: OperatorMatch[]): Finding {
+    const rule = 'lgpd-policy-intl-contradicted'
+    const names = intlOps.map(o => o.name).join(', ')
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'medium' as Severity, // mais grave que a omissão (low): a política CONTRADIZ o código
+      confidence: 'low', // heurística de negação — pede confirmação humana antes de agir
+      title: `Transferência internacional NEGADA na política, mas o código a realiza (Art. 33)`,
+      description:
+        'CONFERI A POLÍTICA PUBLICADA CONTRA O CÓDIGO e encontrei uma CONTRADIÇÃO DIRETA. A política ' +
+        `de privacidade (${policyPath}) AFIRMA que NÃO há transferência internacional (ou que os dados ` +
+        `permanecem no Brasil), mas o código usa operadores que processam dados fora do Brasil (${names}) ` +
+        '— o que configura TRANSFERÊNCIA INTERNACIONAL (Art. 33 da LGPD). Uma política que NEGA o que o ' +
+        'código faz é pior que uma omissa: induz o titular a erro. HEURÍSTICA — a detecção de negação é ' +
+        'aproximada; CONFIRME o texto da política antes de agir (a declaração pode estar segmentada).',
+      evidence: `Política conferida: ${policyPath}. A política NEGA transferência internacional / afirma retenção no Brasil, mas há operadores internacionais no código: ${names}.`,
+      recommendation:
+        'Corrija a contradição: ou (a) a Política de Privacidade passa a DECLARAR a transferência ' +
+        'internacional ancorada numa hipótese do Art. 33 (cláusulas-padrão da ANPD, país adequado, etc.) ' +
+        `e lista os operadores no exterior (${names}); ou (b) elimine a transferência internacional de ` +
+        'fato (operador nacional/self-hosted). Manter a negação enquanto o código transfere expõe o ' +
+        'controlador a sanção por informação enganosa ao titular (Art. 6º, VI — transparência).',
+      createdAt: new Date(),
+    }
+  }
+
   private intlTransferUndisclosed(scope: ScanScope, policyPath: string, intlOps: OperatorMatch[]): Finding {
     const rule = 'lgpd-policy-intl-undisclosed'
     const names = intlOps.map(o => o.name).join(', ')

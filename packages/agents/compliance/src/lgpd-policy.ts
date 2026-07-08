@@ -67,6 +67,21 @@ export function findPolicyDoc(files: { relPath: string; content: string }[]): Po
 const INTL_DISCLOSURE =
   /transfer[êe]ncia internacional|fora do (?:pa[ií]s|brasil)|outside brazil|other countries|estados unidos|\beua\b|internacional/i
 
+// NEGAÇÃO de transferência internacional. Distingue a política que MENTE ("não realizamos
+// transferência internacional", "os dados permanecem no Brasil") daquela que DECLARA. Isto
+// fecha o furo de honestidade: antes, a negação casava INTL_DISCLOSURE (contém "internacional")
+// e era contada como *declarada* — o caso mais grave escapava. Conservador e ancorado no termo:
+// exige a negação/afirmação territorial PERTO do termo, não uma mera menção isolada.
+const INTL_DENIAL = new RegExp(
+  [
+    // "não" + (até ~30 chars, aceita acentos via [\s\S]) + termo de transferência ao exterior
+    'n[ãa]o[\\s\\S]{0,30}?(?:transfer[êe]ncia\\s+internacional|transfer\\w*\\b[\\s\\S]{0,20}?(?:exterior|fora do (?:pa[ií]s|brasil)))',
+    // afirmação territorial: os dados permanecem/ficam/são mantidos/armazenados/hospedados NO Brasil
+    '(?:permanec\\w+|fica\\w*|mantid\\w+|armazenad\\w+|hospedad\\w+)[\\s\\S]{0,25}?(?:no|em)\\s+brasil',
+  ].join('|'),
+  'i',
+)
+
 // Sinônimos por operador (canônico = OperatorMatch.name), em minúsculas, para casar na política.
 // Conservador: qualquer sinônimo presente = considerado declarado (evita falso-positivo).
 const OPERATOR_SYNONYMS: Record<string, string[]> = {
@@ -94,14 +109,20 @@ const NOT_A_SUBPROCESSOR = new Set(['Banco de dados (self-hosted)'])
 export interface PolicyDivergence {
   policyPath: string
   hasInternationalOps: boolean
+  /** A política DECLARA transferência internacional (menção real, não uma negação). */
   internationalDisclosed: boolean
+  /** A política NEGA transferência internacional ("não realizamos…", "permanecem no Brasil"). */
+  internationalDenied: boolean
   undeclaredOperators: OperatorMatch[]
 }
 
 /** Confere a política publicada contra os operadores/transferências que o código revela. */
 export function diffPolicyVsCode(policy: PolicyDoc, operators: OperatorMatch[]): PolicyDivergence {
   const text = policy.text.toLowerCase()
-  const internationalDisclosed = INTL_DISCLOSURE.test(policy.text)
+  const internationalDenied = INTL_DENIAL.test(policy.text)
+  // Uma NEGAÇÃO nunca conta como disclosure — mesmo que contenha o termo "internacional".
+  // Este é o coração do fix: mention (inclusive na negação) ≠ declaração honesta.
+  const internationalDisclosed = INTL_DISCLOSURE.test(policy.text) && !internationalDenied
   const hasInternationalOps = operators.some(o => o.international)
 
   const undeclaredOperators: OperatorMatch[] = []
@@ -112,5 +133,5 @@ export function diffPolicyVsCode(policy: PolicyDoc, operators: OperatorMatch[]):
     if (!declared) undeclaredOperators.push(op)
   }
 
-  return { policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, undeclaredOperators }
+  return { policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, internationalDenied, undeclaredOperators }
 }
