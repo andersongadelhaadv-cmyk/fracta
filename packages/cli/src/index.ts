@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { readFile, writeFile, access, mkdir } from 'fs/promises'
 import { dirname } from 'path'
-import { parseArgs } from 'util'
 import { parse as parseYaml } from 'yaml'
+import { parseCliArgs, CliUsageError } from './args.js'
 import { FractaOrchestrator, assertUsableTarget } from '@fracta/core'
 import type { Target, ScanDepth, Severity } from '@fracta/core'
 import { AuthAgent } from '@fracta/agent-auth'
@@ -54,27 +54,25 @@ async function loadTargets(configPath: string): Promise<Target[]> {
 }
 
 async function main(): Promise<void> {
-  console.log(BANNER)
+  // --version/-V ANTES do banner: `fracta --version` deve imprimir só a versão (convenção).
+  let values: ReturnType<typeof parseCliArgs>['values']
+  let positionals: string[]
+  try {
+    ;({ values, positionals } = parseCliArgs(process.argv.slice(2)))
+  } catch (err) {
+    if (err instanceof CliUsageError) {
+      console.error(err.message)
+      process.exit(1)
+    }
+    throw err
+  }
 
-  const { values, positionals } = parseArgs({
-    args: process.argv.slice(2),
-    allowPositionals: true,
-    options: {
-      target: { type: 'string', short: 't' },
-      config: { type: 'string', short: 'c', default: './configs/targets.yaml' },
-      depth: { type: 'string', short: 'd', default: 'full' },
-      output: { type: 'string', short: 'o', default: './fracta-reports' },
-      state: { type: 'string', default: './fracta-state.db' },
-      'no-state': { type: 'boolean', default: false },
-      llm: { type: 'boolean', default: false },
-      'no-llm': { type: 'boolean', default: false },
-      'fail-on': { type: 'string', default: 'critical,high' },
-      'docs-path': { type: 'string', default: './' },
-      force: { type: 'boolean', default: false },
-      verbose: { type: 'boolean', short: 'v', default: false },
-      help: { type: 'boolean', short: 'h', default: false },
-    },
-  })
+  if (values.version) {
+    console.log(pkg.version)
+    process.exit(0)
+  }
+
+  console.log(BANNER)
 
   const command = positionals[0] ?? 'scan'
 
@@ -116,6 +114,7 @@ Options:
                     In 'scan', DOCS uses the target's repoPath and skips if absent.
   --force           (init) sobrescreve um targets.yaml existente
   -v, --verbose     Verbose output
+  -V, --version     Imprime a versão e sai
   -h, --help        Show this help
 `)
     process.exit(0)
