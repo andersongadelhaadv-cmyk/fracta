@@ -39,6 +39,31 @@ describe('DocsAgent', () => {
     expect(obsolete).toBeDefined()
   })
 
+  it('NÃO flagga a palavra portuguesa "Todos/toda/todas" como TODO (FP pt-BR)', async () => {
+    // Repro do 86% FP no Praetori: texto pt-BR comuníssimo, ZERO marcador real.
+    await writeFile(
+      join(tmp, 'privacidade.md'),
+      '# Privacidade\n\nTODOS OS DADOS\n\nTodos os dados dos titulares permanecem no Brasil. ' +
+        'Toda e qualquer solicitação é atendida. Todas as bases legais são respeitadas.',
+    )
+
+    const findings = await new DocsAgent(tmp).run(scope)
+
+    const todo = findings.find(f => f.title.includes('TODOs'))
+    expect(todo).toBeUndefined() // "Todos/toda/todas" ≠ marcador TODO
+  })
+
+  it('GUARD DE RECALL: ainda flagga marcadores TODO/FIXME/XXX/HACK reais', async () => {
+    await writeFile(join(tmp, 'a.md'), '# A\n\nTODO: implementar isto')
+    await writeFile(join(tmp, 'b.md'), '# B\n\n<!-- FIXME: bug conhecido -->')
+    await writeFile(join(tmp, 'c.md'), '# C\n\nXXX revisar · HACK temporário')
+
+    const findingsA = await new DocsAgent(tmp).run(scope)
+    const todos = findingsA.filter(f => f.title.includes('TODOs'))
+    // os três arquivos com marcador real devem ser pegos (recall preservado)
+    expect(todos.map(f => f.endpoint).sort()).toEqual(['a.md', 'b.md', 'c.md'])
+  })
+
   it('flags duplicate H1 titles across files', async () => {
     await writeFile(join(tmp, 'a.md'), '# Setup\n\nA')
     await writeFile(join(tmp, 'b.md'), '# Setup\n\nB')

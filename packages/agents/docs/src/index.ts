@@ -8,6 +8,13 @@ const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage'
 const LEGACY_PATTERNS = /old|legado|legacy|deprecated|backup|v1\.|_old\.|antigo/i
 const MS_IN_DAY = 86_400_000
 
+// Marcadores de código reais — UPPERCASE + word-boundary, case-SENSITIVE. Antes era
+// `/TODO|FIXME/i` (substring, case-insensitive), que casava a palavra portuguesa
+// "Todos/toda/todas" (86% de FP num repo pt-BR real, o Praetori). A convenção do
+// marcador é o token em maiúsculas (TODO:/FIXME); exigir uppercase distingue o
+// marcador da palavra comum sem perder recall dos marcadores de verdade.
+const TODO_MARKER = /\b(TODO|FIXME|XXX|HACK)\b/
+
 interface DocFile {
   path: string
   content: string
@@ -124,7 +131,7 @@ export class DocsAgent implements SecurityAgent {
       })
     }
 
-    if (/TODO|FIXME/i.test(file.content)) {
+    if (TODO_MARKER.test(file.content)) {
       findings.push({
         id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-todo:${file.relativePath}`, location: file.relativePath }),
         runId: scope.runId,
@@ -133,7 +140,7 @@ export class DocsAgent implements SecurityAgent {
         camada: this.category,
         severity: 'low',
         title: `TODOs não resolvidos: ${file.relativePath}`,
-        description: 'Arquivo contém marcações TODO ou FIXME indicando documentação incompleta.',
+        description: 'Arquivo contém marcações TODO/FIXME/XXX/HACK indicando documentação incompleta.',
         endpoint: file.relativePath,
         recommendation: 'Resolva os TODOs ou abra issues para rastreá-los.',
         createdAt: new Date(),
