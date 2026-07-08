@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write # OIDC → npm provenance (attestations verificáveis de supply-chain)
 
 jobs:
   publish:
@@ -26,6 +27,10 @@ jobs:
       - name: Publish public packages (skip se a versão já está no npm)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Provenance (npm/sigstore via OIDC): assina a origem do build. Verificável em
+          # `npm view <pkg> dist.attestations` e no badge de proveniência do npm. Requer o
+          # `id-token: write` acima. pnpm honra NPM_CONFIG_PROVENANCE além da flag.
+          NPM_CONFIG_PROVENANCE: 'true'
         run: |
           set -euo pipefail
           for dir in packages/cli packages/mcp-server; do
@@ -34,7 +39,7 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "✓ $name@$version já publicado — pulando"
             else
-              echo "→ publicando $name@$version"
-              pnpm --filter "$name" publish --no-git-checks --access public
+              echo "→ publicando $name@$version (com provenance)"
+              pnpm --filter "$name" publish --no-git-checks --access public --provenance
             fi
           done
