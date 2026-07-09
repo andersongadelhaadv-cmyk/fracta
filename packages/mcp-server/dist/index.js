@@ -5154,7 +5154,7 @@ import { createRequire as createRequire3 } from "module";
 // package.json
 var package_default = {
   name: "fractascan-mcp",
-  version: "0.1.17",
+  version: "0.1.18",
   description: "Model Context Protocol server exposing Fracta scan tools (passive_scan, scan_repo, \u2026)",
   license: "MIT",
   author: "Anderson Gadelha",
