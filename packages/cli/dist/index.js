@@ -1200,7 +1200,7 @@ var DocsAgent = class {
         createdAt: /* @__PURE__ */ new Date()
       });
     }
-    const v1Matches = (file.content.match(/\bv[01]\b/gi) ?? []).length;
+    const v1Matches = (file.content.match(/(?<![/\w.])v[01](?![/\w.-])/gi) ?? []).length;
     if (v1Matches > 2) {
       findings.push({
         id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-legacy-version-refs:${file.relativePath}`, location: file.relativePath }),
@@ -2220,9 +2220,25 @@ var SecretsAgent = class {
       let value = line.slice(eq + 1).trim();
       value = value.replace(/^["']|["']$/g, "").trim();
       if (!value) continue;
-      if (this.looksLikePlaceholder(value)) continue;
-      return true;
+      if (this.looksLikeRealSecret(value)) return true;
     }
+    return false;
+  }
+  /**
+   * True só quando o valor PARECE um segredo real (não config nem placeholder). Conservador:
+   * prefere deixar passar um segredo exótico a gritar em cima de config — o gitleaks é a
+   * varredura primária; este check é um nudge de higiene do .env.example.
+   */
+  looksLikeRealSecret(value) {
+    if (this.looksLikePlaceholder(value)) return false;
+    if (/^(sk[-_][A-Za-z0-9]|rk_live_|whsec_[A-Za-z0-9]{8}|ghp_[A-Za-z0-9]{20}|gho_[A-Za-z0-9]{20}|xox[baprs]-|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{20})/.test(value)) return true;
+    if (/^(TROCAR|MUDAR|ALTERAR|CHANGE|DEFINA|COLOQUE|INSIRA|MESMO|SEU|SUA|YOUR|SET)[_-]/i.test(value)) return false;
+    if (/^https?:\/\//i.test(value)) return false;
+    if (/^[\w.+-]+@[\w.-]+\.\w+$/.test(value)) return false;
+    if (/^\d+$/.test(value)) return false;
+    if (/^\d+\s*[smhd]$/i.test(value)) return false;
+    if (/^[A-Za-z][\w.-]*$/.test(value) && !(/[A-Za-z]/.test(value) && /\d/.test(value) && value.replace(/[^0-9]/g, "").length >= 4)) return false;
+    if (value.length >= 24 && /[A-Za-z]/.test(value) && /\d/.test(value) && !/\s/.test(value) && !/\//.test(value)) return true;
     return false;
   }
   looksLikePlaceholder(value) {
@@ -2230,6 +2246,7 @@ var SecretsAgent = class {
     if (/^<.*>$/.test(value)) return true;
     if (/^\$\{.*\}$/.test(value)) return true;
     if (/^x+$/i.test(value)) return true;
+    if (value.includes("...") || value.includes("\u2026")) return true;
     const placeholderWords = [
       "your",
       "change",
@@ -2515,6 +2532,8 @@ var StackAgent = class {
   // 6a) Segredos NEXT_PUBLIC_ em .env*/next.config.* cujo NOME parece segredo.
   checkNextPublicSecrets(sources, out) {
     const secretName = /KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL/i;
+    const publicByDesignName = /PUBLISHABLE|PUBLIC_?KEY/i;
+    const publishableValue = /=\s*["']?pk_(?:live|test)_/i;
     const re = /\bNEXT_PUBLIC_([A-Z0-9_]+)\b/g;
     for (const file of sources) {
       if (!file.isEnvLike) continue;
@@ -2525,6 +2544,7 @@ var StackAgent = class {
         const varName = `NEXT_PUBLIC_${suffix}`;
         if (seen.has(varName)) continue;
         if (!secretName.test(varName)) continue;
+        if (publicByDesignName.test(varName) || publishableValue.test(file.content.slice(m.index, m.index + 160))) continue;
         seen.add(varName);
         const line = this.lineAt(file.content, m.index);
         out.push({
@@ -3195,6 +3215,9 @@ var MAX_FILE_BYTES = 2e6;
 var SENSITIVE_TERM = /\b(cpf|cnpj|cnis|rg|senha|password|passwd|token|processo|prontuario|prontuário|nis|pis|cartao|cartão|beneficio|benefício)\b/i;
 var SENSITIVE_TERM_GLOBAL = /\b(cpf|cnpj|cnis|rg|senha|password|passwd|token|processo|prontuario|prontuário|nis|pis|cartao|cartão|beneficio|benefício)\b/gi;
 var LOG_CALL = /(?:console\.(?:log|error|info|warn|debug)|(?:this\.)?logger\.\w+)\s*\(/i;
+function stripStringLiterals(s) {
+  return s.replace(/`(?:\\.|\$\{[^}]*\}|[^`\\])*`/g, " ").replace(/'(?:\\.|[^'\\])*'/g, " ").replace(/"(?:\\.|[^"\\])*"/g, " ").replace(/[`'"][^`'"]*$/g, " ");
+}
 var HASHING_LIBS = ["bcrypt", "bcryptjs", "argon2", "@node-rs/argon2", "scrypt"];
 var PASSWORD_TERM = /\bpassword|senha|passwd\b/i;
 var DB_WRITE = /\b(create|createMany|insert|insertInto|save|update|upsert|INSERT\s+INTO)\b/i;
@@ -3241,11 +3264,8 @@ var ComplianceAgent = class {
         }
       }
     }
-    if (hasPasswordWrite) {
-      const hashingLib = await this.findHashingLib(repoPath);
-      if (!hashingLib) {
-        findings.push(this.passwordNoHashing(scope));
-      }
+    if (hasPasswordWrite && !this.hasHashingLibInAnyPackageJson(files)) {
+      findings.push(this.passwordNoHashing(scope));
     }
     if (mentionsSensitiveAnywhere && !hasTlsSignal) {
       findings.push(this.encryptionUnclear(scope));
@@ -3417,13 +3437,33 @@ var ComplianceAgent = class {
   // mais o termo sensível que casou (nome de variável/chave), jamais o conteúdo.
   // -------------------------------------------------------------------------
   matchSensitiveLog(line) {
-    const callIdx = line.search(LOG_CALL);
-    const parenIdx = line.indexOf("(", callIdx);
-    const args = parenIdx >= 0 ? line.slice(parenIdx + 1) : line;
-    const matches = args.match(SENSITIVE_TERM_GLOBAL);
+    const code = stripStringLiterals(line);
+    const callIdxCode = code.search(LOG_CALL);
+    if (callIdxCode < 0) return null;
+    const rawParen = line.indexOf("(", line.search(LOG_CALL));
+    if (rawParen < 0) return null;
+    const rawArgs = this.extractCallArgs(line, rawParen);
+    const interpolations = Array.from(rawArgs.matchAll(/\$\{([^}]*)\}/g)).map((m) => m[1]).join(" ");
+    const codeArgs = stripStringLiterals(rawArgs);
+    const adjacentLabels = Array.from(rawArgs.matchAll(/([\p{L}]+)\s*[:=]\s*\$\{/gu)).map((m) => m[1]).join(" ");
+    const haystack = `${interpolations} ${codeArgs} ${adjacentLabels}`;
+    const matches = haystack.match(SENSITIVE_TERM_GLOBAL);
     if (!matches || matches.length === 0) return null;
     const term = Array.from(new Set(matches.map((m) => m.toLowerCase()))).join(", ");
     return { relPath: "", line: 0, term };
+  }
+  /** Argumentos de uma chamada a partir do '(' de abertura (parênteses balanceados na linha). */
+  extractCallArgs(line, openParen) {
+    let depth = 0;
+    for (let i = openParen; i < line.length; i++) {
+      const c = line[i];
+      if (c === "(") depth++;
+      else if (c === ")") {
+        depth--;
+        if (depth === 0) return line.slice(openParen + 1, i);
+      }
+    }
+    return line.slice(openParen + 1);
   }
   sensitiveInLog(scope, relPath, line, hit) {
     const rule = `sensitive-in-log:${relPath}:${line}`;
@@ -3450,24 +3490,20 @@ var ComplianceAgent = class {
   // -------------------------------------------------------------------------
   // Check 2 — senhas sem hashing
   // -------------------------------------------------------------------------
-  async findHashingLib(repoPath) {
-    let pkgRaw;
-    try {
-      pkgRaw = await readFile5(join5(repoPath, "package.json"), "utf-8");
-    } catch {
-      return null;
+  /** Procura uma lib de hashing em QUALQUER package.json do repo (monorepo-aware). */
+  hasHashingLibInAnyPackageJson(files) {
+    for (const f of files) {
+      if (f.relPath !== "package.json" && !f.relPath.endsWith("/package.json")) continue;
+      let pkg;
+      try {
+        pkg = JSON.parse(f.content);
+      } catch {
+        continue;
+      }
+      const deps = { ...pkg.dependencies ?? {}, ...pkg.devDependencies ?? {} };
+      if (HASHING_LIBS.some((lib) => lib in deps)) return true;
     }
-    let pkg;
-    try {
-      pkg = JSON.parse(pkgRaw);
-    } catch {
-      return null;
-    }
-    const deps = { ...pkg.dependencies ?? {}, ...pkg.devDependencies ?? {} };
-    for (const lib of HASHING_LIBS) {
-      if (lib in deps) return lib;
-    }
-    return null;
+    return false;
   }
   passwordNoHashing(scope) {
     const rule = "password-no-hashing";
@@ -4680,7 +4716,7 @@ function createAnthropicClient(apiKey) {
 // package.json
 var package_default = {
   name: "fractascan",
-  version: "0.1.17",
+  version: "0.1.18",
   description: "Fracta \u2014 auditor de seguran\xE7a + LGPD multi-agente e determin\xEDstico para SaaS (DAST + SAST, relat\xF3rio A\u2013F). CLI: fracta scan.",
   license: "MIT",
   author: "Anderson Gadelha",

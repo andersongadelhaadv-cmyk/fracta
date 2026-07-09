@@ -115,7 +115,7 @@ var DocsAgent = class {
         createdAt: /* @__PURE__ */ new Date()
       });
     }
-    const v1Matches = (file.content.match(/\bv[01]\b/gi) ?? []).length;
+    const v1Matches = (file.content.match(/(?<![/\w.])v[01](?![/\w.-])/gi) ?? []).length;
     if (v1Matches > 2) {
       findings.push({
         id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-legacy-version-refs:${file.relativePath}`, location: file.relativePath }),
