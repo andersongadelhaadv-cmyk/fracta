@@ -58,6 +58,50 @@ describe('ComplianceAgent', () => {
     expect(hit!.proposedFix!.riskOfApplying).toBeTruthy()
   })
 
+  // ---- Precisão do "dado sensível em log": VALOR logado, não prosa da mensagem (FPs reais do zap-api) ----
+  it('NÃO flagga termo sensível que está SÓ na mensagem estática (valores logados são seguros)', async () => {
+    // Casos reais do zap-api: o termo ("token"/"cartão"/"password") está no TEXTO da mensagem,
+    // enquanto os valores logados são { ip }, { ids } — nada sensível.
+    await writeFile(
+      join(repoDir, 'log-fp.ts'),
+      [
+        'logger.warn({ ip: req.ip }, "[Diagnostic] sem header X-Diagnostic-Token")',
+        'logger.warn("Reset password rate limit exceeded", { count })',
+        'logger.info({ zapInstanceDbId, stripeSubscriptionId }, "[ZapStripe] Cartão adicionado em trial")',
+        'console.log(`  → senha resetada, lockout limpo, conta ativa`)',
+      ].join('\n'),
+    )
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    expect(findings.filter(f => f.title.startsWith('Possível dado sensível em log'))).toHaveLength(0)
+  })
+
+  it('NÃO flagga console.log dentro de STRING/COMENTÁRIO (conteúdo de blog/docs, não logging real)', async () => {
+    await writeFile(
+      join(repoDir, 'content.ts'),
+      [
+        'const code = "console.log(user.processo)"           // exemplo em string, não é log real',
+        'console.log(data) // { instance, token }             // token está no comentário',
+        'app.listen(3000, () => console.log("API on")); const x = "fala de cartão aqui"',
+      ].join('\n'),
+    )
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    expect(findings.filter(f => f.title.startsWith('Possível dado sensível em log'))).toHaveLength(0)
+  })
+
+  it('AINDA flagga quando o VALOR logado é sensível: ${password}, cpf=${user.cpf}, token=${t} (recall)', async () => {
+    await writeFile(
+      join(repoDir, 'log-tp.ts'),
+      [
+        'console.log(`Senha:  ${password}`)',       // valor interpolado é a senha
+        'logger.info(`cpf=${user.cpf}`)',           // identificador sensível na interpolação
+        'logger.debug(`token=${t}`)',               // rótulo colado à interpolação
+      ].join('\n'),
+    )
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    const logs = findings.filter(f => f.title.startsWith('Possível dado sensível em log'))
+    expect(logs.length).toBe(3) // os três são TP e devem continuar sendo pegos
+  })
+
   it('flags password storage without a hashing lib', async () => {
     await writeFile(
       join(repoDir, 'package.json'),
@@ -73,6 +117,19 @@ describe('ComplianceAgent', () => {
     expect(hit).toBeDefined()
     expect(hit!.severity).toBe('high')
     expect(hit!.proposedFix!.riskOfApplying).toContain('CONFIRMAÇÃO HUMANA')
+  })
+
+  it('NÃO flagga senha-sem-hashing em MONOREPO: bcrypt num package.json de subpasta (backend/) — FP real do zap-api', async () => {
+    await mkdir(join(repoDir, 'backend'), { recursive: true })
+    await writeFile(join(repoDir, 'package.json'), JSON.stringify({ name: 'root', workspaces: ['backend'] }))
+    await writeFile(join(repoDir, 'backend', 'package.json'), JSON.stringify({ name: 'backend', dependencies: { bcrypt: '^5' } }))
+    await writeFile(
+      join(repoDir, 'backend', 'auth.ts'),
+      'export async function register(p: string) {\n  return prisma.user.create({ data: { password: p } })\n}\n',
+    )
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    // o hashing existe no monorepo (backend/) → não é vazamento; ler só a raiz gerava FP
+    expect(findings.find(f => f.title === 'Possível armazenamento de senha sem hashing')).toBeUndefined()
   })
 
   it('does NOT flag password storage when bcrypt is present', async () => {

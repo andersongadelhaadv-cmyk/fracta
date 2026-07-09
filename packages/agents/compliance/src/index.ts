@@ -45,6 +45,21 @@ const SENSITIVE_TERM_GLOBAL =
 const LOG_CALL =
   /(?:console\.(?:log|error|info|warn|debug)|(?:this\.)?logger\.\w+)\s*\(/i
 
+/**
+ * "Code view" da linha: zera o CONTEÚDO de literais de string ('...', "...", `...`),
+ * preservando a estrutura de código. Usado para (a) rejeitar um `console.log(` que está
+ * DENTRO de uma string (exemplo em blog/docs — não é logging real) e (b) descartar o termo
+ * sensível que aparece só na PROSA da mensagem ("[Diagnostic] ...Token"), mantendo os
+ * identificadores logados. Interpolações `${...}` são tratadas à parte (são o valor logado).
+ */
+function stripStringLiterals(s: string): string {
+  return s
+    .replace(/`(?:\\.|\$\{[^}]*\}|[^`\\])*`/g, ' ') // template literal completo (interpolações à parte)
+    .replace(/'(?:\\.|[^'\\])*'/g, ' ')             // '...'
+    .replace(/"(?:\\.|[^"\\])*"/g, ' ')             // "..."
+    .replace(/[`'"][^`'"]*$/g, ' ')                 // string não fechada na linha (multi-linha)
+}
+
 // Libs de hashing aceitáveis para senhas.
 const HASHING_LIBS = ['bcrypt', 'bcryptjs', 'argon2', '@node-rs/argon2', 'scrypt']
 
@@ -128,11 +143,10 @@ export class ComplianceAgent implements SecurityAgent {
     }
 
     // ---- Check 2: senhas sem hashing ----
-    if (hasPasswordWrite) {
-      const hashingLib = await this.findHashingLib(repoPath)
-      if (!hashingLib) {
-        findings.push(this.passwordNoHashing(scope))
-      }
+    // MONOREPO: procura a lib de hashing em TODOS os package.json do repo (não só a raiz).
+    // Em zap-api o bcrypt está em `backend/package.json` — ler só a raiz gerava FP.
+    if (hasPasswordWrite && !this.hasHashingLibInAnyPackageJson(files)) {
+      findings.push(this.passwordNoHashing(scope))
     }
 
     // ---- Check 4: criptografia em trânsito/repouso não evidenciada ----
@@ -367,15 +381,44 @@ export class ComplianceAgent implements SecurityAgent {
   // mais o termo sensível que casou (nome de variável/chave), jamais o conteúdo.
   // -------------------------------------------------------------------------
   private matchSensitiveLog(line: string): SensitiveLogHit | null {
-    // só os argumentos da chamada de log (depois do primeiro "(")
-    const callIdx = line.search(LOG_CALL)
-    const parenIdx = line.indexOf('(', callIdx)
-    const args = parenIdx >= 0 ? line.slice(parenIdx + 1) : line
-    const matches = args.match(SENSITIVE_TERM_GLOBAL)
+    // 1) É uma chamada de log REAL? Testamos na "code view" (strings zeradas): um
+    //    `console.log(` dentro de uma string (exemplo de código em blog/docs) some aqui.
+    const code = stripStringLiterals(line)
+    const callIdxCode = code.search(LOG_CALL)
+    if (callIdxCode < 0) return null
+
+    // 2) Só os ARGUMENTOS da chamada (parênteses balanceados) — não o resto da linha.
+    //    Descarta prosa/HTML/comentário DEPOIS do fechamento (FP do blog: "...cartão..."
+    //    após `console.log("API on")`).
+    const rawParen = line.indexOf('(', line.search(LOG_CALL))
+    if (rawParen < 0) return null
+    const rawArgs = this.extractCallArgs(line, rawParen)
+
+    // 3) Um termo sensível só conta se for um VALOR LOGADO, não a prosa da mensagem:
+    //    (a) identificador em código, fora de string (`user.cpf`);
+    //    (b) dentro de uma interpolação `${...}` (o valor logado);
+    //    (c) rótulo colado a uma interpolação (`token=${t}`, `Senha: ${x}` — o rótulo revela o valor).
+    const interpolations = Array.from(rawArgs.matchAll(/\$\{([^}]*)\}/g)).map(m => m[1]).join(' ')
+    const codeArgs = stripStringLiterals(rawArgs)
+    const adjacentLabels = Array.from(rawArgs.matchAll(/([\p{L}]+)\s*[:=]\s*\$\{/gu)).map(m => m[1]).join(' ')
+    const haystack = `${interpolations} ${codeArgs} ${adjacentLabels}`
+
+    const matches = haystack.match(SENSITIVE_TERM_GLOBAL)
     if (!matches || matches.length === 0) return null
     // termos únicos, normalizados em minúsculas — não inclui valores.
     const term = Array.from(new Set(matches.map(m => m.toLowerCase()))).join(', ')
     return { relPath: '', line: 0, term }
+  }
+
+  /** Argumentos de uma chamada a partir do '(' de abertura (parênteses balanceados na linha). */
+  private extractCallArgs(line: string, openParen: number): string {
+    let depth = 0
+    for (let i = openParen; i < line.length; i++) {
+      const c = line[i]
+      if (c === '(') depth++
+      else if (c === ')') { depth--; if (depth === 0) return line.slice(openParen + 1, i) }
+    }
+    return line.slice(openParen + 1) // não fechou na linha (chamada multi-linha) → até o fim
   }
 
   private sensitiveInLog(scope: ScanScope, relPath: string, line: number, hit: SensitiveLogHit): Finding {
@@ -419,24 +462,20 @@ export class ComplianceAgent implements SecurityAgent {
   // -------------------------------------------------------------------------
   // Check 2 — senhas sem hashing
   // -------------------------------------------------------------------------
-  private async findHashingLib(repoPath: string): Promise<string | null> {
-    let pkgRaw: string
-    try {
-      pkgRaw = await readFile(join(repoPath, 'package.json'), 'utf-8')
-    } catch {
-      return null // sem package.json → não dá pra confirmar lib; deixa o check rodar
+  /** Procura uma lib de hashing em QUALQUER package.json do repo (monorepo-aware). */
+  private hasHashingLibInAnyPackageJson(files: ScannedFile[]): boolean {
+    for (const f of files) {
+      if (f.relPath !== 'package.json' && !f.relPath.endsWith('/package.json')) continue
+      let pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
+      try {
+        pkg = JSON.parse(f.content)
+      } catch {
+        continue
+      }
+      const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
+      if (HASHING_LIBS.some(lib => lib in deps)) return true
     }
-    let pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
-    try {
-      pkg = JSON.parse(pkgRaw)
-    } catch {
-      return null
-    }
-    const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
-    for (const lib of HASHING_LIBS) {
-      if (lib in deps) return lib
-    }
-    return null
+    return false
   }
 
   private passwordNoHashing(scope: ScanScope): Finding {
