@@ -167,6 +167,58 @@ describe('SecretsAgent', () => {
     }
   })
 
+  it('does NOT flag placeholders de ELLIPSIS (pk_live_..., whsec_..., price_...) — FP real do zap-api', async () => {
+    const repo = await makeRepo({
+      '.gitignore': 'node_modules\n.env\n',
+      '.env.example': 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...\nSTRIPE_WEBHOOK_SECRET=whsec_...\nSTRIPE_PRICE_ID=price_...\n',
+    })
+    try {
+      const findings = await new SecretsAgent(scannerClean).run(scopeFor(repo))
+      expect(findings.find(x => x.title.includes('contém valores reais'))).toBeUndefined()
+    } finally {
+      await rm(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('does NOT flag config/instruções que NÃO são segredo (URLs, portas, durações, TROCAR_*) — FP real do zap-api', async () => {
+    const repo = await makeRepo({
+      '.gitignore': 'node_modules\n.env\n',
+      '.env.example': [
+        'DB_USER=zapapi',
+        'DB_PASSWORD=TROCAR_SENHA_FORTE',
+        'JWT_SECRET=TROCAR_SECRET_FORTE_64_CHARS',
+        'JWT_EXPIRATION=1d',
+        'FRONTEND_URL=https://zap-api.tech',
+        'SMTP_HOST=smtp.gmail.com',
+        'SMTP_PORT=587',
+        'WHATSAPP_ENGINE=baileys',
+        'WA_GATEWAY_SECRET=MESMO_SECRET_DO_WA_GATEWAY_ZAP',
+        'LOG_LEVEL=info',
+      ].join('\n'),
+    })
+    try {
+      const findings = await new SecretsAgent(scannerClean).run(scopeFor(repo))
+      expect(findings.find(x => x.title.includes('contém valores reais'))).toBeUndefined()
+    } finally {
+      await rm(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('AINDA flagga um SEGREDO REAL no .env.example (token de alta entropia) — recall', async () => {
+    const repo = await makeRepo({
+      '.gitignore': 'node_modules\n.env\n',
+      // valor de alta entropia (não é formato de provider conhecido — evita push-protection),
+      // exercita o ramo de entropia do looksLikeRealSecret (>=24 chars, letra+dígito).
+      '.env.example': 'SESSION_SECRET=k3Jd8Fh2Lm9Qp4Rs7Tv1Wx6Yz0Ab5CdEf\nPORT=3000\n',
+    })
+    try {
+      const findings = await new SecretsAgent(scannerClean).run(scopeFor(repo))
+      expect(findings.find(x => x.title.includes('contém valores reais'))).toBeDefined()
+    } finally {
+      await rm(repo, { recursive: true, force: true })
+    }
+  })
+
   it('produces deterministic, camada-tagged ids (stable across runs)', async () => {
     const repo = await makeRepo({
       '.gitignore': 'node_modules\ndist\n', // triggers env-not-gitignored too

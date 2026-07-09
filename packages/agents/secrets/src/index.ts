@@ -404,9 +404,34 @@ export class SecretsAgent implements SecurityAgent {
       // Remove aspas envolventes para avaliar o conteúdo.
       value = value.replace(/^["']|["']$/g, '').trim()
       if (!value) continue // KEY= → placeholder vazio, ok
-      if (this.looksLikePlaceholder(value)) continue
-      return true
+      // Só acusa se PARECE UM SEGREDO REAL — não qualquer valor. Um .env.example legítimo é
+      // cheio de config não-secreta (URLs, portas, durações, enums) e de placeholders em
+      // pt-BR ("TROCAR_SENHA_FORTE"). Acusar tudo isso treinava o dev a ignorar (FP no zap-api).
+      if (this.looksLikeRealSecret(value)) return true
     }
+    return false
+  }
+
+  /**
+   * True só quando o valor PARECE um segredo real (não config nem placeholder). Conservador:
+   * prefere deixar passar um segredo exótico a gritar em cima de config — o gitleaks é a
+   * varredura primária; este check é um nudge de higiene do .env.example.
+   */
+  private looksLikeRealSecret(value: string): boolean {
+    if (this.looksLikePlaceholder(value)) return false
+    // 1) Prefixos de segredo CONHECIDOS com conteúdo real (não '...') — vencem qualquer heurística.
+    if (/^(sk[-_][A-Za-z0-9]|rk_live_|whsec_[A-Za-z0-9]{8}|ghp_[A-Za-z0-9]{20}|gho_[A-Za-z0-9]{20}|xox[baprs]-|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{20})/.test(value)) return true
+    // 2) Instruções em caixa alta (pt-BR/en): TROCAR_/MUDAR_/ALTERAR_/CHANGE_/MESMO_/SEU_/SUA_/YOUR_
+    if (/^(TROCAR|MUDAR|ALTERAR|CHANGE|DEFINA|COLOQUE|INSIRA|MESMO|SEU|SUA|YOUR|SET)[_-]/i.test(value)) return false
+    // 3) Config comum, NÃO-segredo: URL, e-mail, número/porta, duração (1d/7s), palavra/enum/hostname.
+    if (/^https?:\/\//i.test(value)) return false
+    if (/^[\w.+-]+@[\w.-]+\.\w+$/.test(value)) return false
+    if (/^\d+$/.test(value)) return false
+    if (/^\d+\s*[smhd]$/i.test(value)) return false
+    // palavra/enum/hostname sem entropia mista (info, baileys, smtp.gmail.com, zap_rt, selfhosted)
+    if (/^[A-Za-z][\w.-]*$/.test(value) && !(/[A-Za-z]/.test(value) && /\d/.test(value) && value.replace(/[^0-9]/g, '').length >= 4)) return false
+    // 4) Token de alta entropia: ≥24 chars, mistura letra+dígito, sem espaço, não é caminho/URL.
+    if (value.length >= 24 && /[A-Za-z]/.test(value) && /\d/.test(value) && !/\s/.test(value) && !/\//.test(value)) return true
     return false
   }
 
@@ -416,6 +441,8 @@ export class SecretsAgent implements SecurityAgent {
     if (/^<.*>$/.test(value)) return true
     if (/^\$\{.*\}$/.test(value)) return true
     if (/^x+$/i.test(value)) return true
+    // Ellipsis = "preencha o resto" (FP real do zap-api: pk_live_..., whsec_..., price_...).
+    if (value.includes('...') || value.includes('…')) return true
     const placeholderWords = [
       'your', 'change', 'changeme', 'placeholder', 'example', 'exemplo',
       'todo', 'fixme', 'replace', 'sua-', 'seu-', 'dummy', 'fake', 'sample',
