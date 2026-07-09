@@ -95,6 +95,15 @@ export default function Home() {
               <p className="mt-2 text-sm text-muted">Um browser real confirma trackers/cookies que disparam antes do consentimento — prova, não palpite.</p>
             </div>
           </div>
+          <div className="mt-8 max-w-3xl rounded-md border border-border bg-surface-2 p-5">
+            <p className="font-mono text-xs uppercase tracking-wide text-accent">diferencial LGPD-nativo</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              O Fracta confere a sua <span className="text-text">Política de Privacidade contra o que o código realmente faz</span>.
+              Se a política <span className="text-text">nega</span> transferência internacional enquanto o código usa Stripe/OpenAI/AWS,
+              ele aponta a divergência — <span className="font-mono text-xs text-accent">Art. 33</span>. Uma política que mente
+              é pior que uma omissa, e quase nenhum scanner olha isso.
+            </p>
+          </div>
           <a href="/mcp" className="mt-8 inline-block font-mono text-sm text-accent hover:underline">ver todas as ferramentas →</a>
         </div>
       </section>
@@ -127,18 +136,27 @@ export default function Home() {
       <section className="border-b border-border">
         <div className="mx-auto max-w-content px-5 py-12">
           <h2 className="font-mono text-xs uppercase tracking-wide text-muted">por que confiar</h2>
-          <div className="mt-6 grid gap-6 md:grid-cols-3">
-            <div>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+            A mesma engine open-source do CLI, construída por um advogado que opera uma frota de legaltech —
+            segurança técnica cruzada com <span className="text-text">LGPD de verdade</span>. Quatro coisas que um
+            engenheiro cético confere antes de adotar uma ferramenta de segurança:
+          </p>
+          <div className="mt-8 grid gap-5 md:grid-cols-2">
+            <div className="rounded-md border border-border bg-surface p-5">
               <p className="font-mono text-sm text-accent">determinístico</p>
-              <p className="mt-2 text-sm text-muted">A mesma engine do CLI open-source. Regras, não alucinação de IA — o mesmo achado dá sempre o mesmo resultado.</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">Regras, não alucinação de IA. O mesmo input gera <span className="text-text">IDs de achado byte-idênticos</span> entre execuções — plugável em CI e SARIF, sem flapping.</p>
             </div>
-            <div>
-              <p className="font-mono text-sm text-accent">segurança × LGPD</p>
-              <p className="mt-2 text-sm text-muted">Construído por um advogado que opera uma frota de legaltech. Segurança técnica cruzada com LGPD de verdade.</p>
+            <div className="rounded-md border border-border bg-surface p-5">
+              <p className="font-mono text-sm text-accent">precisão medida</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">Não é um scanner que grita. Cada regra é aferida contra <span className="text-text">repositórios reais</span> e o falso-positivo é cortado na fonte — um achado <span className="text-text">alto</span> é um achado real, não ruído pra você aprender a ignorar.</p>
             </div>
-            <div>
+            <div className="rounded-md border border-border bg-surface p-5">
+              <p className="font-mono text-sm text-accent">origem verificável</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">Pacotes npm publicados com <span className="text-text">provenance (SLSA)</span> e <span className="text-text">zero script de instalação</span>. A ferramenta que audita não roda código na sua máquina só por instalar.</p>
+            </div>
+            <div className="rounded-md border border-border bg-surface p-5">
               <p className="font-mono text-sm text-accent">honesto por design</p>
-              <p className="mt-2 text-sm text-muted">Um check que não roda nunca vira verde. Alvo fora do ar fica inconclusivo — sem nota, sem fingimento.</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">Um check que não roda nunca vira verde. Alvo fora do ar fica <span className="text-faint">inconclusivo</span> — sem nota, sem fingimento.</p>
             </div>
           </div>
         </div>
