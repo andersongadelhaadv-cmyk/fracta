@@ -80,6 +80,21 @@ Os dados dos titulares não são transferidos para fora do Brasil; permanecem no
 Terceiros sob contrato. Base legal: consentimento. Cookies. Retenção legal. Encarregado.
 `
 
+// Política NUANÇADA e CONFORME (caso real do zap-api): DECLARA a transferência com base no
+// Art. 33 E diz que dados SENSÍVEIS permanecem no Brasil. A residência de um subconjunto não é
+// negação — citar o Art. 33 como base = está declarando. NÃO pode virar "contradição" (FP).
+const NUANCED_ART33_POLICY = `
+# Política de Privacidade
+
+## Transferência internacional
+Alguns dados são efetivamente transferidos para operadores no exterior. A transferência é
+baseada na hipótese do Art. 33, VII da LGPD (necessária para a execução do contrato). Dados
+sensíveis e mensagens dos Clientes permanecem no Brasil (Hostinger).
+
+## Operadores e base legal
+Terceiros sob contrato. Base legal: legítimo interesse. Cookies. Retenção legal. Encarregado (DPO).
+`
+
 describe('stripMarkup', () => {
   it('remove tags JSX/HTML e atributos, preservando o texto visível', () => {
     const out = stripMarkup('<td className="py-2 pr-4">Stripe</td>')
@@ -163,5 +178,20 @@ describe('diffPolicyVsCode', () => {
     const div = diffPolicyVsCode(doc, operators)
     expect(div.internationalDisclosed).toBe(true)
     expect(div.internationalDenied).toBe(false) // declaração verdadeira não vira falso-positivo de negação
+  })
+
+  it('FP do zap-api: DECLARA via Art. 33 + dados sensíveis "permanecem no Brasil" → declarado, NÃO negação', () => {
+    const doc = findPolicyDoc([{ relPath: 'legal/privacidade/page.tsx', content: NUANCED_ART33_POLICY }])!
+    const div = diffPolicyVsCode(doc, [op('Stripe', true), op('AWS', true)])
+    // Citar o Art. 33 como base = declaração; "permanecem no Brasil" (subconjunto) é nuance, não negação.
+    expect(div.internationalDenied).toBe(false)
+    expect(div.internationalDisclosed).toBe(true)
+  })
+
+  it('recall preservado: negação SEM base do Art. 33 continua sendo negação', () => {
+    const doc = findPolicyDoc([{ relPath: 'PRIVACIDADE.md', content: DENIES_INTL_POLICY }])!
+    const div = diffPolicyVsCode(doc, [op('Stripe', true)])
+    expect(div.internationalDenied).toBe(true)
+    expect(div.internationalDisclosed).toBe(false)
   })
 })

@@ -119,10 +119,19 @@ export interface PolicyDivergence {
 /** Confere a política publicada contra os operadores/transferências que o código revela. */
 export function diffPolicyVsCode(policy: PolicyDoc, operators: OperatorMatch[]): PolicyDivergence {
   const text = policy.text.toLowerCase()
-  const internationalDenied = INTL_DENIAL.test(policy.text)
-  // Uma NEGAÇÃO nunca conta como disclosure — mesmo que contenha o termo "internacional".
-  // Este é o coração do fix: mention (inclusive na negação) ≠ declaração honesta.
-  const internationalDisclosed = INTL_DISCLOSURE.test(policy.text) && !internationalDenied
+  const mentionsIntl = INTL_DISCLOSURE.test(policy.text)
+  const deniesIntl = INTL_DENIAL.test(policy.text)
+  // Uma política que cita o Art. 33 (a base legal DA transferência internacional) está
+  // DECLARANDO/justificando a transferência, não negando. Desambigua o caso nuançado e conforme
+  // (real: zap-api) "transferimos sob a hipótese do Art. 33, mas dados sensíveis permanecem no
+  // Brasil" — a residência de um SUBCONJUNTO ("permanecem no Brasil") casaria INTL_DENIAL, mas
+  // não é negação da transferência. Conservador (na dúvida, declarado): evita FP em política conforme.
+  const citesArt33Basis = /art\.?\s*33/i.test(policy.text)
+  // Uma NEGAÇÃO nunca conta como disclosure — mas só é negação se NÃO houver também a declaração
+  // via Art. 33. Este é o coração do fix: mention (inclusive na negação) ≠ declaração honesta;
+  // porém declaração explícita (Art. 33) vence a nuance territorial.
+  const internationalDenied = deniesIntl && !(mentionsIntl && citesArt33Basis)
+  const internationalDisclosed = mentionsIntl && !internationalDenied
   const hasInternationalOps = operators.some(o => o.international)
 
   const undeclaredOperators: OperatorMatch[] = []
