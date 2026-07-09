@@ -64,6 +64,24 @@ describe('DocsAgent', () => {
     expect(todos.map(f => f.endpoint).sort()).toEqual(['a.md', 'b.md', 'c.md'])
   })
 
+  it('NÃO conta v0/v1 de PATH de rota (/v1/…) nem semver (v1.2) como referência legada (FP real do zap-api)', async () => {
+    await writeFile(
+      join(tmp, 'api.md'),
+      '# API\n\nGET /v1/instances\nPOST /v1/messages\nGET /v1/status\nDELETE /v1/webhooks\nSDK v1.2.3\n',
+    )
+    const findings = await new DocsAgent(tmp).run(scope)
+    expect(findings.find(f => f.title.includes('versões legadas'))).toBeUndefined()
+  })
+
+  it('GUARD DE RECALL: ainda flagga referências reais a v0/v1 em prosa', async () => {
+    await writeFile(
+      join(tmp, 'legacy.md'),
+      '# Migração\n\nA API v1 foi descontinuada. Migre da v1 para a v2. A v0 nem existe mais.\n',
+    )
+    const findings = await new DocsAgent(tmp).run(scope)
+    expect(findings.find(f => f.title.includes('versões legadas'))).toBeDefined()
+  })
+
   it('flags duplicate H1 titles across files', async () => {
     await writeFile(join(tmp, 'a.md'), '# Setup\n\nA')
     await writeFile(join(tmp, 'b.md'), '# Setup\n\nB')

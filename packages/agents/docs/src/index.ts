@@ -147,7 +147,9 @@ export class DocsAgent implements SecurityAgent {
       })
     }
 
-    const v1Matches = (file.content.match(/\bv[01]\b/gi) ?? []).length
+    // v0/v1 como referência a versão LEGADA em prosa — NÃO conta o `v1` de path de rota
+    // (`/v1/…`, versão ATUAL da API) nem semver (`v1.2.3`). Era ruído puro no zap-api (rotas /v1/).
+    const v1Matches = (file.content.match(/(?<![/\w.])v[01](?![/\w.-])/gi) ?? []).length
     if (v1Matches > 2) {
       findings.push({
         id: stableFindingId({ saas: scope.target.name, camada: this.category, rule: `doc-legacy-version-refs:${file.relativePath}`, location: file.relativePath }),
