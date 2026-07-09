@@ -3625,8 +3625,11 @@ var OPERATOR_SYNONYMS = {
 var NOT_A_SUBPROCESSOR = /* @__PURE__ */ new Set(["Banco de dados (self-hosted)"]);
 function diffPolicyVsCode(policy, operators) {
   const text = policy.text.toLowerCase();
-  const internationalDenied = INTL_DENIAL.test(policy.text);
-  const internationalDisclosed = INTL_DISCLOSURE.test(policy.text) && !internationalDenied;
+  const mentionsIntl = INTL_DISCLOSURE.test(policy.text);
+  const deniesIntl = INTL_DENIAL.test(policy.text);
+  const citesArt33Basis = /art\.?\s*33/i.test(policy.text);
+  const internationalDenied = deniesIntl && !(mentionsIntl && citesArt33Basis);
+  const internationalDisclosed = mentionsIntl && !internationalDenied;
   const hasInternationalOps = operators.some((o) => o.international);
   const undeclaredOperators = [];
   for (const op of operators) {
@@ -5154,7 +5157,7 @@ import { createRequire as createRequire3 } from "module";
 // package.json
 var package_default = {
   name: "fractascan-mcp",
-  version: "0.1.18",
+  version: "0.1.19",
   description: "Model Context Protocol server exposing Fracta scan tools (passive_scan, scan_repo, \u2026)",
   license: "MIT",
   author: "Anderson Gadelha",
