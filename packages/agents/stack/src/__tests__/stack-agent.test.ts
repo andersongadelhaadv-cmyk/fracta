@@ -154,6 +154,25 @@ describe('StackAgent', () => {
     expect(hasRule(findings, 'next-public-secret:NEXT_PUBLIC_SITE_URL', '.env')).toBe(false)
   })
 
+  it('NÃO flagga chave PÚBLICA por design (Stripe PUBLISHABLE / PUBLIC_KEY / pk_live) — FP real do zap-api', async () => {
+    await write(
+      '.env.example',
+      [
+        'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51ABCdef',
+        'NEXT_PUBLIC_VAPID_PUBLIC_KEY=BJxxxxx',
+        'NEXT_PUBLIC_STRIPE_KEY=pk_test_51ZZZ',
+        'NEXT_PUBLIC_API_SECRET=super-secret-value',
+      ].join('\n'),
+    )
+    const findings = await new StackAgent().run(makeScope(tmp))
+    // públicos por design → NÃO são vazamento
+    expect(hasRule(findings, 'next-public-secret:NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', '.env.example')).toBe(false)
+    expect(hasRule(findings, 'next-public-secret:NEXT_PUBLIC_VAPID_PUBLIC_KEY', '.env.example')).toBe(false)
+    expect(hasRule(findings, 'next-public-secret:NEXT_PUBLIC_STRIPE_KEY', '.env.example')).toBe(false)
+    // recall: um SECRET de verdade com NEXT_PUBLIC_ continua sendo vazamento
+    expect(hasRule(findings, 'next-public-secret:NEXT_PUBLIC_API_SECRET', '.env.example')).toBe(true)
+  })
+
   it('flags CORS wildcard origin', async () => {
     await write('src/cors.ts', "app.enableCors({ origin: '*', credentials: true })")
 

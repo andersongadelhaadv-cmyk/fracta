@@ -380,6 +380,12 @@ export class StackAgent implements SecurityAgent {
   // 6a) Segredos NEXT_PUBLIC_ em .env*/next.config.* cujo NOME parece segredo.
   private checkNextPublicSecrets(sources: SourceFile[], out: FindingInput[]): void {
     const secretName = /KEY|SECRET|TOKEN|PASSWORD|PRIVATE|CREDENTIAL/i
+    // PÚBLICO POR DESIGN — não é vazamento: chave "publishable" (Stripe) e chaves nomeadas
+    // "PUBLIC_KEY" (VAPID/RSA pública) são FEITAS para o cliente. Sem essa isenção, todo
+    // `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` virava `high` falso (FP medido no zap-api).
+    const publicByDesignName = /PUBLISHABLE|PUBLIC_?KEY/i
+    // Valor com prefixo de chave publicável (pk_live/pk_test) = público por definição.
+    const publishableValue = /=\s*["']?pk_(?:live|test)_/i
     // captura NEXT_PUBLIC_<NAME> em atribuições (env ou next.config)
     const re = /\bNEXT_PUBLIC_([A-Z0-9_]+)\b/g
 
@@ -392,6 +398,8 @@ export class StackAgent implements SecurityAgent {
         const varName = `NEXT_PUBLIC_${suffix}`
         if (seen.has(varName)) continue
         if (!secretName.test(varName)) continue
+        // Chave pública por design (nome PUBLISHABLE/PUBLIC_KEY ou valor pk_live/pk_test) → não é segredo.
+        if (publicByDesignName.test(varName) || publishableValue.test(file.content.slice(m.index, m.index + 160))) continue
         seen.add(varName)
         const line = this.lineAt(file.content, m.index)
         out.push({
