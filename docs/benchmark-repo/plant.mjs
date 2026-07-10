@@ -53,10 +53,29 @@ app.get('/hello', (req, res) => res.send('<h1>Hello ' + req.query.name + '</h1>'
 export default app
 `)
 
-w('prisma/schema.prisma', `datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
-generator client { provider = "prisma-client-js" }
-model User { id String @id @default(uuid()) nome String email String @unique cpf String senha String telefone String? }
-model Processo { id String @id @default(uuid()) numero String beneficio String diagnostico String? userId String }
+// schema realista (um campo por linha) — o parser de ROPA lê campo a campo.
+w('prisma/schema.prisma', `datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+generator client {
+  provider = "prisma-client-js"
+}
+model User {
+  id        String @id @default(uuid())
+  nome      String
+  email     String @unique
+  cpf       String
+  senha     String
+  telefone  String?
+}
+model Processo {
+  id          String @id @default(uuid())
+  numero      String
+  beneficio   String
+  diagnostico String?
+  userId      String
+}
 `)
 
 w('src/auth.ts', `import { PrismaClient } from '@prisma/client'

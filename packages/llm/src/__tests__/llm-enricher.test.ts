@@ -52,6 +52,17 @@ describe('LlmEnricher', () => {
     expect(await enricher.enrich(r)).toBe(r)
   })
 
+  it('DEGRADA para o relatório determinístico quando o cliente LLM falha (SDK opcional ausente/rede)', async () => {
+    // A borda LLM é enriquecedora, nunca crítica: um erro no complete() (ex.: @anthropic-ai/sdk
+    // não instalado, rate-limit) NÃO pode derrubar o scan — retorna o relatório determinístico.
+    const enricher = new LlmEnricher({
+      client: { complete: async () => { throw new Error('@anthropic-ai/sdk não instalado') } },
+    })
+    const r = report([finding('a', 'high'), finding('b', 'critical')])
+    const out = await enricher.enrich(r)
+    expect(out).toBe(r) // inalterado, sem lançar
+  })
+
   it('does not call the model when there are no findings', async () => {
     let called = false
     const enricher = new LlmEnricher({ client: { complete: async () => { called = true; return '{}' } } })

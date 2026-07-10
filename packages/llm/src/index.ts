@@ -71,12 +71,24 @@ export class LlmEnricher implements ReportEnricher {
   async enrich(report: AuditReport): Promise<AuditReport> {
     if (!this.client || report.findings.length === 0) return report
 
-    const raw = await this.client.complete({
-      model: this.model,
-      system: SYSTEM_PROMPT,
-      user: buildUserPrompt(report),
-      maxTokens: 8000,
-    })
+    // A borda LLM é ENRIQUECEDORA, nunca crítica: se falhar (SDK opcional ausente, rede,
+    // rate-limit), DEGRADA para o relatório determinístico — nunca derruba o scan. Isso mantém
+    // o invariante de honestidade (o núcleo determinístico é a verdade; o LLM só reordena/anota).
+    let raw: string
+    try {
+      raw = await this.client.complete({
+        model: this.model,
+        system: SYSTEM_PROMPT,
+        user: buildUserPrompt(report),
+        maxTokens: 8000,
+      })
+    } catch (err) {
+      if (this.verbose) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error(`[Fracta] LLM indisponível (${msg}); mantendo relatório determinístico`)
+      }
+      return report
+    }
 
     const parsed = parseModelJson(raw)
     if (!parsed) {
@@ -182,8 +194,15 @@ function truncate(s: string, max: number): string {
 function createAnthropicClient(apiKey: string): LlmClient {
   return {
     async complete({ model, system, user, maxTokens }) {
-      // Import dinâmico: o SDK só é carregado quando a borda LLM é realmente usada.
-      const mod = await import('@anthropic-ai/sdk')
+      // Import dinâmico: o SDK só é carregado quando a borda LLM é realmente usada (zero-token
+      // por padrão). `@anthropic-ai/sdk` é peerDependency OPCIONAL do CLI/MCP — se ausente, um
+      // erro claro (capturado pelo enrich → degrada p/ determinístico), nunca um ENOENT cru.
+      let mod: typeof import('@anthropic-ai/sdk')
+      try {
+        mod = await import('@anthropic-ai/sdk')
+      } catch {
+        throw new Error('@anthropic-ai/sdk não instalado — rode `npm i @anthropic-ai/sdk` para habilitar --llm (borda opcional)')
+      }
       const Anthropic = mod.default
       const client = new Anthropic({ apiKey })
       const resp = await client.messages.create({

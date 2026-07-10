@@ -7,7 +7,6 @@ import {
   runCommand,
   stableFindingId
 } from "./chunk-U24RMSTQ.js";
-import "./chunk-JSBRDJBE.js";
 
 // src/index.ts
 import { readFile as readFile6, writeFile as writeFile2, access, mkdir as mkdir2 } from "fs/promises";
@@ -4699,12 +4698,21 @@ var LlmEnricher = class {
   }
   async enrich(report) {
     if (!this.client || report.findings.length === 0) return report;
-    const raw = await this.client.complete({
-      model: this.model,
-      system: SYSTEM_PROMPT,
-      user: buildUserPrompt(report),
-      maxTokens: 8e3
-    });
+    let raw;
+    try {
+      raw = await this.client.complete({
+        model: this.model,
+        system: SYSTEM_PROMPT,
+        user: buildUserPrompt(report),
+        maxTokens: 8e3
+      });
+    } catch (err) {
+      if (this.verbose) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[Fracta] LLM indispon\xEDvel (${msg}); mantendo relat\xF3rio determin\xEDstico`);
+      }
+      return report;
+    }
     const parsed = parseModelJson(raw);
     if (!parsed) {
       if (this.verbose) console.error("[Fracta] LLM: resposta n\xE3o interpret\xE1vel; mantendo relat\xF3rio determin\xEDstico");
@@ -4792,7 +4800,12 @@ function truncate(s, max) {
 function createAnthropicClient(apiKey) {
   return {
     async complete({ model, system, user, maxTokens }) {
-      const mod = await import("./sdk-XAPX3I3B.js");
+      let mod;
+      try {
+        mod = await import("@anthropic-ai/sdk");
+      } catch {
+        throw new Error("@anthropic-ai/sdk n\xE3o instalado \u2014 rode `npm i @anthropic-ai/sdk` para habilitar --llm (borda opcional)");
+      }
       const Anthropic = mod.default;
       const client = new Anthropic({ apiKey });
       const resp = await client.messages.create({
@@ -4880,6 +4893,14 @@ var package_default = {
     "@types/node": "*",
     tsup: "*",
     typescript: "*"
+  },
+  peerDependencies: {
+    "@anthropic-ai/sdk": "*"
+  },
+  peerDependenciesMeta: {
+    "@anthropic-ai/sdk": {
+      optional: true
+    }
   }
 };
 
@@ -4962,7 +4983,7 @@ Options:
     process.exit(0);
   }
   if (command === "init") {
-    const { runInit } = await import("./init-EUSLT3FC.js");
+    const { runInit } = await import("./init-6SU3MPRB.js");
     const path = positionals[1] ?? values.config;
     const result = await runInit(
       { path, force: values.force },
@@ -4991,7 +5012,7 @@ Options:
       process.exit(2);
     }
     try {
-      const { RuntimeVerifier } = await import("./dist-XCY4P772.js");
+      const { RuntimeVerifier } = await import("./dist-DUEOFKOS.js");
       const report = await new RuntimeVerifier().verifyConsent(targetUrl);
       console.log(`Verifica\xE7\xE3o em runtime de ${report.url}`);
       console.log(report.evidence.firedBeforeInteraction ? `\u26A0\uFE0F  trackers dispararam ANTES do consentimento: ${report.evidence.trackers.map((t) => t.name).join(", ")}` : "\u2705 nenhum tracker disparou antes do consentimento");
@@ -5011,8 +5032,8 @@ Options:
       process.exit(2);
     }
     try {
-      const { RuntimeCspVerifier } = await import("./dist-XCY4P772.js");
-      const { formatCspCli } = await import("./csp-cli-format-WPU5K4QA.js");
+      const { RuntimeCspVerifier } = await import("./dist-DUEOFKOS.js");
+      const { formatCspCli } = await import("./csp-cli-format-JMFN5QRI.js");
       const report = await new RuntimeCspVerifier().verifyCoverage(targetUrl);
       console.log(formatCspCli(report));
       const acionavel = report.findings.some((f) => f.severity !== "info");

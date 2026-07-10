@@ -48,18 +48,26 @@ Todos os "segredos" são **sintéticos** (aleatórios, não são credenciais rea
 camada LGPD que vale 5/5 sozinha, com honestidade e IDs determinísticos que os incumbentes não dão.
 A tese "LGPD + SAST + segredos + honestidade num lugar" é **medida**, não afirmada.
 
-### Ajuste em aberto (descoberto por este benchmark)
-O default `p/security-audit` tem recall SAST baixo (1/4). `p/default` triplica (3/4) mas é mais ruidoso.
-Trocar o default exige medir o **custo de precisão em repo real** antes (princípio anti-cry-wolf) — não
-se troca às cegas. Rastreado junto à varredura de FPR da frota.
+### Ajuste do config SAST — MEDIDO e DECIDIDO (2026-07-10)
+O default `p/security-audit` pega 1/4 no repo plantado; `p/default` pega 3/4 (+`eval`/XSS). Antes de
+trocar às cegas, medimos o **custo de precisão em código REAL** (anti-cry-wolf):
+- 19 arquivos reais limpos (Veredicto): p/default **0 novas** (não espalha FP em código limpo — bom).
+- 59 arquivos reais (zap-api services): p/security-audit 0 → p/default **+1**, e essa 1 é
+  `detect-non-literal-regexp` — regra **notoriamente de baixa precisão** (ReDoS só importa com input do
+  usuário). Ou seja: em código real, o ganho do p/default é dominado por **ruído**, não pelo eval/XSS
+  (que quase só aparece em fixture).
 
-## Reprodução
+**Decisão:** manter `p/security-audit` como default (alta precisão — a postura anti-cry-wolf do produto).
+Quem quer SAST agressivo já tem o tunable **`FRACTA_SEMGREP_CONFIG=p/default`** (existe desde sempre).
+Documentado como escolha informada, com os números na mesa — não como default arriscado.
+
+## Reprodução (um comando)
 
 ```bash
-# repo plantado: docs/benchmark-repo/ (gabarito em GROUND-TRUTH.md)
-gitleaks detect --source <repo> --report-format json --report-path gl.json
-semgrep scan --config p/security-audit --json <repo>
-trivy fs --scanners vuln <repo>
-# Fracta (wrap dos três + LGPD):
-npx fractascan scan --target <repo> --depth full     # ou MCP: scan_repo
+bash docs/benchmark-repo/run.sh /tmp/fracta-bench
 ```
+
+Planta o repo (gabarito machine-checkable em `docs/benchmark-repo/ground-truth.json`), roda
+gitleaks/semgrep/trivy/npm-audit/fracta e imprime a tabela de recall via `score.mjs`. Ferramentas
+ausentes entram como 0. Detalhes e a nota de honestidade (o scorer é um piso conservador para o Fracta;
+esta tabela conferida à mão é a canônica) em `docs/benchmark-repo/README.md`.

@@ -7,7 +7,6 @@ import {
   runCommand,
   stableFindingId
 } from "./chunk-U24RMSTQ.js";
-import "./chunk-JSBRDJBE.js";
 
 // src/index.ts
 import { readFile as readFile6 } from "fs/promises";
@@ -5171,12 +5170,21 @@ var LlmEnricher = class {
   }
   async enrich(report) {
     if (!this.client || report.findings.length === 0) return report;
-    const raw = await this.client.complete({
-      model: this.model,
-      system: SYSTEM_PROMPT,
-      user: buildUserPrompt(report),
-      maxTokens: 8e3
-    });
+    let raw;
+    try {
+      raw = await this.client.complete({
+        model: this.model,
+        system: SYSTEM_PROMPT,
+        user: buildUserPrompt(report),
+        maxTokens: 8e3
+      });
+    } catch (err) {
+      if (this.verbose) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[Fracta] LLM indispon\xEDvel (${msg}); mantendo relat\xF3rio determin\xEDstico`);
+      }
+      return report;
+    }
     const parsed = parseModelJson(raw);
     if (!parsed) {
       if (this.verbose) console.error("[Fracta] LLM: resposta n\xE3o interpret\xE1vel; mantendo relat\xF3rio determin\xEDstico");
@@ -5264,7 +5272,12 @@ function truncate(s, max) {
 function createAnthropicClient(apiKey) {
   return {
     async complete({ model, system, user, maxTokens }) {
-      const mod = await import("./sdk-XAPX3I3B.js");
+      let mod;
+      try {
+        mod = await import("@anthropic-ai/sdk");
+      } catch {
+        throw new Error("@anthropic-ai/sdk n\xE3o instalado \u2014 rode `npm i @anthropic-ai/sdk` para habilitar --llm (borda opcional)");
+      }
       const Anthropic = mod.default;
       const client = new Anthropic({ apiKey });
       const resp = await client.messages.create({
@@ -5359,6 +5372,14 @@ var package_default = {
     "@types/node": "*",
     tsup: "*",
     typescript: "*"
+  },
+  peerDependencies: {
+    "@anthropic-ai/sdk": "*"
+  },
+  peerDependenciesMeta: {
+    "@anthropic-ai/sdk": {
+      optional: true
+    }
   }
 };
 
@@ -5631,9 +5652,9 @@ ${lines.join("\n")}${more}`;
       const url = a.url;
       if (!url) return { content: [{ type: "text", text: "Informe `url`." }] };
       try {
-        const { RuntimeVerifier } = await import("./dist-XCY4P772.js");
+        const { RuntimeVerifier } = await import("./dist-DUEOFKOS.js");
         const report = await new RuntimeVerifier().verifyConsent(url);
-        const { formatVerifyReport } = await import("./verify-format-W2KPYAOV.js");
+        const { formatVerifyReport } = await import("./verify-format-T6SWWLPZ.js");
         return { content: [{ type: "text", text: formatVerifyReport(report) }] };
       } catch (e) {
         const msg = e instanceof Error && e.name === "BrowserUnavailableError" ? e.message : `Falha na verifica\xE7\xE3o em runtime: ${e instanceof Error ? e.message : String(e)}`;
@@ -5644,9 +5665,9 @@ ${lines.join("\n")}${more}`;
       const url = a.url;
       if (!url) return { content: [{ type: "text", text: "Informe `url`." }] };
       try {
-        const { RuntimeCspVerifier } = await import("./dist-XCY4P772.js");
+        const { RuntimeCspVerifier } = await import("./dist-DUEOFKOS.js");
         const report = await new RuntimeCspVerifier().verifyCoverage(url);
-        const { formatCspReport } = await import("./csp-format-A6JBAVS3.js");
+        const { formatCspReport } = await import("./csp-format-JQYPANV4.js");
         return { content: [{ type: "text", text: formatCspReport(report) }] };
       } catch (e) {
         const msg = e instanceof Error && e.name === "BrowserUnavailableError" ? e.message : `Falha na auditoria de CSP em runtime: ${e instanceof Error ? e.message : String(e)}`;

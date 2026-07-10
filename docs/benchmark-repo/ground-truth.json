@@ -1,0 +1,26 @@
+{
+  "description": "Gabarito machine-checkable do repo plantado (docs/benchmark-repo/plant.mjs). Cada item tem uma categoria e o(s) arquivo(s) onde está plantado. score.mjs casa as findings de cada ferramenta (categoria + arquivo) contra isto e calcula recall/precisão. Segredos são SINTÉTICOS.",
+  "items": [
+    { "id": "S1", "category": "secret", "file": "src/config-secrets.ts", "what": "AWS access key id" },
+    { "id": "S2", "category": "secret", "file": "src/config-secrets.ts", "what": "AWS secret access key" },
+    { "id": "S3", "category": "secret", "file": "src/config-secrets.ts", "what": "Stripe live secret" },
+    { "id": "S4", "category": "secret", "file": "src/config-secrets.ts", "what": "GitHub PAT" },
+    { "id": "S5", "category": "secret", "file": "src/config-secrets.ts", "what": "generic high-entropy key" },
+    { "id": "S6", "category": "secret", "file": "src/id_rsa", "what": "RSA private key" },
+
+    { "id": "V1", "category": "sast", "file": "src/routes.ts", "what": "SQL injection (string concat)" },
+    { "id": "V2", "category": "sast", "file": "src/routes.ts", "what": "command injection (exec)" },
+    { "id": "V3", "category": "sast", "file": "src/routes.ts", "what": "eval of user input" },
+    { "id": "V4", "category": "sast", "file": "src/routes.ts", "what": "reflected XSS" },
+
+    { "id": "D1", "category": "deps", "pkg": "lodash", "what": "lodash@4.17.4 CVEs" },
+    { "id": "D2", "category": "deps", "pkg": "axios", "what": "axios@0.18.0 CVEs" },
+    { "id": "D3", "category": "deps", "pkg": "jsonwebtoken", "what": "jsonwebtoken@8.5.1 CVE" },
+
+    { "id": "L1", "category": "lgpd", "file": "app/privacidade/page.tsx", "what": "Art.33: policy denies intl transfer, code does it" },
+    { "id": "L2", "category": "lgpd", "file": "app/privacidade/page.tsx", "what": "operator not declared in policy (Sentry)" },
+    { "id": "L3", "category": "lgpd", "file": "src/auth.ts", "what": "sensitive data (cpf/senha) in log" },
+    { "id": "L4", "category": "lgpd", "file": "prisma/schema.prisma", "what": "ROPA/inventory: personal+sensitive fields" },
+    { "id": "L5", "category": "lgpd", "file": "src/auth.ts", "what": "password stored without hashing" }
+  ]
+}
