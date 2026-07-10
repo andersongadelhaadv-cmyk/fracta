@@ -373,6 +373,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: '*'
+        version: 0.106.0(zod@4.4.3)
       yaml:
         specifier: ^2.4.0
         version: 2.8.4
@@ -511,6 +514,9 @@ importers:
 
   packages/mcp-server:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: '*'
+        version: 0.106.0(zod@4.4.3)
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.29.0(zod@4.4.3)
