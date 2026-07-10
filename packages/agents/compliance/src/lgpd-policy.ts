@@ -106,6 +106,13 @@ const OPERATOR_SYNONYMS: Record<string, string[]> = {
 // Operadores que NÃO são sub-processadores de terceiros a declarar (infra self-hosted/nacional).
 const NOT_A_SUBPROCESSOR = new Set(['Banco de dados (self-hosted)'])
 
+// Encarregado/DPO (Art. 41) declarado na política.
+const POLICY_DPO = /encarregad|\bdpo\b|data protection officer/i
+// Direitos do titular (Art. 18) declarados na política. Conservador (na dúvida = declarado):
+// qualquer sinal claro de exercício de direitos conta, para não acusar política conforme.
+const POLICY_RIGHTS =
+  /direitos?\s+d[oe]s?\s+titular|direito\s+de\s+(acesso|corre|exclus|elimin|portabil)|(solicitar|exercer|revogar)[\s\S]{0,40}(acesso|corre[çc]|exclus|elimin|portabil|consentimento)|portabilidade\s+d[oe]s?\s+dados|anonimiza[çc][ãa]o/i
+
 export interface PolicyDivergence {
   policyPath: string
   hasInternationalOps: boolean
@@ -114,6 +121,10 @@ export interface PolicyDivergence {
   /** A política NEGA transferência internacional ("não realizamos…", "permanecem no Brasil"). */
   internationalDenied: boolean
   undeclaredOperators: OperatorMatch[]
+  /** A política declara o Encarregado/DPO e canal de contato (Art. 41). */
+  declaresDpo: boolean
+  /** A política declara os direitos do titular / como exercê-los (Art. 18). */
+  declaresDataSubjectRights: boolean
 }
 
 /** Confere a política publicada contra os operadores/transferências que o código revela. */
@@ -142,5 +153,9 @@ export function diffPolicyVsCode(policy: PolicyDoc, operators: OperatorMatch[]):
     if (!declared) undeclaredOperators.push(op)
   }
 
-  return { policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, internationalDenied, undeclaredOperators }
+  return {
+    policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, internationalDenied, undeclaredOperators,
+    declaresDpo: POLICY_DPO.test(policy.text),
+    declaresDataSubjectRights: POLICY_RIGHTS.test(policy.text),
+  }
 }

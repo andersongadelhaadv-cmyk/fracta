@@ -202,7 +202,9 @@ describe('StackAgent', () => {
     expect(f!.references?.some(r => /definitions\/798\b/.test(r))).toBe(true) // → A07
   })
 
-  it('flags tenant-isolation heuristic for findMany without tenant scoping', async () => {
+  it('flags tenant-isolation heuristic for findMany on a tenant-scoped model without scoping', async () => {
+    // O modelo precisa TER coluna de tenant/owner no schema (senão não é multi-tenant → check N/A).
+    await write('prisma/schema.prisma', 'model User {\n  id String @id\n  tenantId String\n}\n')
     await write('src/repo.ts', 'const rows = await prisma.user.findMany({ where: { active: true } })')
 
     const findings = await new StackAgent().run(makeScope(tmp))
@@ -215,7 +217,35 @@ describe('StackAgent', () => {
   })
 
   it('does NOT flag tenant heuristic when tenantId is in the where', async () => {
+    await write('prisma/schema.prisma', 'model User {\n  id String @id\n  tenantId String\n}\n')
     await write('src/repo.ts', 'const rows = await prisma.user.findMany({ where: { tenantId: ctx.tenantId } })')
+
+    const findings = await new StackAgent().run(makeScope(tmp))
+    expect(findings.some(x => x.title.startsWith('Possível falta de isolamento de tenant'))).toBe(false)
+  })
+
+  it('round 3: NÃO flagga query num modelo SEM coluna de tenant (FP de 184 no Veredicto)', async () => {
+    // App com ALGUM modelo tenant-scoped (Team.ownerId) mas a query é num modelo de conteúdo.
+    await write('prisma/schema.prisma',
+      'model Team {\n  id String @id\n  ownerId String\n}\n' +
+      'model Article {\n  id String @id\n  title String\n}\n')
+    await write('src/articles.ts', 'const rows = await prisma.article.findMany({ orderBy: { id: "asc" } })')
+
+    const findings = await new StackAgent().run(makeScope(tmp))
+    expect(findings.some(x => x.title.startsWith('Possível falta de isolamento de tenant'))).toBe(false)
+  })
+
+  it('round 3: NÃO roda o check num app SEM nenhum modelo tenant-scoped', async () => {
+    await write('prisma/schema.prisma', 'model Article {\n  id String @id\n  userId String\n}\n')
+    await write('src/repo.ts', 'const rows = await prisma.article.findMany({ where: { active: true } })')
+
+    const findings = await new StackAgent().run(makeScope(tmp))
+    expect(findings.some(x => x.title.startsWith('Possível falta de isolamento de tenant'))).toBe(false)
+  })
+
+  it('round 3: findUnique (lookup por chave única) NÃO é flaggado', async () => {
+    await write('prisma/schema.prisma', 'model User {\n  id String @id\n  tenantId String\n}\n')
+    await write('src/repo.ts', 'const u = await prisma.user.findUnique({ where: { id } })')
 
     const findings = await new StackAgent().run(makeScope(tmp))
     expect(findings.some(x => x.title.startsWith('Possível falta de isolamento de tenant'))).toBe(false)

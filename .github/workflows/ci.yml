@@ -77,6 +77,47 @@ jobs:
           path: fracta-reports/
           if-no-files-found: ignore
 
+  # Auditabilidade das dependências. O CLI/MCP EMBUTEM (`tsup noExternal`) o código
+  # @fracta/* e algumas deps transitivas (ex.: undici) no `dist` publicado — então
+  # `npm audit` rodado no PACOTE instalado NÃO enxerga a árvore toda. A resposta honesta:
+  # auditar a ÁRVORE COMPLETA aqui, na fonte, onde o pnpm-lock.yaml é a verdade — e
+  # publicar um SBOM (CycloneDX) que ENUMERA cada dependência, inclusive as embutidas.
+  # Um cético roda `npm audit` no que instala; nós provamos a auditoria da árvore no CI.
+  deps-audit:
+    name: Deps audit + SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Relatório da ÁRVORE COMPLETA (inclui devDeps do toolchain de build/test) — SEMPRE
+      # gerado como artefato, para transparência total.
+      - name: pnpm audit (árvore completa — relatório)
+        run: |
+          pnpm audit --json > pnpm-audit.json || true
+          echo "### Resumo (árvore completa, incl. devDeps de build)" && (pnpm audit --audit-level=low || true)
+      # GATE honesto: reprova só em CRITICAL nas dependências de PRODUÇÃO (o que de fato é
+      # publicado/deployado). CVE crítico no toolchain de build (ex.: esbuild dev-server) NÃO
+      # é embarcado no pacote npm nem no runtime — reprovar nele seria cry-wolf.
+      - name: Reprova em CRITICAL de produção
+        run: pnpm audit --prod --audit-level=critical
+      # SBOM CycloneDX — enumera CADA dependência (incl. as embutidas no bundle).
+      - name: Gera SBOM (CycloneDX)
+        run: npx --yes @cyclonedx/cdxgen@11 -o sbom.cdx.json -t js --no-recurse || npx --yes @cyclonedx/cdxgen@11 -o sbom.cdx.json
+      - name: Upload audit + SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fracta-deps-audit-sbom
+          path: |
+            pnpm-audit.json
+            sbom.cdx.json
+          if-no-files-found: warn
+
   # Node 20 smoke (NÃO é matriz de teste: `@fracta/store` usa node:sqlite,
   # builtin só em Node >= 22.5 — em Node 20 os testes do store falham POR DESIGN).
   # Aqui provamos, por EXECUÇÃO, a DEGRADAÇÃO GRACIOSA: o CLI funciona em Node 20

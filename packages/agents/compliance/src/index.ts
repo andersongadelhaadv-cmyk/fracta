@@ -119,8 +119,6 @@ export class ComplianceAgent implements SecurityAgent {
         hasPasswordWrite = true
       }
 
-      const fileMentionsSensitive = SENSITIVE_TERM.test(file.content)
-
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
         const lineNo = i + 1
@@ -133,8 +131,15 @@ export class ComplianceAgent implements SecurityAgent {
           }
         }
 
-        // ---- Check 3: isolamento de tenant em arquivo com dado sensível ----
-        if (fileMentionsSensitive && PRISMA_FIND.test(line)) {
+        // ---- Check 3: isolamento de tenant — query PERTO de dado sensível ----
+        // ROUND 3 (Veredicto): antes o gate era file-level (`SENSITIVE_TERM.test(file.content)`),
+        // então UMA menção incidental a "token" (publicShareToken) ou "benefício" (numa string de
+        // prompt) num service de 1400 linhas classificava o arquivo inteiro como sensível e flaggava
+        // TODOS os findMany (39 FP num só arquivo). Agora exige o termo sensível na VIZINHANÇA da
+        // query — o achado passa a significar "esta query específica toca dado sensível e não escopa
+        // por tenant", que é o que a evidência sempre afirmou. Preserva recall (o dado sensível
+        // legítimo costuma estar no select/where/comentário da própria query).
+        if (PRISMA_FIND.test(line) && this.hasSensitiveTermNearby(lines, i)) {
           if (!this.hasTenantScopeNearby(lines, i)) {
             findings.push(this.tenantIsolation(scope, file.relPath, lineNo))
           }
@@ -187,6 +192,15 @@ export class ComplianceAgent implements SecurityAgent {
         }
         if (div.undeclaredOperators.length) {
           findings.push(this.operatorsUndeclared(scope, policy.relPath, div.undeclaredOperators))
+        }
+        // Completude da política (dimensões code-detectáveis da revisão DPO): Encarregado (Art. 41)
+        // e direitos do titular (Art. 18). Conservador — só nudge INFO quando a política EXISTE mas
+        // não menciona o item. Fecha 2 das 16 dimensões que antes eram só sinal de score, não achado.
+        if (!div.declaresDpo) {
+          findings.push(this.policyMissingDpo(scope, policy.relPath))
+        }
+        if (!div.declaresDataSubjectRights) {
+          findings.push(this.policyMissingRights(scope, policy.relPath))
         }
       } else {
         findings.push(this.policyNotFound(scope, operators))
@@ -279,6 +293,55 @@ export class ComplianceAgent implements SecurityAgent {
         'Liste nominalmente os operadores/sub-processadores na Política de Privacidade (Art. 9º/Art. 39), ' +
         'com finalidade e, quando no exterior, a base de transferência internacional. Isso torna o ' +
         'tratamento transparente e verificável pelo titular.',
+      createdAt: new Date(),
+    }
+  }
+
+  private policyMissingDpo(scope: ScanScope, policyPath: string): Finding {
+    const rule = 'lgpd-policy-missing-dpo'
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'low' as Severity,
+      confidence: 'low', // heurística de texto: o canal do encarregado pode estar em outra página
+      title: `Política não declara o Encarregado/DPO (Art. 41)`,
+      description:
+        `CONFERI A POLÍTICA PUBLICADA (${policyPath}). Não encontrei menção a Encarregado/DPO nem a ` +
+        'um canal de contato do encarregado pelo tratamento de dados. O Art. 41 da LGPD exige que o ' +
+        'controlador INDIQUE um encarregado e publique a identidade e o canal de contato. HEURÍSTICA ' +
+        '— o canal pode estar em outra página (ex.: "Fale conosco"); confirme antes de agir.',
+      evidence: `Política conferida: ${policyPath}. Sem menção a "encarregado"/"DPO"/canal do encarregado.`,
+      recommendation:
+        'Publique na Política de Privacidade a identidade e o canal de contato do Encarregado (DPO) ' +
+        'pelo tratamento de dados pessoais (Art. 41 da LGPD).',
+      createdAt: new Date(),
+    }
+  }
+
+  private policyMissingRights(scope: ScanScope, policyPath: string): Finding {
+    const rule = 'lgpd-policy-missing-rights'
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: 'low' as Severity,
+      confidence: 'low', // heurística de texto: os direitos podem estar descritos com outras palavras
+      title: `Política não descreve os direitos do titular / como exercê-los (Art. 18)`,
+      description:
+        `CONFERI A POLÍTICA PUBLICADA (${policyPath}). Não encontrei descrição clara dos direitos do ` +
+        'titular (acesso, correção, exclusão/eliminação, portabilidade, revogação de consentimento) ' +
+        'nem de como exercê-los. O Art. 18 da LGPD assegura esses direitos e a política deve informar ' +
+        'como o titular os exerce. HEURÍSTICA CONSERVADORA — confirme; os direitos podem estar ' +
+        'descritos com outras palavras.',
+      evidence: `Política conferida: ${policyPath}. Sem sinal claro de "direitos do titular"/exercício de direitos.`,
+      recommendation:
+        'Descreva na Política de Privacidade os direitos do titular (Art. 18) e o canal/procedimento ' +
+        'para exercê-los (acesso, correção, eliminação, portabilidade, revogação de consentimento).',
       createdAt: new Date(),
     }
   }
@@ -525,6 +588,22 @@ export class ComplianceAgent implements SecurityAgent {
     const end = Math.min(lines.length, idx + 7)
     for (let i = idx; i < end; i++) {
       if (TENANT_SCOPE.test(lines[i])) return true
+    }
+    return false
+  }
+
+  /**
+   * Termo sensível na VIZINHANÇA da query (janela simétrica ±6 linhas). Substitui o gate
+   * file-level do Check 3: o dado sensível relevante para isolamento de tenant aparece no
+   * select/where/comentário da própria query — não a 700 linhas de distância numa string de
+   * prompt. Corta o FP em massa (round 3) sem perder o caso real (query que de fato manipula
+   * CPF/senha/processo sem escopo).
+   */
+  private hasSensitiveTermNearby(lines: string[], idx: number): boolean {
+    const start = Math.max(0, idx - 6)
+    const end = Math.min(lines.length, idx + 7)
+    for (let i = start; i < end; i++) {
+      if (SENSITIVE_TERM.test(lines[i])) return true
     }
     return false
   }

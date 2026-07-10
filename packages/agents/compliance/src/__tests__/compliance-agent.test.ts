@@ -164,6 +164,36 @@ describe('ComplianceAgent', () => {
     expect(enc!.severity).toBe('low')
   })
 
+  it('NÃO flagga tenant-isolation quando o termo sensível está LONGE da query (round 3: FP do articles.service)', async () => {
+    // Repro do FP real do Veredicto: um service de CONTEÚDO (artigos) menciona "token"
+    // (publicShareToken) e "benefício" (numa string de prompt) LONGE das queries — o gate
+    // file-level classificava o arquivo inteiro como sensível e flaggava TODOS os findMany.
+    const filler = Array.from({ length: 30 }, (_, i) => `  const x${i} = ${i}`).join('\n')
+    await writeFile(
+      join(repoDir, 'articles.ts'),
+      `export class ArticlesService {\n` +
+      `  async findByShareToken(token: string) { return prisma.article.findFirst({ where: { publicShareToken: token } }) }\n` +
+      filler + '\n' +
+      `  async listAll() { return prisma.article.findMany({ orderBy: { id: 'asc' } }) }\n` +
+      filler + '\n' +
+      `  buildPrompt() { return 'meta description com benefício + CTA' }\n`,
+    )
+
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    const tenant = findings.filter(f => f.title.startsWith('Query sem escopo de tenant'))
+    // listAll() (findMany de artigo) está longe de qualquer dado PESSOAL → não deve flaggar.
+    expect(tenant.some(f => /articles\.ts:\d+/.test(f.evidence ?? '') && /listAll|:3[0-9]|:6[0-9]/.test(f.evidence ?? ''))).toBe(false)
+  })
+
+  it('AINDA flagga tenant-isolation quando dado sensível está PERTO da query (recall preservado)', async () => {
+    await writeFile(
+      join(repoDir, 'users.ts'),
+      'export function list() {\n  // busca por cpf do titular\n  return prisma.user.findMany({ where: { active: true } })\n}\n',
+    )
+    const findings = await new ComplianceAgent().run(scopeFor(repoDir))
+    expect(findings.some(f => f.title.startsWith('Query sem escopo de tenant'))).toBe(true)
+  })
+
   it('walks subdirs and ignores node_modules', async () => {
     await mkdir(join(repoDir, 'src'), { recursive: true })
     await mkdir(join(repoDir, 'node_modules', 'pkg'), { recursive: true })

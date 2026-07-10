@@ -194,4 +194,33 @@ describe('diffPolicyVsCode', () => {
     expect(div.internationalDenied).toBe(true)
     expect(div.internationalDisclosed).toBe(false)
   })
+
+  // ---- Revisão DPO: completude da política (Art. 41 encarregado / Art. 18 direitos) ----
+  it('detecta Encarregado/DPO declarado (Art. 41) e direitos do titular (Art. 18)', () => {
+    const full = `# Política de Privacidade
+## Operadores
+Stripe (pagamento). Base legal: consentimento (Art. 7º). Retenção conforme a lei. Cookies.
+## Encarregado
+O Encarregado (DPO) pode ser contatado em dpo@exemplo.com.br (Art. 41).
+## Direitos do titular
+O titular pode solicitar acesso, correção e exclusão dos seus dados, além da portabilidade.
+`
+    const doc = findPolicyDoc([{ relPath: 'PRIVACIDADE.md', content: full }])!
+    const div = diffPolicyVsCode(doc, [op('Stripe', true)])
+    expect(div.declaresDpo).toBe(true)
+    expect(div.declaresDataSubjectRights).toBe(true)
+  })
+
+  it('flagga política SEM Encarregado e SEM direitos do titular (dimensões da revisão DPO)', () => {
+    const noDpoNoRights = `# Política de Privacidade
+## Operadores e terceiros
+Stripe (pagamento), Sentry (erros). Transferência internacional com base no Art. 33.
+## Retenção e cookies
+Retemos pelo prazo legal. Usamos cookies essenciais. Base legal descrita.
+`
+    const doc = findPolicyDoc([{ relPath: 'PRIVACIDADE.md', content: noDpoNoRights }])!
+    const div = diffPolicyVsCode(doc, [op('Stripe', true)])
+    expect(div.declaresDpo).toBe(false)
+    expect(div.declaresDataSubjectRights).toBe(false)
+  })
 })

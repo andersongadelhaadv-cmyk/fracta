@@ -2278,7 +2278,7 @@ var SecretsAgent = class {
 import { readdir as readdir3, readFile as readFile3, stat as stat3 } from "fs/promises";
 import { join as join4, relative as relative2, basename } from "path";
 var IGNORE_DIRS2 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
-var TEXT_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|json)$/i;
+var TEXT_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|json|prisma)$/i;
 var ENV_FILE = /(^|[\\/])\.env($|\.[^\\/]+$)/i;
 var NEXT_CONFIG = /(^|[\\/])next\.config\.(js|ts|mjs|cjs)$/i;
 var StackAgent = class {
@@ -2498,13 +2498,41 @@ var StackAgent = class {
       }
     });
   }
+  /**
+   * Modelos Prisma que têm uma coluna de tenant/owner (parseados do schema). Um modelo SEM
+   * essa coluna não é escopável por tenant → uma query sem filtro nele não é risco de
+   * isolamento. Se o schema não tem NENHUM modelo tenant-scoped, o app não é multi-tenant.
+   */
+  tenantScopedModels(sources) {
+    const set = /* @__PURE__ */ new Set();
+    const modelRe = /model\s+(\w+)\s*\{([\s\S]*?)\}/g;
+    const tenantField = /\b(tenantId|ownerId|accountId|orgId)\b/i;
+    for (const f of sources) {
+      if (!f.relPath.endsWith(".prisma")) continue;
+      let m;
+      while ((m = modelRe.exec(f.content)) !== null) {
+        if (tenantField.test(m[2])) set.add(m[1].toLowerCase());
+      }
+    }
+    return set;
+  }
   // 5) Isolamento de tenant — HEURÍSTICA conservadora p/ revisão humana (severity low).
+  // ROUND 3 (Veredicto: 184 FP num repo B2C): antes flaggava TODA query find* do repo sem
+  // chave de tenant na vizinhança — ruído massivo em apps não-multi-tenant ou em queries de
+  // conteúdo/config/lookup. Agora: (a) só roda se o schema TEM modelo tenant-scoped (senão o
+  // app não é multi-tenant → check N/A); (b) só flagga query num MODELO que tem coluna de
+  // tenant/owner (uma query em `article` sem ownerId não vaza tenant); (c) dropa `findUnique`
+  // (lookup por chave única = 1 registro específico, não varredura cross-tenant).
   checkTenantIsolation(sources, out) {
-    const finders = /\.(findMany|findFirst|findUnique)\s*\(/g;
+    const tenantModels = this.tenantScopedModels(sources);
+    if (tenantModels.size === 0) return;
+    const finders = /(\w+)\.(findMany|findFirst)\s*\(/g;
     const tenantKey = /tenantid|ownerid|accountid|orgid/i;
     for (const file of sources) {
+      if (file.relPath.endsWith(".prisma")) continue;
       let m;
       while ((m = finders.exec(file.content)) !== null) {
+        if (!tenantModels.has(m[1].toLowerCase())) continue;
         const line = this.lineAt(file.content, m.index);
         const start = Math.max(0, m.index - 300);
         const window = file.content.slice(start, m.index + 400);
@@ -2518,7 +2546,7 @@ var StackAgent = class {
           references: ["https://cwe.mitre.org/data/definitions/639.html", "A01:2021 - Broken Access Control"],
           severity: "low",
           title: `Poss\xEDvel falta de isolamento de tenant (heur\xEDstica): ${file.relPath}:${line}`,
-          description: `HEUR\xCDSTICA (requer revis\xE3o humana): consulta Prisma \`${m[1]}\` ${hasWhere ? "com `where` mas" : "sem `where` e"} sem refer\xEAncia a \`tenantId|ownerId|accountId|orgId\` na vizinhan\xE7a. Pode haver vazamento entre tenants \u2014 ou pode ser uma query leg\xEDtimamente global. Confirme manualmente.`,
+          description: `HEUR\xCDSTICA (requer revis\xE3o humana): consulta Prisma \`${m[1]}.${m[2]}\` (modelo com coluna de tenant/owner) ${hasWhere ? "com `where` mas" : "sem `where` e"} sem refer\xEAncia a \`tenantId|ownerId|accountId|orgId\` na vizinhan\xE7a. Pode haver vazamento entre tenants \u2014 ou pode ser uma query leg\xEDtimamente global. Confirme manualmente.`,
           evidence: `${file.relPath}:${line} \u2014 ${file.lines[line - 1]?.trim().slice(0, 160) ?? m[0]}`,
           recommendation: "Confirme que a query \xE9 escopada ao tenant/owner (filtro no `where` ou Prisma extension/RLS). Se for intencionalmente global, suprima este finding.",
           proposedFix: {
@@ -3171,6 +3199,8 @@ var OPERATOR_SYNONYMS = {
   "Mercado Pago": ["mercado pago", "mercadopago"]
 };
 var NOT_A_SUBPROCESSOR = /* @__PURE__ */ new Set(["Banco de dados (self-hosted)"]);
+var POLICY_DPO = /encarregad|\bdpo\b|data protection officer/i;
+var POLICY_RIGHTS = /direitos?\s+d[oe]s?\s+titular|direito\s+de\s+(acesso|corre|exclus|elimin|portabil)|(solicitar|exercer|revogar)[\s\S]{0,40}(acesso|corre[çc]|exclus|elimin|portabil|consentimento)|portabilidade\s+d[oe]s?\s+dados|anonimiza[çc][ãa]o/i;
 function diffPolicyVsCode(policy, operators) {
   const text = policy.text.toLowerCase();
   const mentionsIntl = INTL_DISCLOSURE.test(policy.text);
@@ -3186,7 +3216,15 @@ function diffPolicyVsCode(policy, operators) {
     const declared = syns.some((s) => text.includes(s));
     if (!declared) undeclaredOperators.push(op);
   }
-  return { policyPath: policy.relPath, hasInternationalOps, internationalDisclosed, internationalDenied, undeclaredOperators };
+  return {
+    policyPath: policy.relPath,
+    hasInternationalOps,
+    internationalDisclosed,
+    internationalDenied,
+    undeclaredOperators,
+    declaresDpo: POLICY_DPO.test(policy.text),
+    declaresDataSubjectRights: POLICY_RIGHTS.test(policy.text)
+  };
 }
 var IGNORE_DIRS3 = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", ".next", "coverage", ".turbo", "__tests__", "fracta-reports", ".worktrees", ".claude"]);
 var TEXT_EXT = /* @__PURE__ */ new Set([
@@ -3247,7 +3285,6 @@ var ComplianceAgent = class {
       if (PASSWORD_TERM.test(file.content) && DB_WRITE.test(file.content)) {
         hasPasswordWrite = true;
       }
-      const fileMentionsSensitive = SENSITIVE_TERM.test(file.content);
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const lineNo = i + 1;
@@ -3257,7 +3294,7 @@ var ComplianceAgent = class {
             findings.push(this.sensitiveInLog(scope, file.relPath, lineNo, hit));
           }
         }
-        if (fileMentionsSensitive && PRISMA_FIND.test(line)) {
+        if (PRISMA_FIND.test(line) && this.hasSensitiveTermNearby(lines, i)) {
           if (!this.hasTenantScopeNearby(lines, i)) {
             findings.push(this.tenantIsolation(scope, file.relPath, lineNo));
           }
@@ -3296,6 +3333,12 @@ var ComplianceAgent = class {
         }
         if (div.undeclaredOperators.length) {
           findings.push(this.operatorsUndeclared(scope, policy.relPath, div.undeclaredOperators));
+        }
+        if (!div.declaresDpo) {
+          findings.push(this.policyMissingDpo(scope, policy.relPath));
+        }
+        if (!div.declaresDataSubjectRights) {
+          findings.push(this.policyMissingRights(scope, policy.relPath));
         }
       } else {
         findings.push(this.policyNotFound(scope, operators));
@@ -3362,6 +3405,42 @@ var ComplianceAgent = class {
 ` + ops.map((o) => `\u2022 ${o.name} (${o.purpose})${o.international ? " \u2014 transfer\xEAncia internacional" : ""}`).join("\n") + '\n\nHEUR\xCDSTICA CONSERVADORA \u2014 a pol\xEDtica pode descrev\xEA-los genericamente (ex.: "provedores de nuvem"). Reveja se cada tratamento est\xE1 transparente ao titular (Art. 9\xBA).',
       evidence: `Pol\xEDtica conferida: ${policyPath}. Operadores n\xE3o citados nominalmente: ${names}.`,
       recommendation: "Liste nominalmente os operadores/sub-processadores na Pol\xEDtica de Privacidade (Art. 9\xBA/Art. 39), com finalidade e, quando no exterior, a base de transfer\xEAncia internacional. Isso torna o tratamento transparente e verific\xE1vel pelo titular.",
+      createdAt: /* @__PURE__ */ new Date()
+    };
+  }
+  policyMissingDpo(scope, policyPath) {
+    const rule = "lgpd-policy-missing-dpo";
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "low",
+      confidence: "low",
+      // heurística de texto: o canal do encarregado pode estar em outra página
+      title: `Pol\xEDtica n\xE3o declara o Encarregado/DPO (Art. 41)`,
+      description: `CONFERI A POL\xCDTICA PUBLICADA (${policyPath}). N\xE3o encontrei men\xE7\xE3o a Encarregado/DPO nem a um canal de contato do encarregado pelo tratamento de dados. O Art. 41 da LGPD exige que o controlador INDIQUE um encarregado e publique a identidade e o canal de contato. HEUR\xCDSTICA \u2014 o canal pode estar em outra p\xE1gina (ex.: "Fale conosco"); confirme antes de agir.`,
+      evidence: `Pol\xEDtica conferida: ${policyPath}. Sem men\xE7\xE3o a "encarregado"/"DPO"/canal do encarregado.`,
+      recommendation: "Publique na Pol\xEDtica de Privacidade a identidade e o canal de contato do Encarregado (DPO) pelo tratamento de dados pessoais (Art. 41 da LGPD).",
+      createdAt: /* @__PURE__ */ new Date()
+    };
+  }
+  policyMissingRights(scope, policyPath) {
+    const rule = "lgpd-policy-missing-rights";
+    return {
+      id: stableFindingId({ saas: scope.target.name, camada: this.category, rule }),
+      runId: scope.runId,
+      agent: this.name,
+      category: this.category,
+      camada: this.category,
+      severity: "low",
+      confidence: "low",
+      // heurística de texto: os direitos podem estar descritos com outras palavras
+      title: `Pol\xEDtica n\xE3o descreve os direitos do titular / como exerc\xEA-los (Art. 18)`,
+      description: `CONFERI A POL\xCDTICA PUBLICADA (${policyPath}). N\xE3o encontrei descri\xE7\xE3o clara dos direitos do titular (acesso, corre\xE7\xE3o, exclus\xE3o/elimina\xE7\xE3o, portabilidade, revoga\xE7\xE3o de consentimento) nem de como exerc\xEA-los. O Art. 18 da LGPD assegura esses direitos e a pol\xEDtica deve informar como o titular os exerce. HEUR\xCDSTICA CONSERVADORA \u2014 confirme; os direitos podem estar descritos com outras palavras.`,
+      evidence: `Pol\xEDtica conferida: ${policyPath}. Sem sinal claro de "direitos do titular"/exerc\xEDcio de direitos.`,
+      recommendation: "Descreva na Pol\xEDtica de Privacidade os direitos do titular (Art. 18) e o canal/procedimento para exerc\xEA-los (acesso, corre\xE7\xE3o, elimina\xE7\xE3o, portabilidade, revoga\xE7\xE3o de consentimento).",
       createdAt: /* @__PURE__ */ new Date()
     };
   }
@@ -3536,6 +3615,21 @@ var ComplianceAgent = class {
     const end = Math.min(lines.length, idx + 7);
     for (let i = idx; i < end; i++) {
       if (TENANT_SCOPE.test(lines[i])) return true;
+    }
+    return false;
+  }
+  /**
+   * Termo sensível na VIZINHANÇA da query (janela simétrica ±6 linhas). Substitui o gate
+   * file-level do Check 3: o dado sensível relevante para isolamento de tenant aparece no
+   * select/where/comentário da própria query — não a 700 linhas de distância numa string de
+   * prompt. Corta o FP em massa (round 3) sem perder o caso real (query que de fato manipula
+   * CPF/senha/processo sem escopo).
+   */
+  hasSensitiveTermNearby(lines, idx) {
+    const start = Math.max(0, idx - 6);
+    const end = Math.min(lines.length, idx + 7);
+    for (let i = start; i < end; i++) {
+      if (SENSITIVE_TERM.test(lines[i])) return true;
     }
     return false;
   }

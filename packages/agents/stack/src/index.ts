@@ -11,7 +11,7 @@ import { SkippedCheck, stableFindingId } from '@fracta/core'
 const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports', '.worktrees', '.claude'])
 
 // Lê apenas arquivos de texto relevantes (código + config + env). Determinístico, read-only.
-const TEXT_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|json)$/i
+const TEXT_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|json|prisma)$/i
 const ENV_FILE = /(^|[\\/])\.env($|\.[^\\/]+$)/i
 const NEXT_CONFIG = /(^|[\\/])next\.config\.(js|ts|mjs|cjs)$/i
 
@@ -333,14 +333,44 @@ export class StackAgent implements SecurityAgent {
     })
   }
 
+  /**
+   * Modelos Prisma que têm uma coluna de tenant/owner (parseados do schema). Um modelo SEM
+   * essa coluna não é escopável por tenant → uma query sem filtro nele não é risco de
+   * isolamento. Se o schema não tem NENHUM modelo tenant-scoped, o app não é multi-tenant.
+   */
+  private tenantScopedModels(sources: SourceFile[]): Set<string> {
+    const set = new Set<string>()
+    const modelRe = /model\s+(\w+)\s*\{([\s\S]*?)\}/g
+    const tenantField = /\b(tenantId|ownerId|accountId|orgId)\b/i
+    for (const f of sources) {
+      if (!f.relPath.endsWith('.prisma')) continue
+      let m: RegExpExecArray | null
+      while ((m = modelRe.exec(f.content)) !== null) {
+        if (tenantField.test(m[2])) set.add(m[1].toLowerCase())
+      }
+    }
+    return set
+  }
+
   // 5) Isolamento de tenant — HEURÍSTICA conservadora p/ revisão humana (severity low).
+  // ROUND 3 (Veredicto: 184 FP num repo B2C): antes flaggava TODA query find* do repo sem
+  // chave de tenant na vizinhança — ruído massivo em apps não-multi-tenant ou em queries de
+  // conteúdo/config/lookup. Agora: (a) só roda se o schema TEM modelo tenant-scoped (senão o
+  // app não é multi-tenant → check N/A); (b) só flagga query num MODELO que tem coluna de
+  // tenant/owner (uma query em `article` sem ownerId não vaza tenant); (c) dropa `findUnique`
+  // (lookup por chave única = 1 registro específico, não varredura cross-tenant).
   private checkTenantIsolation(sources: SourceFile[], out: FindingInput[]): void {
-    const finders = /\.(findMany|findFirst|findUnique)\s*\(/g
+    const tenantModels = this.tenantScopedModels(sources)
+    if (tenantModels.size === 0) return // app sem conceito de tenant → heurística não se aplica
+
+    const finders = /(\w+)\.(findMany|findFirst)\s*\(/g
     const tenantKey = /tenantid|ownerid|accountid|orgid/i
 
     for (const file of sources) {
+      if (file.relPath.endsWith('.prisma')) continue // schema não faz query
       let m: RegExpExecArray | null
       while ((m = finders.exec(file.content)) !== null) {
+        if (!tenantModels.has(m[1].toLowerCase())) continue // modelo sem coluna de tenant → não é risco
         const line = this.lineAt(file.content, m.index)
         // Janela ao redor da chamada: ~300 chars antes/depois para olhar o `where`.
         const start = Math.max(0, m.index - 300)
@@ -357,7 +387,7 @@ export class StackAgent implements SecurityAgent {
           severity: 'low',
           title: `Possível falta de isolamento de tenant (heurística): ${file.relPath}:${line}`,
           description:
-            `HEURÍSTICA (requer revisão humana): consulta Prisma \`${m[1]}\` ${hasWhere ? 'com `where` mas' : 'sem `where` e'} ` +
+            `HEURÍSTICA (requer revisão humana): consulta Prisma \`${m[1]}.${m[2]}\` (modelo com coluna de tenant/owner) ${hasWhere ? 'com `where` mas' : 'sem `where` e'} ` +
             'sem referência a `tenantId|ownerId|accountId|orgId` na vizinhança. ' +
             'Pode haver vazamento entre tenants — ou pode ser uma query legítimamente global. Confirme manualmente.',
           evidence: `${file.relPath}:${line} — ${file.lines[line - 1]?.trim().slice(0, 160) ?? m[0]}`,
