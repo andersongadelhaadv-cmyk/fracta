@@ -32,7 +32,10 @@ w('src/config-secrets.ts', [
   `export const GENERIC_API_KEY = '${R(48).toLowerCase().replace(/[^a-z0-9]/g, '7')}'  // S5`,
 ].join('\n') + '\n')
 
-w('src/id_rsa', '-----BEGIN RSA PRIVATE KEY-----\n' + R(64) + '\n' + R(64) + '\n' + R(64) + '\n-----END RSA PRIVATE KEY-----\n')  // S6
+// Marcadores PEM montados por partes (o próprio auto-scan do Fracta/gitleaks não pode casar
+// o header no ARQUIVO versionado; só no repo GERADO, onde é o segredo plantado de propósito).
+const pem = (b) => '-----' + b + ' RSA PRIVATE KEY-----'
+w('src/id_rsa', pem('BEGIN') + '\n' + R(64) + '\n' + R(64) + '\n' + R(64) + '\n' + pem('END') + '\n')  // S6
 
 w('src/routes.ts', `import express from 'express'
 import { exec } from 'child_process'

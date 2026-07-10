@@ -7,10 +7,12 @@ import { SkippedCheck, stableFindingId } from '@fracta/core'
 import { parsePrismaModels, buildInventory, detectOperators, type InventoryEntry, type OperatorMatch } from './lgpd-inventory.js'
 import { findPolicyDoc, diffPolicyVsCode } from './lgpd-policy.js'
 
-// __tests__ = fixtures deliberadamente vulneráveis (não é superfície de produção);
+// __tests__ e benchmark-repo = fixtures deliberadamente vulneráveis (o gerador do benchmark
+// em docs/benchmark-repo PLANTA segredos/SQLi/log sensível de propósito — não é superfície de
+// produção; escaneá-los é ruído e faz o dogfood do próprio Fracta gritar contra o fixture);
 // fracta-reports = saída do próprio scanner (escanear o próprio relatório é ruído).
 // .worktrees/.claude = git worktrees (Claude Code): re-escanear duplica achados (#40).
-const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports', '.worktrees', '.claude'])
+const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports', 'benchmark-repo', '.worktrees', '.claude'])
 
 // Extensões de texto que vale a pena escanear (código + config). Binários são ignorados.
 const TEXT_EXT = new Set([

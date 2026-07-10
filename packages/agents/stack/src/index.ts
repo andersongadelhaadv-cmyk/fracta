@@ -8,7 +8,7 @@ import { SkippedCheck, stableFindingId } from '@fracta/core'
 // __tests__ = fixtures deliberadamente vulneráveis (não é superfície de produção);
 // fracta-reports = saída do próprio scanner (escanear o próprio relatório é ruído).
 // .worktrees/.claude = git worktrees (Claude Code): re-escanear duplica achados (#40).
-const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports', '.worktrees', '.claude'])
+const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'coverage', '.turbo', '__tests__', 'fracta-reports', 'benchmark-repo', '.worktrees', '.claude'])
 
 // Lê apenas arquivos de texto relevantes (código + config + env). Determinístico, read-only.
 const TEXT_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|json|prisma)$/i
