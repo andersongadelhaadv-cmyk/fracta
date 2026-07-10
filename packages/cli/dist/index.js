@@ -4810,7 +4810,7 @@ function createAnthropicClient(apiKey) {
 // package.json
 var package_default = {
   name: "fractascan",
-  version: "0.1.18",
+  version: "0.1.19",
   description: "Fracta \u2014 auditor de seguran\xE7a + LGPD multi-agente e determin\xEDstico para SaaS (DAST + SAST, relat\xF3rio A\u2013F). CLI: fracta scan.",
   license: "MIT",
   author: "Anderson Gadelha",

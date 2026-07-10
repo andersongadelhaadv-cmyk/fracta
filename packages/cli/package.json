@@ -1,6 +1,6 @@
 {
   "name": "fractascan",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "description": "Fracta — auditor de segurança + LGPD multi-agente e determinístico para SaaS (DAST + SAST, relatório A–F). CLI: fracta scan.",
   "license": "MIT",
   "author": "Anderson Gadelha",
