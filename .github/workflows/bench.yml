@@ -1,0 +1,126 @@
+# Rodada de validação em escala (bench/) num runner Linux — onde semgrep e gitleaks rodam limpos
+# (no Windows o semgrep estoura e vira `skipped`). Manual (workflow_dispatch): é caro, não roda em push.
+# Sharded por estrato p/ caber no limite de 6h; um job final funde os shards e gera o relatório.
+name: bench-scale
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'repos por estrato (vazio = cheio, N=400)'
+        required: false
+        default: '8'
+      semgrep_timeout:
+        description: 'timeout do semgrep por repo (s)'
+        required: false
+        default: '90'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-scale
+  cancel-in-progress: false
+
+jobs:
+  # ---- Fase 1: congela o corpus (SHA + treeSha) e publica como artefato ----
+  corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: congela manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ inputs.limit }}" ]; then EXTRA="--limit ${{ inputs.limit }}"; fi
+          node bench/corpus/build-manifest.mjs $EXTRA
+          node bench/corpus/freeze.mjs || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manifest
+          path: |
+            bench/corpus/manifest.yaml
+            bench/corpus/freeze-report.json
+          retention-days: 14
+
+  # ---- Fase 2: escaneia cada estrato em paralelo (clone@SHA, gitleaks, semgrep-Linux) ----
+  scan:
+    needs: corpus
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false          # um estrato que quebra não derruba os outros
+      max-parallel: 4
+      matrix:
+        stratum: [nextjs, nestjs-node, laravel-php, django-python, wordpress-legacy, monorepo-large, br-lgpd]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: instala gitleaks (recall de segredos real)
+        run: |
+          VER=8.21.2
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" | tar -xz -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/ && gitleaks version
+      - uses: actions/download-artifact@v4
+        with: { name: manifest, path: bench/corpus }
+      - name: batch do estrato ${{ matrix.stratum }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # clone de repos públicos sem rate-limit
+          FRACTA_SEMGREP_TIMEOUT: ${{ inputs.semgrep_timeout }}
+        run: node bench/runner/run-batch.mjs --stratum ${{ matrix.stratum }} --concurrency 4 --timeout-ms 600000
+      - name: renomeia o shard redigido (metadata-only; raw.json NÃO é publicado)
+        run: cp bench/results/summary.jsonl "summary-${{ matrix.stratum }}.jsonl"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: summary-${{ matrix.stratum }}
+          path: summary-${{ matrix.stratum }}.jsonl
+          retention-days: 14
+
+  # ---- Fase 4: funde os shards + escaneia fixtures (recall) + gera o relatório ----
+  report:
+    needs: scan
+    if: always()               # gera mesmo se um estrato falhou (robustez conta os desfechos)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: instala gitleaks
+        run: |
+          VER=8.21.2
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" | tar -xz -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/
+      - name: fixtures (recall com gabarito) + cross-check
+        env:
+          FRACTA_SEMGREP_TIMEOUT: ${{ inputs.semgrep_timeout }}
+        run: |
+          node bench/fixtures/generate.mjs
+          node bench/runner/run-batch.mjs --fixtures --concurrency 4 --timeout-ms 300000
+          node bench/crosscheck/run-incumbents.mjs --fixtures || true
+      - uses: actions/download-artifact@v4
+        with: { pattern: summary-*, path: shards, merge-multiple: true }
+      - name: funde os shards reais no summary.jsonl (fixtures + reais)
+        run: |
+          cat shards/summary-*.jsonl >> bench/results/summary.jsonl 2>/dev/null || true
+          wc -l bench/results/summary.jsonl
+      - run: node bench/report/build-report.mjs
+      - name: resumo no log
+        run: sed -n '1,40p' bench/report/report.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-report
+          path: |
+            bench/report/report.md
+            bench/report/report.json
+            bench/results/summary.jsonl
+          retention-days: 90

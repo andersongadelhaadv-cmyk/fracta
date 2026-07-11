@@ -29,6 +29,7 @@ const OUT = flag('out', join(BENCH, 'results'))
 const LIMIT = flag('limit') ? Number(flag('limit')) : Infinity
 const FIXTURES = has('fixtures')
 const KEEP_CLONES = has('keep-clones')
+const STRATUM = flag('stratum') // filtra o manifest por estrato (p/ shards do CI)
 
 const idOf = (owner, name) => `${owner}__${name}`.replace(/[^\w.-]/g, '-')
 
@@ -43,7 +44,9 @@ function targets() {
   const mf = join(BENCH, 'corpus', 'manifest.yaml')
   if (!existsSync(mf)) { console.error('manifest ausente — rode: node bench/corpus/build-manifest.mjs'); process.exit(1) }
   const m = parseYaml(readFileSync(mf, 'utf8'))
-  return (m.repos || []).map((r) => ({ id: idOf(r.owner, r.name), owner: r.owner, name: r.name, url: r.url || `https://github.com/${r.owner}/${r.name}.git`, sha: r.sha, stratum: r.stratum }))
+  return (m.repos || [])
+    .filter((r) => !STRATUM || r.stratum === STRATUM)
+    .map((r) => ({ id: idOf(r.owner, r.name), owner: r.owner, name: r.name, url: r.url || `https://github.com/${r.owner}/${r.name}.git`, sha: r.sha, stratum: r.stratum }))
 }
 
 // ---- clone --depth 1 @SHA (idempotente) ----
