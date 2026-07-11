@@ -8,9 +8,10 @@
 //   node run-batch.mjs --limit 12      # piloto: só os N primeiros
 //   flags: --concurrency N (4) · --timeout-ms N (600000) · --out DIR (bench/results)
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, appendFileSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, appendFileSync, rmSync, statSync, cpSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { parse as parseYaml } from 'yaml'
 import { classifyOutcome } from './outcome.mjs'
 
@@ -59,6 +60,19 @@ function run(cmd, args, opts = {}) {
     p.on('close', (code) => res({ code, out, err }))
   })
 }
+// Fixture ISOLADO: copia p/ um tmpdir FORA do repo Fracta e faz git init+commit. Sem isso, o
+// gitleaks (roda `detect --source` em modo-git, sem --no-git) sobe até o .git do Fracta e escaneia
+// os arquivos de teste do PRÓPRIO Fracta — medindo a coisa errada. Espelha o isolamento dos clones.
+async function isolateFixture(localPath, id) {
+  const iso = join(tmpdir(), 'fracta-bench-fx', id)
+  rmSync(iso, { recursive: true, force: true }); mkdirSync(iso, { recursive: true })
+  cpSync(localPath, iso, { recursive: true })
+  await run('git', ['init', '-q'], { cwd: iso })
+  await run('git', ['add', '-A'], { cwd: iso })
+  await run('git', ['-c', 'user.email=bench@fracta.local', '-c', 'user.name=bench', 'commit', '-q', '-m', 'fixture', '--no-gpg-sign'], { cwd: iso })
+  return iso
+}
+
 async function cloneAtSha(t, dir) {
   rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
   let r = await run('git', ['init', '-q'], { cwd: dir })
@@ -114,7 +128,12 @@ async function processOne(t) {
   mkdirSync(outDir, { recursive: true })
 
   let repoPath = t.localPath
-  if (!repoPath) {
+  let isoDir = null
+  if (repoPath) {
+    // fixture → isola num git repo próprio fora do Fracta (senão gitleaks escaneia o Fracta)
+    isoDir = await isolateFixture(repoPath, t.id)
+    repoPath = isoDir
+  } else {
     const cloneDir = join(OUT, '_clones', t.id)
     const cl = await cloneAtSha(t, cloneDir)
     if (!cl.ok) {
@@ -140,6 +159,7 @@ async function processOne(t) {
 
   // limpa o clone (não deixa 400 repos em disco) — salvo --keep-clones (p/ o crosscheck usar o MESMO SHA)
   if (!t.localPath && !KEEP_CLONES) rmSync(join(OUT, '_clones', t.id), { recursive: true, force: true })
+  if (isoDir && !KEEP_CLONES) rmSync(isoDir, { recursive: true, force: true })
   return { id: t.id, outcome }
 }
 

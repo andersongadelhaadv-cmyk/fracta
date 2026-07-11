@@ -122,9 +122,10 @@ jobs:
         if: always()
         run: |
           mkdir -p fixture-raws
-          for d in sec-* sast-* deps-* lgpd-*; do
-            [ -f "bench/results/$d/raw.json" ] && cp "bench/results/$d/raw.json" "fixture-raws/$d.json" || true
+          for p in bench/results/sec-* bench/results/sast-* bench/results/deps-* bench/results/lgpd-*; do
+            [ -f "$p/raw.json" ] && cp "$p/raw.json" "fixture-raws/$(basename "$p").json" || true
           done
+          ls -1 fixture-raws | wc -l
       - uses: actions/upload-artifact@v4
         with:
           name: bench-report
