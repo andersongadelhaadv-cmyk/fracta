@@ -63,11 +63,12 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: instala gitleaks (recall de segredos real)
+      - name: instala gitleaks + semgrep (recall de segredos e SAST real em Linux)
         run: |
           VER=8.21.2
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" | tar -xz -C /tmp gitleaks
           sudo mv /tmp/gitleaks /usr/local/bin/ && gitleaks version
+          pipx install semgrep && semgrep --version
       - uses: actions/download-artifact@v4
         with: { name: manifest, path: bench/corpus }
       - name: batch do estrato ${{ matrix.stratum }}
@@ -95,11 +96,12 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: instala gitleaks
+      - name: instala gitleaks + semgrep
         run: |
           VER=8.21.2
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" | tar -xz -C /tmp gitleaks
           sudo mv /tmp/gitleaks /usr/local/bin/
+          pipx install semgrep && semgrep --version
       - name: fixtures (recall com gabarito) + cross-check
         env:
           FRACTA_SEMGREP_TIMEOUT: ${{ inputs.semgrep_timeout }}
@@ -116,6 +118,13 @@ jobs:
       - run: node bench/report/build-report.mjs
       - name: resumo no log
         run: sed -n '1,40p' bench/report/report.md
+      - name: coleta raws de FIXTURE (sintéticos — seguros p/ diagnóstico do oráculo)
+        if: always()
+        run: |
+          mkdir -p fixture-raws
+          for d in sec-* sast-* deps-* lgpd-*; do
+            [ -f "bench/results/$d/raw.json" ] && cp "bench/results/$d/raw.json" "fixture-raws/$d.json" || true
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: bench-report
@@ -123,4 +132,5 @@ jobs:
             bench/report/report.md
             bench/report/report.json
             bench/results/summary.jsonl
+            fixture-raws/
           retention-days: 90
