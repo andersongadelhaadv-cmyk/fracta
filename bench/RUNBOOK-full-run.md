@@ -8,7 +8,7 @@ O piloto provou a infra. Esta é a operação da rodada completa. **Escolha do v
 |---|---|---|---|
 | **Docker Linux (isolado)** | ✅ rápido | nenhum | **preferido** — `bench/runner/compose.yml` |
 | Runner CI dedicado (Linux) | ✅ | nenhum | bom p/ agendar; chunk se >6h |
-| VPS de produção `76.13.170.79` | ✅ | 🔴 **alto** — hospeda a FROTA inteira | **evitar** — scan pesado starva os SaaS vivos |
+| VPS de produção (compartilhada da frota) | ✅ | 🔴 **alto** — hospeda a FROTA inteira | **evitar** — scan pesado starva os SaaS vivos |
 | Windows local | ❌ semgrep estoura 120s → `skipped` | nenhum | só p/ LGPD/secrets, não SAST |
 
 > **Nunca** rodar os 4 workers de scan na VPS compartilhada sem janela dedicada — degradaria a frota.

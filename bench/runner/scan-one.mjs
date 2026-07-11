@@ -50,7 +50,18 @@ export async function scanRepo(repoPath, { stack = ['nextjs', 'prisma'] } = {}) 
     motivo: redactSecrets(c.motivo), degraded: !!c.degraded,
     durationMs: c.durationMs, findingCount: (c.findings || []).length,
   }))
-  const findings = (report.findings || []).map(redactFinding)
+  // Normaliza a localização p/ ser RELATIVA à raiz do scan (senão o path absoluto do clone ou do
+  // diretório temporário da fixture vaza no artefato e fica feio/não-portável).
+  const rootNorm = repoPath.replace(/\\/g, '/').replace(/\/+$/, '')
+  const relFile = (f) => {
+    const p = String(f || '').replace(/\\/g, '/')
+    return p.startsWith(rootNorm + '/') ? p.slice(rootNorm.length + 1) : p
+  }
+  const findings = (report.findings || []).map((f) => {
+    const rf = redactFinding(f)
+    if (rf.location?.file) rf.location = { ...rf.location, file: relFile(rf.location.file) }
+    return rf
+  })
 
   return {
     durationMs,
