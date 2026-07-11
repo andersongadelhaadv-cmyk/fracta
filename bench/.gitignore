@@ -1,0 +1,12 @@
+# results/ é estado de batch + pode conter VALOR de segredos de 3os (raw.json). Versiona-se APENAS
+# o agregado redigido (summary.jsonl) e os vereditos humanos (labels.csv). Todo o resto é local.
+results/*
+!results/summary.jsonl
+!results/labels.csv
+
+# Fixtures GERADAS contêm segredos sintéticos (forma de credencial) → push-safe: não commitar.
+# A fonte-verdade é generate.mjs + catalog.json (só marcadores, sem valores). repos/ é runtime.
+fixtures/repos/
+
+# artefatos locais de relatório
+report/report.local.*

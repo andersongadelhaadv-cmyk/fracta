@@ -1,0 +1,58 @@
+version: 1
+generatedAt: 2026-07-11T12:37:57.761Z
+method: GitHub search/repositories via gh; SHA e treeSha congelados por repo
+queries:
+  - stratum: nextjs
+    query: topic:nextjs stars:100..8000 pushed:>2024-06-01 fork:false archived:false
+    count: 80
+  - stratum: nestjs-node
+    query: topic:nestjs stars:80..6000 pushed:>2024-06-01 fork:false archived:false
+    count: 80
+  - stratum: laravel-php
+    query: topic:laravel language:PHP stars:100..8000 pushed:>2024-06-01 fork:false
+      archived:false
+    count: 60
+  - stratum: django-python
+    query: topic:django language:Python stars:100..8000 pushed:>2024-06-01
+      fork:false archived:false
+    count: 60
+  - stratum: wordpress-legacy
+    query: topic:wordpress language:PHP stars:50..5000 fork:false archived:false
+    count: 40
+  - stratum: monorepo-large
+    query: topic:monorepo stars:500..30000 pushed:>2024-06-01 fork:false
+      archived:false
+    count: 40
+  - stratum: br-lgpd
+    query: pix OR lgpd OR nfe OR boleto language:TypeScript stars:20..5000
+      pushed:>2024-01-01 fork:false archived:false
+    count: 40
+total: 3
+repos:
+  - owner: pixijs
+    name: pixi-react
+    url: https://github.com/pixijs/pixi-react.git
+    stars: 2876
+    defaultBranch: main
+    sha: 30cf1f86a590a1d8bb183a36b1887fa30e908d4e
+    treeSha: 7e997928f7cd9f02d01a3eb4b413210496615814
+    sizeKb: 18408
+    stratum: br-lgpd
+  - owner: brazilian-utils
+    name: javascript
+    url: https://github.com/brazilian-utils/javascript.git
+    stars: 1665
+    defaultBranch: main
+    sha: 40e0d853088ef869fba5f268d3b9f000eb2b7ad9
+    treeSha: 9a3a901ba65a19800799eafc406a0930cba35fbd
+    sizeKb: 3219
+    stratum: br-lgpd
+  - owner: jsplumb
+    name: jsplumb
+    url: https://github.com/jsplumb/jsplumb.git
+    stars: 7766
+    defaultBranch: main
+    sha: 4638ca1175429f19761eca02816dbf145cd486a2
+    treeSha: c2e34e588924fef16004c585ca3bd4f4eb1009b7
+    sizeKb: 0
+    stratum: nextjs

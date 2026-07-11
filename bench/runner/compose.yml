@@ -1,0 +1,30 @@
+# Bench isolado. `docker compose -f bench/runner/compose.yml run --rm bench`
+#
+# results/ é volume → sobrevive ao container (retomável: relança e ele pula os já feitos).
+# Rede: default bridge (clone + npm audit funcionam). Para a variante ISOLADA sem rede,
+# use o profile `offline` (deps/secrets-hist reportarão `skipped` honesto).
+services:
+  bench:
+    build:
+      context: ../..
+      dockerfile: bench/runner/Dockerfile
+    environment:
+      - GH_TOKEN=${GH_TOKEN}        # p/ o clone de repos (mesmo público, evita rate-limit)
+    volumes:
+      - ../results:/app/bench/results
+      - ../corpus:/app/bench/corpus:ro
+    # limite de memória: um monorepo grande não pode derrubar o host (vira outcome=oom, não crash do batch)
+    mem_limit: 4g
+    command: ["--concurrency", "4", "--timeout-ms", "600000"]
+
+  # Variante 100% offline: sem rede. Só faz sentido com repos já clonados/montados.
+  bench-offline:
+    profiles: ["offline"]
+    build:
+      context: ../..
+      dockerfile: bench/runner/Dockerfile
+    network_mode: "none"
+    volumes:
+      - ../results:/app/bench/results
+      - ../corpus:/app/bench/corpus:ro
+    mem_limit: 4g

@@ -1,0 +1,34 @@
+# Queries DECLARADAS do corpus (Fase 1) — a query É a metodologia; gravá-la torna a seleção
+# auditável e reproduzível. build-manifest.mjs executa cada uma via `gh api search/repositories`,
+# ordena por stars desc, pega os `count` primeiros, e congela owner/name/sha/treeSha.
+#
+# Estratificação (~400): a coluna BR é crítica p/ as regras LGPD.
+version: 1
+defaults:
+  sort: stars
+  order: desc
+  # Exclui forks e arquivos; só repos com atividade recente (reprodutível pela data gravada).
+  qualifiers: "fork:false archived:false"
+strata:
+  - key: nextjs
+    count: 80
+    query: "topic:nextjs stars:100..8000 pushed:>2024-06-01"
+  - key: nestjs-node
+    count: 80
+    query: "topic:nestjs stars:80..6000 pushed:>2024-06-01"
+  - key: laravel-php
+    count: 60
+    query: "topic:laravel language:PHP stars:100..8000 pushed:>2024-06-01"
+  - key: django-python
+    count: 60
+    query: "topic:django language:Python stars:100..8000 pushed:>2024-06-01"
+  - key: wordpress-legacy
+    count: 40
+    query: "topic:wordpress language:PHP stars:50..5000"
+  - key: monorepo-large
+    count: 40
+    query: "topic:monorepo stars:500..30000 pushed:>2024-06-01"
+  - key: br-lgpd
+    count: 40
+    # pt-BR + sinais LGPD/PIX/NFe — o estrato que exercita o fosso jurídico do Fracta.
+    query: "pix OR lgpd OR nfe OR boleto language:TypeScript stars:20..5000 pushed:>2024-01-01"

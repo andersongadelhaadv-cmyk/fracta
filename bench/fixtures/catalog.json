@@ -1,0 +1,306 @@
+{
+  "generatedFrom": "generate.mjs",
+  "total": 30,
+  "items": [
+    {
+      "fixture": "sec-aws-key",
+      "file": "src/aws.ts",
+      "line": 2,
+      "marker": "@S:aws",
+      "rule": "aws-access-key-id",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-aws-secret",
+      "file": "src/aws.ts",
+      "line": 2,
+      "marker": "@S:aws",
+      "rule": "aws-secret-access-key",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-stripe",
+      "file": "src/pay.ts",
+      "line": 2,
+      "marker": "@S:stripe",
+      "rule": "stripe-access-token",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-github-pat",
+      "file": "src/gh.ts",
+      "line": 2,
+      "marker": "@S:github",
+      "rule": "github-pat",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-generic",
+      "file": "src/cfg.ts",
+      "line": 2,
+      "marker": "@S:generic",
+      "rule": "generic-api-key",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-slack",
+      "file": "src/slack.ts",
+      "line": 2,
+      "marker": "@S:slack",
+      "rule": "slack-access-token",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-npm",
+      "file": "src/.npmrc",
+      "line": 2,
+      "marker": "@S:npm",
+      "rule": "npm-access-token",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-jwt",
+      "file": "src/jwt.ts",
+      "line": 2,
+      "marker": "@S:jwt",
+      "rule": "jwt",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-gcp",
+      "file": "src/gcp.ts",
+      "line": 2,
+      "marker": "@S:gcp",
+      "rule": "gcp-api-key",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sec-rsa",
+      "file": "src/id_rsa",
+      "line": 1,
+      "marker": "PRIVATE KEY",
+      "rule": "private-key",
+      "category": "secret",
+      "severity": "critical",
+      "signal": null
+    },
+    {
+      "fixture": "sast-sqli",
+      "file": "src/db.ts",
+      "line": 3,
+      "marker": "@V:sqli",
+      "rule": "sql-injection",
+      "category": "sast",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "sast-cmdi",
+      "file": "src/sh.ts",
+      "line": 2,
+      "marker": "@V:cmdi",
+      "rule": "command-injection",
+      "category": "sast",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "sast-eval",
+      "file": "src/calc.ts",
+      "line": 1,
+      "marker": "@V:eval",
+      "rule": "eval-injection",
+      "category": "sast",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "sast-xss",
+      "file": "src/render.ts",
+      "line": 1,
+      "marker": "@V:xss",
+      "rule": "reflected-xss",
+      "category": "sast",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "sast-pathtrav",
+      "file": "src/file.ts",
+      "line": 2,
+      "marker": "@V:pathtrav",
+      "rule": "path-traversal",
+      "category": "sast",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "sast-md5",
+      "file": "src/hash.ts",
+      "line": 2,
+      "marker": "@V:weakhash",
+      "rule": "weak-hash",
+      "category": "sast",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "sast-rand",
+      "file": "src/token.ts",
+      "line": 1,
+      "marker": "@V:insecurerandom",
+      "rule": "insecure-random",
+      "category": "sast",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "sast-ssrf",
+      "file": "src/proxy.ts",
+      "line": 1,
+      "marker": "@V:ssrf",
+      "rule": "ssrf",
+      "category": "sast",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "deps-lodash",
+      "file": "package.json",
+      "line": 6,
+      "marker": "\"lodash\": \"4.17.4\"",
+      "rule": "cve:lodash",
+      "category": "deps",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "deps-axios",
+      "file": "package.json",
+      "line": 6,
+      "marker": "\"axios\": \"0.18.0\"",
+      "rule": "cve:axios",
+      "category": "deps",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "deps-jwt",
+      "file": "package.json",
+      "line": 6,
+      "marker": "\"jsonwebtoken\": \"8.5.1\"",
+      "rule": "cve:jsonwebtoken",
+      "category": "deps",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "deps-minimist",
+      "file": "package.json",
+      "line": 6,
+      "marker": "\"minimist\": \"1.2.0\"",
+      "rule": "cve:minimist",
+      "category": "deps",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "deps-marked",
+      "file": "package.json",
+      "line": 6,
+      "marker": "\"marked\": \"0.3.6\"",
+      "rule": "cve:marked",
+      "category": "deps",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "deps-nodefetch",
+      "file": "package.json",
+      "line": 6,
+      "marker": "\"node-fetch\": \"2.6.0\"",
+      "rule": "cve:node-fetch",
+      "category": "deps",
+      "severity": "high",
+      "signal": null
+    },
+    {
+      "fixture": "lgpd-art33",
+      "file": "src/analytics.ts",
+      "line": 2,
+      "marker": "@L:art33-intl-transfer",
+      "rule": "lgpd-art33-contradiction",
+      "category": "lgpd",
+      "severity": "high",
+      "signal": "transfer[êe]ncia internacional|art\\.?\\s*33|contradi"
+    },
+    {
+      "fixture": "lgpd-operador",
+      "file": "src/monitor.ts",
+      "line": 2,
+      "marker": "@L:undeclared-operator",
+      "rule": "lgpd-undeclared-operator",
+      "category": "lgpd",
+      "severity": "medium",
+      "signal": "operador n[ãa]o declarado|undeclared operator|sub-?operador|sentry"
+    },
+    {
+      "fixture": "lgpd-log",
+      "file": "src/auth.ts",
+      "line": 2,
+      "marker": "@L:sensitive-in-log",
+      "rule": "lgpd-sensitive-data-in-log",
+      "category": "lgpd",
+      "severity": "high",
+      "signal": "sens[íi]vel.*log|dado.*em log|log.*(cpf|senha)"
+    },
+    {
+      "fixture": "lgpd-ropa",
+      "file": "prisma/schema.prisma",
+      "line": 5,
+      "marker": "@L:ropa-sensitive",
+      "rule": "lgpd-ropa-sensitive",
+      "category": "lgpd",
+      "severity": "high",
+      "signal": "ropa|invent[áa]rio de dados|dados pessoais.*schema"
+    },
+    {
+      "fixture": "lgpd-senha",
+      "file": "src/register.ts",
+      "line": 3,
+      "marker": "@L:password-no-hash",
+      "rule": "lgpd-password-no-hash",
+      "category": "lgpd",
+      "severity": "high",
+      "signal": "senha sem hash|password.*hash|armazenamento de senha"
+    },
+    {
+      "fixture": "lgpd-sempolitica",
+      "file": "prisma/schema.prisma",
+      "line": 3,
+      "marker": "@L:collects-personal",
+      "rule": "lgpd-missing-privacy-policy",
+      "category": "lgpd",
+      "severity": "medium",
+      "signal": "sem pol[íi]tica|pol[íi]tica de privacidade ausente|privacidade n[ãa]o encontrada"
+    }
+  ]
+}

@@ -29,7 +29,13 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "bench:test": "node --test bench/**/*.test.mjs",
+    "bench:fixtures": "node bench/fixtures/generate.mjs",
+    "bench:corpus": "node bench/corpus/build-manifest.mjs && node bench/corpus/freeze.mjs",
+    "bench:run": "node bench/runner/run-batch.mjs",
+    "bench:report": "node bench/report/build-report.mjs",
+    "bench:full": "pnpm build && pnpm bench:fixtures && pnpm bench:corpus && pnpm bench:run && node bench/crosscheck/run-incumbents.mjs && pnpm bench:report"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-07-11T13:23:11.532Z",
+  "corpus": {
+    "totalRecords": 3,
+    "realRepos": 3,
+    "byStratum": {
+      "br-lgpd": {
+        "repos": 2,
+        "findings": 0
+      },
+      "nextjs": {
+        "repos": 1,
+        "findings": 2
+      }
+    }
+  },
+  "robustness": {
+    "timeout": 2,
+    "ok": 1
+  },
+  "recall": {
+    "overall": {
+      "point": 0.1333,
+      "low": 0.0531,
+      "high": 0.2968,
+      "n": 30,
+      "k": 4
+    },
+    "byCategory": {
+      "secret": {
+        "point": 0.1,
+        "low": 0.0179,
+        "high": 0.4042,
+        "n": 10,
+        "k": 1
+      },
+      "sast": {
+        "point": 0,
+        "low": 0,
+        "high": 0.3244,
+        "n": 8,
+        "k": 0
+      },
+      "deps": {
+        "point": 0,
+        "low": 0,
+        "high": 0.3903,
+        "n": 6,
+        "k": 0
+      },
+      "lgpd": {
+        "point": 0.5,
+        "low": 0.1876,
+        "high": 0.8124,
+        "n": 6,
+        "k": 3
+      }
+    },
+    "skipped": {
+      "semgrep": 30,
+      "deps": 30
+    },
+    "missedCount": 26
+  },
+  "precision": null,
+  "incumbentsAvailable": 0,
+  "reproducibility": {
+    "checked": 3,
+    "ok": 3,
+    "drift": 0,
+    "vanished": 0
+  }
+}
