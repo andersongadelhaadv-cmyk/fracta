@@ -1,6 +1,6 @@
 # Relatório de validação em escala — Fracta
 
-**Gerado:** 2026-07-11T13:23:11.532Z · **Registros:** 3 (3 repos reais + 0 fixtures)
+**Gerado:** 2026-07-11T18:54:12.983Z · **Registros:** 51 (21 repos reais + 30 fixtures)
 
 > Reproduzível: `pnpm bench:report` reconstrói estes números a partir de `results/summary.jsonl` (redigido, versionado) — sem re-clonar. A rodada cara é `bench:full`.
 
@@ -8,8 +8,7 @@
 
 | Desfecho | Repos |
 |---|---|
-| timeout | 2 |
-| ok | 1 |
+| ok | 51 |
 
 Reprodutibilidade do corpus: 3 ok · 0 drift · 0 sumiram (de 3 verificados).
 
@@ -17,27 +16,22 @@ Reprodutibilidade do corpus: 3 ok · 0 drift · 0 sumiram (de 3 verificados).
 
 | Categoria | Recall | IC 95% |
 |---|---|---|
-| secret | 10% | [2–40%] (n=10) |
-| sast | 0% | [0–32%] (n=8) |
+| secret | 50% | [24–76%] (n=10) |
+| sast | 13% | [2–47%] (n=8) |
 | deps | 0% | [0–39%] (n=6) |
 | lgpd | 50% | [19–81%] (n=6) |
-| **geral** | **13%** | **[5–30%] (n=30)** |
+| **geral** | **30%** | **[17–48%] (n=30)** |
 
-> ⚠️ Honestidade: SEMGREP pulou em 30 fixture(s) e DEPENDENCIES em 30 — `skipped` **≠** `clean`. SAST via semgrep é lento no Windows (roda em Linux/CI, ver Docker); deps exige lockfile+rede. Recall dessas categorias aqui é **piso**, não teto.
+> ⚠️ Honestidade: SEMGREP pulou em 0 fixture(s) e DEPENDENCIES em 30 — `skipped` **≠** `clean`. SAST via semgrep é lento no Windows (roda em Linux/CI, ver Docker); deps exige lockfile+rede. Recall dessas categorias aqui é **piso**, não teto.
 
-<details><summary>Itens não detectados (26)</summary>
+<details><summary>Itens não detectados (21)</summary>
 
-- sec-aws-key/src/aws.ts:2 (aws-access-key-id)
 - sec-aws-secret/src/aws.ts:2 (aws-secret-access-key)
-- sec-github-pat/src/gh.ts:2 (github-pat)
 - sec-generic/src/cfg.ts:2 (generic-api-key)
 - sec-slack/src/slack.ts:2 (slack-access-token)
-- sec-npm/src/.npmrc:2 (npm-access-token)
 - sec-jwt/src/jwt.ts:2 (jwt)
 - sec-gcp/src/gcp.ts:2 (gcp-api-key)
-- sec-rsa/src/id_rsa:1 (private-key)
 - sast-sqli/src/db.ts:3 (sql-injection)
-- sast-cmdi/src/sh.ts:2 (command-injection)
 - sast-eval/src/calc.ts:1 (eval-injection)
 - sast-xss/src/render.ts:1 (reflected-xss)
 - sast-pathtrav/src/file.ts:2 (path-traversal)
@@ -64,12 +58,17 @@ _Pendente rotulagem humana._ Gere a fila com `node bench/report/label-queue.mjs`
 
 | Estrato | Repos | Findings |
 |---|---|---|
-| br-lgpd | 2 | 0 |
-| nextjs | 1 | 2 |
+| br-lgpd | 3 | 147 |
+| django-python | 3 | 136 |
+| laravel-php | 3 | 6 |
+| monorepo-large | 3 | 327 |
+| nestjs-node | 3 | 228 |
+| nextjs | 3 | 8 |
+| wordpress-legacy | 3 | 11 |
 
 ## Comparativa vs incumbentes
 
-_Cross-check não rodado (`node bench/crosscheck/run-incumbents.mjs`). Canônica hand-checked: `docs/benchmark.md` (15/18)._
+Cross-check disponível sobre 30 alvo(s) (`results/incumbents.json`). Incumbentes são presos à pista (gitleaks→segredos, semgrep→SAST, trivy→deps); **LGPD = 0 para todos, não-zero só no Fracta**. A tabela conferida à mão (15/18) segue canônica em `docs/benchmark.md`.
 
 
 ## O QUE ESTE BENCHMARK **NÃO** MEDE

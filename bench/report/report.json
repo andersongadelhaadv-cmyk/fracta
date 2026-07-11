@@ -1,45 +1,64 @@
 {
-  "generatedAt": "2026-07-11T13:23:11.532Z",
+  "generatedAt": "2026-07-11T18:54:12.983Z",
   "corpus": {
-    "totalRecords": 3,
-    "realRepos": 3,
+    "totalRecords": 51,
+    "realRepos": 21,
     "byStratum": {
       "br-lgpd": {
-        "repos": 2,
-        "findings": 0
+        "repos": 3,
+        "findings": 147
+      },
+      "django-python": {
+        "repos": 3,
+        "findings": 136
+      },
+      "laravel-php": {
+        "repos": 3,
+        "findings": 6
+      },
+      "monorepo-large": {
+        "repos": 3,
+        "findings": 327
+      },
+      "nestjs-node": {
+        "repos": 3,
+        "findings": 228
       },
       "nextjs": {
-        "repos": 1,
-        "findings": 2
+        "repos": 3,
+        "findings": 8
+      },
+      "wordpress-legacy": {
+        "repos": 3,
+        "findings": 11
       }
     }
   },
   "robustness": {
-    "timeout": 2,
-    "ok": 1
+    "ok": 51
   },
   "recall": {
     "overall": {
-      "point": 0.1333,
-      "low": 0.0531,
-      "high": 0.2968,
+      "point": 0.3,
+      "low": 0.1666,
+      "high": 0.4788,
       "n": 30,
-      "k": 4
+      "k": 9
     },
     "byCategory": {
       "secret": {
-        "point": 0.1,
-        "low": 0.0179,
-        "high": 0.4042,
+        "point": 0.5,
+        "low": 0.2366,
+        "high": 0.7634,
         "n": 10,
-        "k": 1
+        "k": 5
       },
       "sast": {
-        "point": 0,
-        "low": 0,
-        "high": 0.3244,
+        "point": 0.125,
+        "low": 0.0224,
+        "high": 0.4709,
         "n": 8,
-        "k": 0
+        "k": 1
       },
       "deps": {
         "point": 0,
@@ -57,13 +76,13 @@
       }
     },
     "skipped": {
-      "semgrep": 30,
+      "semgrep": 0,
       "deps": 30
     },
-    "missedCount": 26
+    "missedCount": 21
   },
   "precision": null,
-  "incumbentsAvailable": 0,
+  "incumbentsAvailable": 30,
   "reproducibility": {
     "checked": 3,
     "ok": 3,
