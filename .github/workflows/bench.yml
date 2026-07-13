@@ -69,7 +69,7 @@ jobs:
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" | tar -xz -C /tmp gitleaks
           sudo mv /tmp/gitleaks /usr/local/bin/ && gitleaks version
           pipx install semgrep && semgrep --version
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: manifest, path: bench/corpus }
       - name: batch do estrato ${{ matrix.stratum }}
         env:
@@ -109,7 +109,7 @@ jobs:
           node bench/fixtures/generate.mjs
           node bench/runner/run-batch.mjs --fixtures --concurrency 4 --timeout-ms 300000
           node bench/crosscheck/run-incumbents.mjs --fixtures || true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { pattern: summary-*, path: shards, merge-multiple: true }
       - name: funde os shards reais no summary.jsonl (fixtures + reais)
         run: |
