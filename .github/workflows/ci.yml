@@ -10,7 +10,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
 
@@ -36,7 +36,7 @@ jobs:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # histórico completo p/ a varredura
       - uses: gitleaks/gitleaks-action@v2
@@ -53,7 +53,7 @@ jobs:
     name: Dogfood (fracta scan self)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
       - uses: actions/setup-node@v4
         with:
@@ -87,7 +87,7 @@ jobs:
     name: Deps audit + SBOM
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
       - uses: actions/setup-node@v4
         with:
@@ -127,7 +127,7 @@ jobs:
     name: Node 20 smoke (graceful degradation)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
       - uses: actions/setup-node@v4
         with:

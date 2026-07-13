@@ -27,7 +27,7 @@ jobs:
   corpus:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
@@ -57,7 +57,7 @@ jobs:
       matrix:
         stratum: [nextjs, nestjs-node, laravel-php, django-python, wordpress-legacy, monorepo-large, br-lgpd]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
@@ -90,7 +90,7 @@ jobs:
     if: always()               # gera mesmo se um estrato falhou (robustez conta os desfechos)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
