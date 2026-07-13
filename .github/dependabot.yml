@@ -1,14 +1,13 @@
 version: 2
 updates:
-  # Dependências npm/pnpm de todo o monorepo (raiz + apps + packages).
-  # Agrupado p/ reduzir ruído; patches de segurança vêm em PRs semanais.
+  # Monorepo pnpm = UM único pnpm-lock.yaml na RAIZ.
+  # Apontar o dependabot para os sub-diretórios (apps/web, packages/*) o fazia bumpar o
+  # package.json de um workspace SEM regenerar o lockfile da raiz → TODO job morria em
+  # `pnpm install --frozen-lockfile` (ERR_PNPM_OUTDATED_LOCKFILE). Foi a causa dos PRs
+  # #23/#78 nascerem vermelhos. Com a raiz só, ele enxerga o workspace inteiro (via
+  # pnpm-workspace.yaml) e mantém o lockfile em sincronia.
   - package-ecosystem: "npm"
-    directories:
-      - "/"
-      - "/apps/web"
-      - "/packages/*"
-      - "/packages/agents/*"
-      - "/packages/skills/*"
+    directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 8
@@ -19,6 +18,15 @@ updates:
       dev:
         dependency-type: "development"
         patterns: ["*"]
+    ignore:
+      # Major do Next ADIADO por decisão consciente (o risco do major > a dívida que paga).
+      # Sem este ignore, o dependabot reabre um PR 14→16 toda semana que nunca vai mergear
+      # e polui a home do repo com ❌. Quando for a hora, fazer o major deliberadamente,
+      # com teste — e só então remover este bloco.
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
 
   # Versões das actions usadas nos workflows de CI/CD.
   - package-ecosystem: "github-actions"

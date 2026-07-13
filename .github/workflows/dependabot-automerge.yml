@@ -1,0 +1,37 @@
+name: Dependabot auto-merge
+
+# Mergeia os PRs do dependabot SOZINHO — mas só quando o CI fecha verde.
+#
+# Depende de 2 coisas configuradas no repo (settings, não versionadas):
+#   1. "Allow auto-merge" habilitado;
+#   2. branch protection no `master` com REQUIRED status checks.
+# A (2) é o que dá segurança: SEM check obrigatório, o auto-merge do GitHub mergearia
+# na hora — inclusive um PR vermelho. COM ela, o GitHub só completa o merge depois que
+# os checks obrigatórios passarem.
+#
+# MAJOR fica de fora de propósito: major é decisão humana (ex.: o major do Next está
+# adiado por decisão consciente — ver o `ignore` no dependabot.yml).
+
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Metadados do bump
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Habilitar auto-merge (patch/minor; major = revisão humana)
+        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
