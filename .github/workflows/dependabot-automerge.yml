@@ -38,22 +38,29 @@ jobs:
       #    O verde É a prova — foi assim que checkout@v7 e setup-node@v6 entraram.
       #  - npm: major continua sendo DECISÃO HUMANA (Next, React... aí o risco é de produto,
       #    e o CI verde não prova que a app não regrediu).
-      - name: "Habilitar auto-merge — actions: tudo · npm: só patch/minor"
+      # FAIL-SAFE: para npm, só mergear quando o update-type for EXPLICITAMENTE patch/minor.
+      # Num PR AGRUPADO o fetch-metadata reporta update-type VAZIO — a v2 usava
+      # `!= 'semver-major'`, e '' != 'semver-major' é verdadeiro, então mergeava o grupo
+      # mesmo com um major dentro (foi o que derrubou o master no #85). Com `== patch/minor`,
+      # o desconhecido cai para revisão humana. (github-actions segue liberado inclusive major.)
+      - name: "Habilitar auto-merge — actions: tudo · npm: só patch/minor explícito"
         if: >-
           steps.meta.outputs.package-ecosystem == 'github_actions' ||
-          steps.meta.outputs.update-type != 'version-update:semver-major'
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Major de npm → revisão humana (não mergeia, só avisa)
+      - name: Major/ambíguo de npm → revisão humana (não mergeia, só avisa)
         if: >-
           steps.meta.outputs.package-ecosystem != 'github_actions' &&
-          steps.meta.outputs.update-type == 'version-update:semver-major'
+          steps.meta.outputs.update-type != 'version-update:semver-patch' &&
+          steps.meta.outputs.update-type != 'version-update:semver-minor'
         run: |
-          gh pr comment "$PR_URL" --body "⏸️ **Major de npm — auto-merge NÃO habilitado de propósito.**
-          O CI verde prova que compila, não que a aplicação não regrediu. Major de dependência de produto (Next, React…) é decisão humana. Revise e mergeie à mão."
+          gh pr comment "$PR_URL" --body "⏸️ **npm major ou bump agrupado ambíguo — auto-merge NÃO habilitado.**
+          O CI verde prova que compila, não que a aplicação não regrediu; e num PR agrupado o update-type vem vazio (pode esconder um major). Revise e mergeie à mão."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
