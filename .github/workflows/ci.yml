@@ -14,7 +14,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           # Node 22+ (>=22.5) é obrigatório: @fracta/store usa node:sqlite (builtin
           # só nessa faixa). Em Node 20 os testes do store falham. Casa com o Node 22
@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -89,7 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -129,7 +129,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: pnpm
