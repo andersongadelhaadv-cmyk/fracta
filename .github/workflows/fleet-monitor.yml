@@ -52,7 +52,7 @@ jobs:
       # `issues.create` cego abriria uma issue por DIA. Silêncio virou spam — nenhum serve.
       - name: Sincronizar issue de regressão (abrir / atualizar / fechar)
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs')
