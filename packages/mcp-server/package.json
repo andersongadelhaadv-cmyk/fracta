@@ -42,8 +42,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "undici": "^6.21.0",
-    "yaml": "^2.4.0"
+    "undici": "^8.7.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@fracta/agent-auth": "workspace:*",
