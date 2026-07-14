@@ -56,6 +56,37 @@ export function resultsToBaseline(results: DomainResult[]): Baseline {
   return b
 }
 
+/**
+ * Baseline com CATRACA: só grava o alvo que NÃO regrediu.
+ *
+ * O baseline era sobrescrito com o estado ATUAL a cada run ("alerta em transição").
+ * Efeito colateral grave: um alvo que caía A→C abria a issue no dia 1, mas o C era
+ * gravado como o novo baseline — no dia 2 a comparação virava C-vs-C ("sem regressão")
+ * e o alarme NUNCA MAIS tocava. A degradação era LAVADA para dentro do baseline, e a
+ * frota ficou 7/16 degradada (2 alvos em D) em silêncio por dias.
+ *
+ * Segurando o último estado BOM, a regressão continua sendo detectada a cada run até
+ * alguém de fato consertar — e a catraca só sobe quando o alvo melhora. É o oposto de
+ * inventar verde, que é a razão de existir deste projeto.
+ */
+export function ratchetBaseline(results: DomainResult[], baseline: Baseline): Baseline {
+  const next: Baseline = { ...baseline }
+  for (const r of results) {
+    const base = baseline[r.domain]
+    const entry: BaselineEntry = { grade: r.grade, score: r.score, verdict: r.verdict, scannedAt: r.scannedAt }
+    if (!base) {
+      next[r.domain] = entry // alvo novo: entra como está
+      continue
+    }
+    const regrediu =
+      (r.grade != null && base.grade != null && RANK[r.grade] < RANK[base.grade]) ||
+      (base.verdict === 'ok' && r.verdict === 'inconclusive')
+    if (!regrediu) next[r.domain] = entry // melhorou ou igual → catraca sobe
+    // regrediu → mantém o baseline bom; o alarme segue tocando até consertar
+  }
+  return next
+}
+
 /** Pool de concorrência simples — educado com os alvos e rápido o bastante. */
 async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length)

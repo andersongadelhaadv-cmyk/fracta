@@ -46,7 +46,11 @@ jobs:
             git push
           fi
 
-      - name: Abrir issue em regressão
+      # Issue IDEMPOTENTE: atualiza a existente em vez de abrir uma nova a cada run, e
+      # FECHA sozinha quando a frota recupera. É o par OBRIGATÓRIO da catraca do baseline
+      # (ratchetBaseline): como a regressão agora persiste até ser corrigida, um
+      # `issues.create` cego abriria uma issue por DIA. Silêncio virou spam — nenhum serve.
+      - name: Sincronizar issue de regressão (abrir / atualizar / fechar)
         if: always()
         uses: actions/github-script@v7
         with:
@@ -54,11 +58,30 @@ jobs:
             const fs = require('fs')
             if (!fs.existsSync('regressions.json')) return
             const regs = JSON.parse(fs.readFileSync('regressions.json', 'utf8'))
-            if (!regs.length) { core.info('Sem regressões.'); return }
-            const lines = regs.map(r => {
+            const { owner, repo } = context.repo
+
+            const abertas = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: 'monitor', per_page: 100,
+            })
+            const atual = abertas.data.find((i) => !i.pull_request)
+
+            if (!regs.length) {
+              if (atual) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: atual.number,
+                  body: '✅ Frota recuperada — nenhuma regressão no último scan. Fechando automaticamente.',
+                })
+                await github.rest.issues.update({ owner, repo, issue_number: atual.number, state: 'closed' })
+              }
+              core.info('Sem regressões.')
+              return
+            }
+
+            const lines = regs.map((r) => {
               const what = r.kind === 'grade-drop' ? `nota caiu **${r.before} → ${r.after}**` : `**${r.before} → ${r.after}**`
               return `- **${r.label}** (\`${r.domain}\`): ${what}`
             })
+            const title = `🔻 Regressão na frota (${regs.length})`
             const body = [
               '## ⚠️ Regressão de segurança detectada na frota',
               '',
@@ -66,12 +89,15 @@ jobs:
               '',
               ...lines,
               '',
-              '> Gerado por `.github/workflows/fleet-monitor.yml`. Veja o relatório completo no resumo do run.',
+              `_Última verificação: ${new Date().toISOString()} — esta issue é atualizada a cada run e fecha sozinha quando a frota recuperar._`,
+              '',
+              '> O baseline usa CATRACA: o alvo degradado **continua** sendo reportado até ser de fato corrigido (antes, a queda virava o novo "normal" e o alarme silenciava).',
+              '> Gerado por `.github/workflows/fleet-monitor.yml`.',
             ].join('\n')
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🔻 Regressão na frota (${regs.length})`,
-              body,
-              labels: ['monitor', 'security'],
-            })
+
+            if (atual) {
+              await github.rest.issues.update({ owner, repo, issue_number: atual.number, title, body })
+              core.info(`Issue #${atual.number} atualizada (${regs.length} regressões).`)
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body, labels: ['monitor', 'security'] })
+            }
