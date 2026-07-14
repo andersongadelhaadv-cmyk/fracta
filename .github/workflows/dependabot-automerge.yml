@@ -29,9 +29,31 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Habilitar auto-merge (patch/minor; major = revisão humana)
-        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+      # Política por ECOSSISTEMA — a v1 excluía TODO major do auto-merge, e o repo voltou a
+      # acumular 7 PRs em dias. Motivo: a maioria dos bumps de GitHub Actions É major (o
+      # forçado node20→node24), e eles são de baixo risco E validados pelo próprio CI.
+      #
+      #  - github-actions: auto-merge INCLUSIVE major. Se o bump quebrar, o CI fica vermelho
+      #    e o auto-merge simplesmente não completa (os required checks são o guarda-costas).
+      #    O verde É a prova — foi assim que checkout@v7 e setup-node@v6 entraram.
+      #  - npm: major continua sendo DECISÃO HUMANA (Next, React... aí o risco é de produto,
+      #    e o CI verde não prova que a app não regrediu).
+      - name: "Habilitar auto-merge — actions: tudo · npm: só patch/minor"
+        if: >-
+          steps.meta.outputs.package-ecosystem == 'github_actions' ||
+          steps.meta.outputs.update-type != 'version-update:semver-major'
         run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Major de npm → revisão humana (não mergeia, só avisa)
+        if: >-
+          steps.meta.outputs.package-ecosystem != 'github_actions' &&
+          steps.meta.outputs.update-type == 'version-update:semver-major'
+        run: |
+          gh pr comment "$PR_URL" --body "⏸️ **Major de npm — auto-merge NÃO habilitado de propósito.**
+          O CI verde prova que compila, não que a aplicação não regrediu. Major de dependência de produto (Next, React…) é decisão humana. Revise e mergeie à mão."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
