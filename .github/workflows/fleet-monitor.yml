@@ -29,6 +29,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter "@fracta/fleet-monitor..." build
 
+      # O estado mutável do bot VIVE numa branch dedicada (monitor-baseline), não no master.
+      # Motivo: o master é protegido (required status checks) para que o auto-merge do
+      # dependabot só complete no VERDE. Essa proteção — corretamente — também barra o push
+      # do bot (`GH006: Protected branch update failed`), e o monitor passou a falhar.
+      # Enfraquecer a proteção seria trocar segurança por conveniência. Então:
+      #   - `master` guarda o PISO inicial (versionado, revisável em PR);
+      #   - `monitor-baseline` guarda o estado corrente, que o bot atualiza sozinho.
+      - name: Buscar o baseline vigente (branch dedicada; fallback = o piso do master)
+        run: |
+          if git fetch origin monitor-baseline 2>/dev/null && git cat-file -e origin/monitor-baseline:fleet-baseline.json 2>/dev/null; then
+            git show origin/monitor-baseline:fleet-baseline.json > fleet-baseline.json
+            echo "baseline: branch monitor-baseline"
+          else
+            echo "baseline: piso versionado no master (branch dedicada ainda não existe)"
+          fi
+
       - name: Re-scan passivo da frota
         run: node packages/fleet-monitor/dist/cli.js --baseline fleet-baseline.json --out .
 
@@ -36,14 +52,19 @@ jobs:
         if: always()
         run: cat fleet-report.md >> "$GITHUB_STEP_SUMMARY" || true
 
-      - name: Commit do baseline (se mudou)
+      - name: Persistir baseline na branch dedicada (nunca no master protegido)
         run: |
-          if ! git diff --quiet fleet-baseline.json 2>/dev/null; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add fleet-baseline.json
-            git commit -m "chore(monitor): atualiza baseline da frota [skip ci]"
-            git push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          tmp=$(mktemp) && cp fleet-baseline.json "$tmp"
+          git checkout -B monitor-baseline
+          cp "$tmp" fleet-baseline.json
+          git add -f fleet-baseline.json
+          if git diff --cached --quiet; then
+            echo "baseline inalterado — nada a persistir"
+          else
+            git commit -m "chore(monitor): baseline da frota [skip ci]"
+            git push -f origin monitor-baseline
           fi
 
       # Issue IDEMPOTENTE: atualiza a existente em vez de abrir uma nova a cada run, e
@@ -60,8 +81,12 @@ jobs:
             const regs = JSON.parse(fs.readFileSync('regressions.json', 'utf8'))
             const { owner, repo } = context.repo
 
+            // Label DEDICADA (`fleet-regression`): só a issue auto-gerada pelo bot a carrega.
+            // Antes eu buscava por `monitor` — label que HUMANOS também usam — e o bot
+            // SOBRESCREVEU o título e o corpo de uma issue humana (#88). Matching frouxo em
+            // código que ESCREVE é destrutivo: a chave precisa ser exclusiva de quem escreve.
             const abertas = await github.rest.issues.listForRepo({
-              owner, repo, state: 'open', labels: 'monitor', per_page: 100,
+              owner, repo, state: 'open', labels: 'fleet-regression', per_page: 100,
             })
             const atual = abertas.data.find((i) => !i.pull_request)
 
@@ -99,5 +124,5 @@ jobs:
               await github.rest.issues.update({ owner, repo, issue_number: atual.number, title, body })
               core.info(`Issue #${atual.number} atualizada (${regs.length} regressões).`)
             } else {
-              await github.rest.issues.create({ owner, repo, title, body, labels: ['monitor', 'security'] })
+              await github.rest.issues.create({ owner, repo, title, body, labels: ['fleet-regression', 'monitor', 'security'] })
             }
