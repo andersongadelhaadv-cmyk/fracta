@@ -21,7 +21,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6 # versão vem do packageManager do package.json
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22   # o motor (node:sqlite/undici) pede >= 22
           cache: pnpm
