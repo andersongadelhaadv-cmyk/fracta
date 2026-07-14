@@ -521,7 +521,7 @@ importers:
         specifier: ^1.0.0
         version: 1.29.0(zod@4.4.3)
       undici:
-        specifier: ^6.21.0
+        specifier: ^6.27.0
         version: 6.27.0
       yaml:
         specifier: ^2.4.0
@@ -739,7 +739,7 @@ importers:
         specifier: workspace:*
         version: link:../core
       undici:
-        specifier: ^6.21.0
+        specifier: ^6.27.0
         version: 6.27.0
     devDependencies:
       '@types/node':
