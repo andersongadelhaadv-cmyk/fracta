@@ -39,7 +39,7 @@ jobs:
           if [ -n "${{ inputs.limit }}" ]; then EXTRA="--limit ${{ inputs.limit }}"; fi
           node bench/corpus/build-manifest.mjs $EXTRA
           node bench/corpus/freeze.mjs || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: manifest
           path: |
@@ -78,7 +78,7 @@ jobs:
         run: node bench/runner/run-batch.mjs --stratum ${{ matrix.stratum }} --concurrency 4 --timeout-ms 600000
       - name: renomeia o shard redigido (metadata-only; raw.json NÃO é publicado)
         run: cp bench/results/summary.jsonl "summary-${{ matrix.stratum }}.jsonl"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: summary-${{ matrix.stratum }}
           path: summary-${{ matrix.stratum }}.jsonl
@@ -126,7 +126,7 @@ jobs:
             [ -f "$p/raw.json" ] && cp "$p/raw.json" "fixture-raws/$(basename "$p").json" || true
           done
           ls -1 fixture-raws | wc -l
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bench-report
           path: |
