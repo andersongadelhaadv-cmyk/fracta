@@ -12,11 +12,19 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 8
     groups:
+      # `update-types` limita o GRUPO a minor+patch DE PROPÓSITO. Sem isso, um major
+      # entra AGRUPADO — e num PR agrupado o `fetch-metadata` reporta `update-type` vazio,
+      # então o auto-merge ("npm só patch/minor") não reconhece o major e mergeia mesmo
+      # assim. Foi o que derrubou o master no #85 (undici 6→8 + react 18→19). Com o grupo
+      # restrito, todo major de npm nasce como PR SINGLETON, onde o update-type é confiável
+      # e o auto-merge bloqueia. (github-actions segue liberado a major noutro bloco.)
       production:
         dependency-type: "production"
+        update-types: ["minor", "patch"]
         patterns: ["*"]
       dev:
         dependency-type: "development"
+        update-types: ["minor", "patch"]
         patterns: ["*"]
     ignore:
       # Major do Next ADIADO por decisão consciente (o risco do major > a dívida que paga).
@@ -26,6 +34,17 @@ updates:
       - dependency-name: "next"
         update-types: ["version-update:semver-major"]
       - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
+      # undici 8 QUEBRA o lookup SSRF-safe (safe-fetch.ts): o connect.lookup do undici 8
+      # muda o contrato e o fetch a 127.0.0.1 falha → passive-scanner dá 'inconclusive'.
+      # Adiado até o guard ser adaptado ao undici 8, com teste. Foi a causa do #85.
+      - dependency-name: "undici"
+        update-types: ["version-update:semver-major"]
+      # react/react-dom 19 é major de PRODUTO — o CI verde não prova que a app não regrediu.
+      # Fazer o 18→19 deliberadamente, com QA. (Entrou por engano agrupado no #85.)
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
         update-types: ["version-update:semver-major"]
 
   # Versões das actions usadas nos workflows de CI/CD.
