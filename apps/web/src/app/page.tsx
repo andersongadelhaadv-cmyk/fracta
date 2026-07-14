@@ -1,4 +1,4 @@
-import { Wordmark } from '@/components/Wordmark'
+import { Header } from '@/components/Header'
 import { ScanForm } from '@/components/ScanForm'
 import { SampleReport } from '@/components/SampleReport'
 import { Pipeline } from '@/components/Pipeline'
@@ -6,23 +6,13 @@ import { FleetProof } from '@/components/FleetProof'
 import { ZapApiSupporter } from '@/components/ZapApiSupporter'
 import { Footer } from '@/components/Footer'
 import { CopyBlock } from '@/components/CopyBlock'
-import { REPO_URL, MCP_INSTALL_CMD } from '@/lib/config'
+import { MCP_INSTALL_CMD } from '@/lib/config'
 
 export default function Home() {
   return (
     <main className="relative">
       {/* nav */}
-      <header className="mx-auto flex max-w-content items-center justify-between px-5 py-5">
-        <Wordmark className="text-base" />
-        <nav className="flex items-center gap-5 text-sm text-muted">
-          <a href="#medimos" className="hover:text-text">o que medimos</a>
-          <a href="/mcp" className="hover:text-text">editor &amp; CLI</a>
-          <a href="/blog" className="hover:text-text">blog</a>
-          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:text-accent">
-            github ↗
-          </a>
-        </nav>
-      </header>
+      <Header />
 
       {/* hero */}
       <section className="relative overflow-hidden border-b border-border">
