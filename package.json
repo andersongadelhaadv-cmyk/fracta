@@ -38,7 +38,7 @@
     "bench:full": "pnpm build && pnpm bench:fixtures && pnpm bench:corpus && pnpm bench:run && node bench/crosscheck/run-incumbents.mjs && pnpm bench:report"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^26.1.1",
     "tsup": "^8.0.0",
     "turbo": "^2.10.5",
     "typescript": "^5.4.0",
