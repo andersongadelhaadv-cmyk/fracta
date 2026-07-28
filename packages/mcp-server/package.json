@@ -41,8 +41,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "undici": "^6.21.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "undici": "^6.28.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
