@@ -17,8 +17,8 @@ importers:
   .:
     devDependencies:
       '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.39
+        specifier: ^26.1.2
+        version: 26.1.2
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -30,7 +30,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -75,8 +75,8 @@ importers:
         version: 11.0.5
     devDependencies:
       '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.39
+        specifier: ^26.1.2
+        version: 26.1.2
       '@types/react':
         specifier: 18.3.3
         version: 18.3.3
@@ -103,7 +103,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/auth:
     dependencies:
@@ -113,7 +113,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -122,7 +122,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/compliance:
     dependencies:
@@ -132,7 +132,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -141,7 +141,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/dependencies:
     dependencies:
@@ -151,7 +151,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -160,7 +160,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/dns:
     dependencies:
@@ -170,7 +170,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -179,7 +179,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/docs:
     dependencies:
@@ -189,7 +189,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -198,7 +198,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/headers:
     dependencies:
@@ -208,7 +208,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -217,7 +217,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/idor:
     dependencies:
@@ -227,7 +227,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -236,7 +236,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/infra:
     dependencies:
@@ -246,7 +246,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -255,7 +255,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/race:
     dependencies:
@@ -265,7 +265,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -274,7 +274,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/secrets:
     dependencies:
@@ -284,7 +284,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -293,7 +293,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/semgrep:
     dependencies:
@@ -303,7 +303,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -312,7 +312,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/stack:
     dependencies:
@@ -322,7 +322,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -331,7 +331,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/stripe:
     dependencies:
@@ -341,7 +341,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -350,7 +350,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/agents/tenant:
     dependencies:
@@ -360,7 +360,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -369,7 +369,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/cli:
     dependencies:
@@ -448,7 +448,7 @@ importers:
         version: link:../verify
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -460,7 +460,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -469,7 +469,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/fleet-monitor:
     dependencies:
@@ -479,7 +479,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -488,7 +488,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/llm:
     dependencies:
@@ -501,7 +501,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -510,7 +510,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/mcp-server:
     dependencies:
@@ -598,7 +598,7 @@ importers:
         version: link:../web-scan
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -614,7 +614,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -623,7 +623,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/skills/nestjs:
     dependencies:
@@ -633,7 +633,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -642,7 +642,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/skills/prisma:
     dependencies:
@@ -652,7 +652,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -661,7 +661,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/skills/supabase:
     dependencies:
@@ -671,7 +671,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 20.19.39
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -680,7 +680,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@20.19.39)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/store:
     dependencies:
@@ -689,8 +689,8 @@ importers:
         version: link:../core
     devDependencies:
       '@types/node':
-        specifier: ^22.5.0
-        version: 22.20.0
+        specifier: ^26.1.2
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -699,7 +699,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/verify:
     dependencies:
@@ -713,7 +713,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       playwright:
         specifier: ^1.62.1
         version: 1.62.1
@@ -725,7 +725,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
   packages/web-scan:
     dependencies:
@@ -744,7 +744,7 @@ importers:
     devDependencies:
       '@types/node':
         specifier: '*'
-        version: 22.20.0
+        version: 26.1.2
       tsup:
         specifier: '*'
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.25)(typescript@5.9.3)(yaml@2.9.0)
@@ -753,7 +753,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: '*'
-        version: 1.6.1(@types/node@22.20.0)
+        version: 1.6.1(@types/node@26.1.2)
 
 packages:
 
@@ -1434,11 +1434,8 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node@20.19.39':
-    resolution: {integrity: sha512-orrrD74MBUyK8jOAD/r0+lfa1I2MO6I+vAkmAWzMYbCcgrN4lCrmK52gRFQq/JRxfYPfonkr4b0jcY7Olqdqbw==}
-
-  '@types/node@22.20.0':
-    resolution: {integrity: sha512-QWlFW2wf3nTjC13/DqRnBpR4ZO36VJH/JVBkA/vcnmbTBNQIlnObqyqZE1tUR7+Ni23Lda8R1BxMfbXRpCUx5g==}
+  '@types/node@26.1.2':
+    resolution: {integrity: sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg==}
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
@@ -3715,8 +3712,8 @@ packages:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
 
-  undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+  undici-types@8.3.0:
+    resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
   undici@6.28.0:
     resolution: {integrity: sha512-LIY910g9TI13YS95lrMFrs8Rm/u/irgHeTWoKCoteeJ04CUJ92eEfj0rVn+7VKMPBpUPiUoBKfhNyLI23EE/KA==}
@@ -4354,13 +4351,9 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@20.19.39':
+  '@types/node@26.1.2':
     dependencies:
-      undici-types: 6.21.0
-
-  '@types/node@22.20.0':
-    dependencies:
-      undici-types: 6.21.0
+      undici-types: 8.3.0
 
   '@types/prop-types@15.7.15': {}
 
@@ -7200,7 +7193,7 @@ snapshots:
       has-symbols: 1.1.0
       which-boxed-primitive: 1.1.1
 
-  undici-types@6.21.0: {}
+  undici-types@8.3.0: {}
 
   undici@6.28.0: {}
 
@@ -7290,13 +7283,13 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-node@1.6.1(@types/node@20.19.39):
+  vite-node@1.6.1(@types/node@26.1.2):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3
       pathe: 1.1.2
       picocolors: 1.1.1
-      vite: 5.4.21(@types/node@20.19.39)
+      vite: 5.4.21(@types/node@26.1.2)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -7308,43 +7301,16 @@ snapshots:
       - supports-color
       - terser
 
-  vite-node@1.6.1(@types/node@22.20.0):
-    dependencies:
-      cac: 6.7.14
-      debug: 4.4.3
-      pathe: 1.1.2
-      picocolors: 1.1.1
-      vite: 5.4.21(@types/node@22.20.0)
-    transitivePeerDependencies:
-      - '@types/node'
-      - less
-      - lightningcss
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-
-  vite@5.4.21(@types/node@20.19.39):
+  vite@5.4.21(@types/node@26.1.2):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.25
       rollup: 4.60.3
     optionalDependencies:
-      '@types/node': 20.19.39
+      '@types/node': 26.1.2
       fsevents: 2.3.3
 
-  vite@5.4.21(@types/node@22.20.0):
-    dependencies:
-      esbuild: 0.21.5
-      postcss: 8.5.25
-      rollup: 4.60.3
-    optionalDependencies:
-      '@types/node': 22.20.0
-      fsevents: 2.3.3
-
-  vitest@1.6.1(@types/node@20.19.39):
+  vitest@1.6.1(@types/node@26.1.2):
     dependencies:
       '@vitest/expect': 1.6.1
       '@vitest/runner': 1.6.1
@@ -7363,45 +7329,11 @@ snapshots:
       strip-literal: 2.1.1
       tinybench: 2.9.0
       tinypool: 0.8.4
-      vite: 5.4.21(@types/node@20.19.39)
-      vite-node: 1.6.1(@types/node@20.19.39)
+      vite: 5.4.21(@types/node@26.1.2)
+      vite-node: 1.6.1(@types/node@26.1.2)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 20.19.39
-    transitivePeerDependencies:
-      - less
-      - lightningcss
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-
-  vitest@1.6.1(@types/node@22.20.0):
-    dependencies:
-      '@vitest/expect': 1.6.1
-      '@vitest/runner': 1.6.1
-      '@vitest/snapshot': 1.6.1
-      '@vitest/spy': 1.6.1
-      '@vitest/utils': 1.6.1
-      acorn-walk: 8.3.5
-      chai: 4.5.0
-      debug: 4.4.3
-      execa: 8.0.1
-      local-pkg: 0.5.1
-      magic-string: 0.30.21
-      pathe: 1.1.2
-      picocolors: 1.1.1
-      std-env: 3.10.0
-      strip-literal: 2.1.1
-      tinybench: 2.9.0
-      tinypool: 0.8.4
-      vite: 5.4.21(@types/node@22.20.0)
-      vite-node: 1.6.1(@types/node@22.20.0)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@types/node': 22.20.0
+      '@types/node': 26.1.2
     transitivePeerDependencies:
       - less
       - lightningcss
