@@ -708,8 +708,8 @@ importers:
         version: link:../core
     optionalDependencies:
       playwright-core:
-        specifier: ^1.62.0
-        version: 1.62.0
+        specifier: ^1.62.1
+        version: 1.62.1
     devDependencies:
       '@types/node':
         specifier: '*'
@@ -3167,6 +3167,11 @@ packages:
 
   playwright-core@1.62.0:
     resolution: {integrity: sha512-nsNRyq0r2zsG8AcRHWknc9QRA5XCueC7gWMrs+Gx2tlZn9hcl8zudfh00lhJPY1DE7NmZ6bDsT9g2yey8mXljA==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright-core@1.62.1:
+    resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -6503,6 +6508,9 @@ snapshots:
       pathe: 2.0.3
 
   playwright-core@1.62.0: {}
+
+  playwright-core@1.62.1:
+    optional: true
 
   playwright@1.62.0:
     dependencies:
