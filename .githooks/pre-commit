@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# pre-commit do Protocolo Anti-Quebra (ativado por: git config core.hooksPath .githooks)
+ROOT=$(git rev-parse --show-toplevel)
+# Bypass EXCLUSIVO do humano (o hook do agente bloqueia qualquer comando que contenha PROTOCOLO_HUMANO)
+if [ "${PROTOCOLO_HUMANO:-0}" = "1" ]; then echo "pre-commit: bypass humano (PROTOCOLO_HUMANO=1) — commit do kit/ajuste manual"; exit 0; fi
+BASE=$(cat "$ROOT/.claude/run/hash-inicial" 2>/dev/null || echo "")
+bash "$ROOT/scripts/scope-check.sh" "$BASE" || { echo "Commit bloqueado pelo scope-check. Humano: revise; se for legítimo, ajuste .claude/zona-verde."; exit 1; }

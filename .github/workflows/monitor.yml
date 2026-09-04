@@ -5,7 +5,7 @@ name: Fracta Monitor (regression alerts)
 # fica em dry-run até `MONITOR_DRY_RUN=0` + Resend serem setados no .env da VPS (v1b).
 on:
   schedule:
-    - cron: '17 9 * * *' # diário ~09:17 UTC
+    - cron: '17 9 * * 5' # semanal sex ~09:17 UTC (era diário — economia de billing 2026-08-15)
   workflow_dispatch:
 
 permissions:
