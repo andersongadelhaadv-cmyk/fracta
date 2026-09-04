@@ -25,3 +25,6 @@ docs/qa/
 fleet-report.md
 regressions.json
 packages/fleet-monitor/dist/
+.claude/run/
+.claude/settings.local.json
+.claude/zona-verde
