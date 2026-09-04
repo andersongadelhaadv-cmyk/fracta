@@ -13,7 +13,7 @@ shopt -s globstar extglob nullglob
 while IFS= read -r f; do
   [ -z "$f" ] && continue; ok=0
   while IFS= read -r pat; do
-    pat="${pat%%#*}"; pat="$(echo "$pat" | xargs)"; [ -z "$pat" ] && continue
+    pat="${pat%%#*}"; pat="${pat//$'\r'/}"; pat="$(echo "$pat" | xargs)"; [ -z "$pat" ] && continue
     case "$pat" in */) pat="${pat}**";; esac
     # shellcheck disable=SC2053
     [[ "$f" == $pat ]] && { ok=1; break; }
