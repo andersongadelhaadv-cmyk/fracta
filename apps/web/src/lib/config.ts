@@ -12,13 +12,26 @@ export const SITE_URL = process.env.FRACTA_SITE ?? 'https://fracta.pro'
 
 export const REPO_URL = 'https://github.com/andersongadelhaadv-cmyk/fracta'
 /**
- * CTA cross-promo do ZAP-API. Carrega atribuição (`ref`/UTM) para MEDIR quantos
- * assinantes o Fracta manda — sem isso o elo mais importante da tese fica cego.
- * `ref=fracta` distingue esta superfície (web) do MCP (`fracta-mcp`) e do relatório
- * (`fracta-report`).
+ * Destino real do CTA cross-promo do ZAP-API. Carrega atribuição (`ref`/UTM) para
+ * MEDIR quantos assinantes o Fracta manda — sem isso o elo mais importante da tese
+ * fica cego. `ref=fracta` distingue esta superfície (web) do MCP (`fracta-mcp`) e
+ * do relatório (`fracta-report`).
+ *
+ * Só o redirect /go/zap-api usa esta constante; os links do site usam ZAP_API_URL.
  */
-export const ZAP_API_URL =
+export const ZAP_API_DESTINO =
   'https://zap-api.tech?ref=fracta&utm_source=fracta&utm_medium=web&utm_campaign=crosssell'
+
+/**
+ * O que os links do site apontam. Passa pelo redirect próprio para CONTAR o clique
+ * (`zapapi_click` no store agregado) — o UTM mede o lado do ZAP-API, mas sem isto o
+ * Fracta não sabe o DENOMINADOR: quantos viram e quantos clicaram.
+ *
+ * Não pode ser `bump()` direto no componente: ZapApiSupporter é renderizado dentro do
+ * ScanForm (`'use client'`), e o store é `server-only` — quebraria o build. O redirect
+ * funciona nos dois casos, sem JS, e preserva clique-do-meio/nova aba.
+ */
+export const ZAP_API_URL = '/go/zap-api'
 export const PREVIUSIA_URL = 'https://previusia.com.br'
 
 // ── Distribuição MCP + CLI (npm). Fonte ÚNICA reusada pela home, /mcp e CTA. ──

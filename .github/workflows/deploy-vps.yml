@@ -19,11 +19,24 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          # ssh-keyscan flaka de forma transitória — tenta algumas vezes
+          # ssh-keyscan flaka de forma transitória — tenta algumas vezes.
+          # Backoff crescente (10/20/30/40/50s = 150s) e não 5s fixos: quando o
+          # deploy-web sobe no mesmo push, os dois batem no SSH da VPS com ~1s de
+          # diferença e o CrowdSec barra o segundo; 25s não davam tempo de expirar.
+          # E se TODAS falharem o passo TEM de falhar aqui: seguir com known_hosts
+          # vazio deixa este passo verde e mata o seguinte com "Host key
+          # verification failed", que aponta para o lugar errado.
+          ok=0
           for i in 1 2 3 4 5; do
-            ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts && break
-            echo "ssh-keyscan tentativa $i falhou; retry em 5s"; sleep 5
+            if ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts; then ok=1; break; fi
+            echo "ssh-keyscan tentativa $i falhou; retry em $((i * 10))s"
+            sleep $((i * 10))
           done
+          if [ "$ok" != "1" ]; then
+            echo "::error::ssh-keyscan falhou 5x — VPS inacessível ou rate-limit de SSH."
+            exit 1
+          fi
+          test -s ~/.ssh/known_hosts || { echo "::error::known_hosts vazio apos ssh-keyscan"; exit 1; }
 
       - name: Pull, install and build on VPS
         run: |
