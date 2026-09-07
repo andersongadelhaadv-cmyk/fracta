@@ -21,7 +21,7 @@ while IFS= read -r f; do
   [ $ok -eq 0 ] && { echo "FORA DA ZONA VERDE: $f"; VIOL=1; }
 done <<< "$CHANGED"
 
-LINES=$(git diff ${BASE:+"$BASE"} --numstat 2>/dev/null | awk '{s+=$1+$2} END{print s+0}')
+LINES=$(git diff ${BASE:+"$BASE"} --numstat 2>/dev/null | awk '{s+=$1+$2} END{print s+0}'); UNTR=$(git ls-files --others --exclude-standard 2>/dev/null | grep -v '^\.claude/' | xargs -r cat 2>/dev/null | wc -l); LINES=$((LINES+UNTR))
 [ "$LINES" -gt "${MAX_DIFF_LINES:-150}" ] && echo "AVISO: diff acumulado com $LINES linhas (> ${MAX_DIFF_LINES:-150}). Justifique no relatório." && [ "${STRICT_DIFF_SIZE:-0}" = "1" ] && VIOL=1
 
 for f in $(git diff ${BASE:+"$BASE"} --name-only --diff-filter=MD 2>/dev/null | grep -E '(\.test\.|\.spec\.|__tests__/|/tests?/|_test\.(py|go)$|\.snap$|conftest\.py)' || true); do

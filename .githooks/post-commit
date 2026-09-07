@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# post-commit do Protocolo Anti-Quebra: um commit HUMANO (PROTOCOLO_HUMANO=1) move o hash inicial da sessão,
+# para que o scope-check não acuse o trabalho do humano como se fosse do agente. Commits do agente NÃO movem.
+ROOT=$(git rev-parse --show-toplevel)
+if [ "${PROTOCOLO_HUMANO:-0}" = "1" ]; then
+  mkdir -p "$ROOT/.claude/run" && git rev-parse HEAD > "$ROOT/.claude/run/hash-inicial"
+  echo "post-commit: hash-inicial da sessão movido para $(git rev-parse --short HEAD) (commit humano)"
+fi
+exit 0
