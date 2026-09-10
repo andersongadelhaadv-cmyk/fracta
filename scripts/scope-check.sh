@@ -36,7 +36,7 @@ if git diff ${BASE:+"$BASE"} --name-only --diff-filter=D 2>/dev/null | grep -q .
 fi
 
 # Segredos e dados pessoais nas linhas adicionadas
-if git diff ${BASE:+"$BASE"} -- . ':(exclude)docs/protocolo' ':(exclude).claude' ':(exclude)scripts/scope-check.sh' ':(exclude)*/CLAUDE.md' ':(exclude)CLAUDE.md' 2>/dev/null | grep -E '^\+[^+]' | grep -Eq '(\b[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}\b|\b[0-9]{7}-[0-9]{2}\.[0-9]{4}\.[0-9]\.[0-9]{2}\.[0-9]{4}\b|\bsk-[A-Za-z0-9_-]{20,}|\bAKIA[0-9A-Z]{16}\b|\beyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|(password|passwd|senha|secret|token|api[_-]?key)\s*[:=]\s*["'"'"'][^"'"'"']{6,}|://[^/\s:]+:[^/\s@]+@)'; then
+if git diff ${BASE:+"$BASE"} -- . ':(exclude)docs/protocolo' ':(exclude).claude' ':(exclude)scripts/scope-check.sh' ':(exclude)*/CLAUDE.md' ':(exclude)CLAUDE.md' 2>/dev/null | grep -E '^\+[^+]' | grep -Eq '(\b[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}\b|\b[0-9]{7}-[0-9]{2}\.[0-9]{4}\.[0-9]\.[0-9]{2}\.[0-9]{4}\b|\bsk-[A-Za-z0-9_-]{20,}|\bAKIA[0-9A-Z]{16}\b|\beyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|(password|passwd|senha|secret|token|api[_-]?key)\s*[:=]\s*["'"'"'][^"'"'"']{6,}|://[^/[:space:]:]+:[^/[:space:]@]+@)'; then
   echo "BLOQUEADO: possível segredo ou dado pessoal (CPF, nº CNJ, chave, senha) nas linhas adicionadas. Remova antes de entregar."; VIOL=1
 fi
 
