@@ -12,8 +12,9 @@ export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }))
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const post = await getPostBySlug(params.slug)
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
+  const post = await getPostBySlug(slug)
   if (!post) return { title: 'Artigo não encontrado' }
   const url = `${SITE}/blog/${post.slug}`
   return {
@@ -47,8 +48,9 @@ function fmtDate(iso: string): string {
   }
 }
 
-export default async function ArticlePage({ params }: { params: { slug: string } }) {
-  const post = await getPostBySlug(params.slug)
+export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const post = await getPostBySlug(slug)
   if (!post) notFound()
 
   const url = `${SITE}/blog/${post.slug}`

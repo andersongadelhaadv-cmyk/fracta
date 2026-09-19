@@ -44,8 +44,9 @@ async function loadFonts(): Promise<FontEntry[]> {
   return fontsCache
 }
 
-export default async function Image({ params }: { params: { shareId: string } }) {
-  const result = getStore()?.getByShareId(params.shareId) ?? null
+export default async function Image({ params }: { params: Promise<{ shareId: string }> }) {
+  const { shareId } = await params
+  const result = getStore()?.getByShareId(shareId) ?? null
   const grade = result?.grade ?? null
   const color = grade ? GRADE_HEX[grade] ?? NA : NA
   const host = result ? hostOf(result.url) : 'fracta.pro'

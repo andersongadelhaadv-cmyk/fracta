@@ -31,9 +31,10 @@ function badgeSvg(grade: string | null): string {
 </svg>`
 }
 
-export function GET(_req: NextRequest, { params }: { params: { shareId: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ shareId: string }> }) {
+  const { shareId } = await params
   const store = getStore()
-  const result = store?.getByShareId(params.shareId) ?? null
+  const result = store?.getByShareId(shareId) ?? null
   const grade = result ? result.grade : null
   // Medição agregada: um badge embutido foi servido (sinal de distribuição/backlink).
   if (result) store?.bump('badge_served')

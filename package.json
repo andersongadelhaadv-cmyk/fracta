@@ -48,9 +48,6 @@
   "pnpm": {
     "overrides": {
       "hono": "^4.12.27"
-    },
-    "patchedDependencies": {
-      "next@14.2.35": "patches/next@14.2.35.patch"
     }
   }
 }

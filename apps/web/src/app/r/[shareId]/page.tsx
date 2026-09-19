@@ -14,8 +14,9 @@ function getResult(shareId: string) {
   return store?.getByShareId(shareId) ?? null
 }
 
-export function generateMetadata({ params }: { params: { shareId: string } }): Metadata {
-  const result = getResult(params.shareId)
+export async function generateMetadata({ params }: { params: Promise<{ shareId: string }> }): Promise<Metadata> {
+  const { shareId } = await params
+  const result = getResult(shareId)
   if (!result) return { title: 'Relatório não encontrado' }
   let host = result.url
   try { host = new URL(result.url).host } catch { /* mantém */ }
@@ -32,8 +33,9 @@ export function generateMetadata({ params }: { params: { shareId: string } }): M
   }
 }
 
-export default function ResultPage({ params }: { params: { shareId: string } }) {
-  const result = getResult(params.shareId)
+export default async function ResultPage({ params }: { params: Promise<{ shareId: string }> }) {
+  const { shareId } = await params
+  const result = getResult(shareId)
   if (!result) notFound()
 
   // Medição agregada (1x por render de página; generateMetadata não conta):
@@ -47,7 +49,7 @@ export default function ResultPage({ params }: { params: { shareId: string } }) 
         <Link href="/" className="font-mono text-xs text-accent hover:underline">nova análise →</Link>
       </header>
       <div className="px-5 pb-8">
-        <ReportView result={result} shareId={params.shareId} />
+        <ReportView result={result} shareId={shareId} />
       </div>
       <div className="pb-16">
         <EditorCta />
