@@ -31,8 +31,9 @@ async function loadFonts(): Promise<FontEntry[]> {
   return fontsCache
 }
 
-export default async function Image({ params }: { params: { slug: string } }) {
-  const post = await getPostBySlug(params.slug)
+export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const post = await getPostBySlug(slug)
   const title = post?.title ?? 'Fracta — segurança web e LGPD'
   const kicker = post?.tags?.[0]?.toUpperCase() ?? 'SEGURANÇA · LGPD'
   const titleSize = title.length > 70 ? 52 : title.length > 45 ? 64 : 76

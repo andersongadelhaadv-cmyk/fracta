@@ -34,40 +34,23 @@ const nextConfig = {
   ...(useStandalone ? { output: 'standalone' } : {}),
   poweredByHeader: false,
   reactStrictMode: true,
+  // Monorepo: rastreia deps de workspace a partir da raiz p/ o standalone.
+  outputFileTracingRoot: join(__dirname, '../../'),
   /**
-   * 🔴 MITIGAÇÃO DE CVE CRÍTICO — não é preferência de performance.
+   * 🔴 BUILD FIXADO EM WEBPACK (`--webpack` no package.json) — nao e preferencia.
    *
-   * next@14.2.35 tem RCE NÃO AUTENTICADO na Image Optimization API quando o
-   * otimizador decodifica um AVIF (GHSA-p293-qw3h-jr36). Não existe correção na
-   * linha 14.x: a 14.2.35 é a última publicada e a Vercel não fez backport — a
-   * versão corrigida é a 15.5.24, que é salto de major (React 19, `await params`).
+   * O Next 16 passou a usar Turbopack por padrao. Com Turbopack, `@fracta/web-scan`
+   * nao e externalizado direito e o `node:sqlite` some do bundle do servidor:
+   *   Cannot find module 'node:sqlite': Unsupported external type Url for commonjs reference
+   * O store cai, `/api/health` responde 503 e o healthcheck do container reprova o deploy.
+   * Medido em 19/09/2026 no Node v24.11.0 (que TEM node:sqlite): Turbopack -> 503,
+   * `--webpack` -> 200 {"ok":true,"store":"up"}. Mesmo commit, so o bundler muda.
    *
-   * `unoptimized: true` não é cosmético aqui: em
-   * `next/dist/server/next-server.js:167` o handler de `/_next/image` faz
-   *
-   *     if (imagesConfig.loader !== "default" || imagesConfig.unoptimized) {
-   *       await this.render404(req, res); return true;
-   *     }
-   *
-   * ou seja, devolve 404 ANTES de `validateParams`, antes de buscar a imagem e
-   * antes de qualquer decodificação. O caminho vulnerável deixa de existir.
-   * (Verificado no código instalado em 10/09/2026, não na documentação.)
-   *
-   * Custo funcional: ZERO. Este app não importa `next/image` em lugar nenhum —
-   * `<Image` aparece 0 vezes; a única ocorrência de "next/image" no código é o
-   * padrão de exclusão `_next/image` do matcher em `src/middleware.ts:48`.
-   *
-   * ⚠️ REMOVER esta linha ao subir para >= 15.5.24, junto com o upgrade. Se
-   * alguém passar a usar `next/image` antes disso, as imagens vão servir sem
-   * otimização — e aí a conversa é o upgrade, não tirar a trava.
+   * Para voltar ao Turbopack: tirar `--webpack` dos scripts e provar que
+   * `/api/health` responde 200 com o container de pe — nao basta o build passar.
    */
-  images: { unoptimized: true },
-  experimental: {
-    // Monorepo: rastreia deps de workspace a partir da raiz p/ o standalone.
-    outputFileTracingRoot: join(__dirname, '../../'),
-    // Mantém o motor (node:sqlite/dns + undici) como módulo Node real no servidor — nunca bundlado.
-    serverComponentsExternalPackages: ['@fracta/web-scan', '@fracta/core', '@fracta/agent-headers', 'undici'],
-  },
+  // Mantem o motor (node:sqlite/dns + undici) como modulo Node real no servidor — nunca bundlado.
+  serverExternalPackages: ['@fracta/web-scan', '@fracta/core', '@fracta/agent-headers', 'undici'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
   },
