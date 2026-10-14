@@ -3,19 +3,19 @@
     "grade": "A",
     "score": 100,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:08.527Z"
+    "scannedAt": "2026-10-14T07:06:51.617Z"
   },
   "advocus.com.br": {
     "grade": "A",
     "score": 97,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:10.756Z"
+    "scannedAt": "2026-10-14T07:06:53.587Z"
   },
   "veredicto.tech": {
     "grade": "A",
     "score": 94,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:08.631Z"
+    "scannedAt": "2026-10-14T07:06:51.693Z"
   },
   "doutorinss.com": {
     "grade": "A",
@@ -27,7 +27,7 @@
     "grade": "A",
     "score": 97,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:10.535Z"
+    "scannedAt": "2026-10-14T07:06:52.955Z"
   },
   "praetori.com.br": {
     "grade": "A",
@@ -39,37 +39,37 @@
     "grade": "A",
     "score": 94,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:12.914Z"
+    "scannedAt": "2026-10-14T07:06:54.385Z"
   },
   "tribux.pro": {
     "grade": "A",
-    "score": 94,
+    "score": 91,
     "verdict": "ok",
-    "scannedAt": "2026-06-30T21:11:54.528Z"
+    "scannedAt": "2026-10-14T07:06:54.187Z"
   },
   "mftd.com.br": {
-    "grade": "D",
-    "score": 48,
+    "grade": "A",
+    "score": 97,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:12.618Z"
+    "scannedAt": "2026-10-14T07:06:55.035Z"
   },
   "zappbot.pro": {
-    "grade": "D",
-    "score": 48,
+    "grade": "A",
+    "score": 97,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:12.606Z"
+    "scannedAt": "2026-10-14T07:06:55.800Z"
   },
   "zap-api.tech": {
     "grade": "A",
     "score": 94,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:14.228Z"
+    "scannedAt": "2026-10-14T07:06:55.565Z"
   },
   "juribase.com.br": {
     "grade": "A",
     "score": 97,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:14.918Z"
+    "scannedAt": "2026-10-14T07:06:56.381Z"
   },
   "iatech.tech": {
     "grade": "A",
@@ -81,7 +81,7 @@
     "grade": "A",
     "score": 94,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:14.784Z"
+    "scannedAt": "2026-10-14T07:06:56.915Z"
   },
   "meajudadoutores.com.br": {
     "grade": "A",
@@ -93,6 +93,6 @@
     "grade": "A",
     "score": 91,
     "verdict": "ok",
-    "scannedAt": "2026-07-13T08:02:15.826Z"
+    "scannedAt": "2026-07-18T07:31:21.713Z"
   }
 }
