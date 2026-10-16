@@ -4,7 +4,28 @@
 # Usado pelo Stop hook, pelo pre-commit e pela CI. Não edite via agente.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
-BASE="${1:-}"; [ "$BASE" = "sem-git" ] && BASE=""
+# fail-closed: base invalida (scope-check-base-guard v1)
+# Substitui a linha:  BASE="${1:-}"; [ "$BASE" = "sem-git" ] && BASE=""
+# Antes: base invalida (hash com \r, BOM, commit inexistente) fazia todo
+# `git diff ... 2>/dev/null` falhar calado e o script imprimia SCOPE OK.
+RAW_BASE="${1:-}"; BASE="$RAW_BASE"
+BASE="${BASE#$'\xEF\xBB\xBF'}"
+BASE="${BASE%$'\n'}"; BASE="${BASE%$'\r'}"
+BASE="${BASE#"${BASE%%[![:space:]]*}"}"; BASE="${BASE%"${BASE##*[![:space:]]}"}"
+[ "$BASE" = "sem-git" ] && BASE=""
+if [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" != "true" ]; then
+  echo "BLOQUEADO: fora de um repositório git — a checagem não pode aprovar."; exit 1
+fi
+if [ -n "$RAW_BASE" ] && [ -z "$BASE" ] && [ "${RAW_BASE//[[:space:]]/}" != "sem-git" ]; then
+  printf 'BLOQUEADO: base %q ficou vazia após limpeza — a checagem não pode aprovar sem base.\n' "$RAW_BASE"; exit 1
+fi
+case "$BASE" in *[[:cntrl:]]*|-*)
+  printf 'BLOQUEADO: base %q contém caractere de controle ou começa com "-".\n' "$BASE"; exit 1;;
+esac
+if [ -n "$BASE" ] && ! git rev-parse --verify --quiet --end-of-options "${BASE}^{commit}" >/dev/null 2>&1; then
+  printf 'BLOQUEADO: base %q não é um commit válido neste clone — a checagem não pode aprovar sem base. Humano: regrave .claude/run/hash-inicial (git rev-parse HEAD) ou confira o fetch da ref.\n' "$BASE"; exit 1
+fi
+# fim scope-check-base-guard
 ALLOW=".claude/zona-verde"; VIOL=0
 if [ ! -s "$ALLOW" ] || ! grep -qvE '^\s*(#|$)' "$ALLOW"; then echo "FALHA: $ALLOW vazio — nenhuma alteração é permitida"; VIOL=1; fi
 
