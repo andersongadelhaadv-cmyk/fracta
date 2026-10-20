@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
-    "undici": "^6.29.0",
+    "undici": "^6.29.1",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
